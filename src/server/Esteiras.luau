@@ -1,39 +1,37 @@
 -- Modelos 3D das esteiras de corrida: cada nível tem uma esteira diferente,
--- mais bonita conforme o preço. A peça "Pista" é onde o jogador corre: ela
--- empurra para trás, então ele corre parado.
--- O cliente anima as faixas da pista (tag "FaixaEsteira") e o que gira
--- (tag "GirarEsteira"), veja src/client/init.client.luau.
-local AssetService = game:GetService("AssetService")
+-- todas no formato de esteira de academia (deck comprido, colunas, corrimão
+-- e painel), com neon e efeitos cada vez mais fortes.
+-- A peça "Pista" é onde o jogador corre: ela empurra para trás, então ele
+-- corre parado. O cliente anima as faixas da pista (tag "FaixaEsteira") e o
+-- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
 
 local Mapa = require(script.Parent.Mapa)
 
 local Esteiras = {}
 
-Esteiras.TAMANHO_PISTA = Vector3.new(6, 0.4, 12)
 local EMPURRAO = 18 -- velocidade com que a pista empurra o jogador
 local VELOCIDADE_FAIXAS = 12
+local ALTURA_PISTA = 1.05 -- topo da pista acima do chão
+local PRETO = Color3.fromRGB(28, 28, 32)
 
 local FAISCA = "rbxasset://textures/particles/sparkles_main.dds"
-local FOGO = "rbxasset://textures/particles/fire_main.dds"
 local FUMACA = "rbxasset://textures/particles/smoke_main.dds"
 
 type Estilo = {
-	moldura: Color3,
-	materialMoldura: Enum.Material,
-	lateral: Color3,
-	materialLateral: Enum.Material,
+	estrutura: Color3, -- deck, colunas e corrimão
+	material: Enum.Material,
 	pista: Color3,
 	materialPista: Enum.Material,
-	acento: Color3?, -- fita neon dos lados
-	faixas: { Color3 },
-	faixaNeon: boolean,
-	tela: Color3,
-	extra: ((modelo: Model, cf: CFrame) -> ())?,
+	faixa: Color3,
+	neon: Color3?, -- cor das luzes (nil = sem brilho)
+	grosso: boolean?, -- luzes largas, tipo armadura
+	tela: (gui: SurfaceGui, cor: Color3) -> (),
+	extra: ((modelo: Model, cf: CFrame, cor: Color3) -> ())?,
 }
 
 -- Peça decorativa: não colide e não atrapalha cliques nem toques.
-local function enfeite(modelo: Model, cf: CFrame, tamanho: Vector3, cor: Color3, material: Enum.Material, props: any?): Part
+local function enfeite(modelo: Instance, cf: CFrame, tamanho: Vector3, cor: Color3, material: Enum.Material, props: any?): BasePart
 	local p = Mapa.parte({
 		Size = tamanho,
 		CFrame = cf,
@@ -69,387 +67,269 @@ local function luz(parent: Instance, cor: Color3, alcance: number, brilho: numbe
 	l.Parent = parent
 end
 
-local function sequencia(cores: { Color3 }): ColorSequence
-	local pontos = {}
-	for i, cor in cores do
-		table.insert(pontos, ColorSequenceKeypoint.new((i - 1) / math.max(1, #cores - 1), cor))
+-- Faz a peça girar no lugar (ou em volta de "centro") e, se pedir, flutuar.
+local function girar(parte: BasePart, graus: number, flutua: number, centro: Vector3?)
+	parte:SetAttribute("Giro", graus)
+	parte:SetAttribute("Flutua", flutua)
+	if centro then
+		parte:SetAttribute("Centro", centro)
 	end
-	return ColorSequence.new(pontos)
-end
-
-local function girar(parte: BasePart, velocidade: number)
-	parte:SetAttribute("Giro", velocidade)
 	CollectionService:AddTag(parte, "GirarEsteira")
 end
 
-local ARCO_IRIS = {
-	Color3.fromRGB(255, 70, 90),
-	Color3.fromRGB(255, 160, 50),
-	Color3.fromRGB(255, 235, 70),
-	Color3.fromRGB(80, 230, 120),
-	Color3.fromRGB(70, 170, 255),
-	Color3.fromRGB(170, 90, 255),
-}
+-- Peça invisível que só serve de área para as partículas saírem.
+local function area(modelo: Model, cf: CFrame, tamanho: Vector3): BasePart
+	return enfeite(modelo, cf, tamanho, PRETO, Enum.Material.SmoothPlastic, { Transparency = 1, Name = "Aura" })
+end
+
+-- Quadradinhos ou cristais brilhando em volta da esteira.
+local function flutuantes(modelo: Model, cf: CFrame, cor: Color3, quantidade: number, tamanho: Vector3)
+	local aleatorio = Random.new(quantidade)
+	for i = 1, quantidade do
+		local angulo = i / quantidade * math.pi * 2
+		local raio = aleatorio:NextNumber(4.5, 6.5)
+		local posicao = cf * CFrame.new(math.cos(angulo) * raio, aleatorio:NextNumber(1.5, 7), math.sin(angulo) * raio * 1.3)
+		local peca = enfeite(
+			modelo,
+			posicao * CFrame.Angles(math.rad(45), aleatorio:NextNumber(0, math.pi), math.rad(45)),
+			tamanho,
+			cor,
+			Enum.Material.Neon,
+			{ CastShadow = false, Name = "Flutuante" }
+		)
+		girar(peca, aleatorio:NextNumber(40, 120), aleatorio:NextNumber(0.2, 0.5))
+	end
+end
+
+-- Telas do painel ------------------------------------------------------------
+
+local function icone(texto: string)
+	return function(gui: SurfaceGui, cor: Color3)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Font = Enum.Font.FredokaOne
+		label.TextColor3 = cor
+		label.Text = texto
+		label.Parent = gui
+	end
+end
+
+local function graficoBarras(gui: SurfaceGui, cor: Color3)
+	for i, altura in { 0.35, 0.6, 0.45, 0.8, 0.65 } do
+		local barra = Instance.new("Frame")
+		barra.AnchorPoint = Vector2.new(0, 1)
+		barra.Position = UDim2.fromScale(0.12 + (i - 1) * 0.16, 0.88)
+		barra.Size = UDim2.fromScale(0.11, altura * 0.75)
+		barra.BackgroundColor3 = cor
+		barra.BorderSizePixel = 0
+		barra.Parent = gui
+	end
+end
+
+local function telaApagada(gui: SurfaceGui, _cor: Color3)
+	local fundo = Instance.new("Frame")
+	fundo.Size = UDim2.fromScale(1, 1)
+	fundo.BackgroundColor3 = Color3.fromRGB(70, 80, 85)
+	fundo.BorderSizePixel = 0
+	fundo.Parent = gui
+end
+
+-- Estilos de cada nível ------------------------------------------------------
 
 local ESTILOS: { Estilo } = {
-	-- 1: Madeira, simples
+	-- 1: Básica, cinza e prata, sem brilho
 	{
-		moldura = Color3.fromRGB(140, 95, 60),
-		materialMoldura = Enum.Material.WoodPlanks,
-		lateral = Color3.fromRGB(115, 75, 45),
-		materialLateral = Enum.Material.Wood,
-		pista = Color3.fromRGB(45, 45, 50),
+		estrutura = Color3.fromRGB(150, 152, 158),
+		material = Enum.Material.Metal,
+		pista = Color3.fromRGB(25, 25, 28),
 		materialPista = Enum.Material.Fabric,
-		acento = nil,
-		faixas = { Color3.fromRGB(90, 90, 95) },
-		faixaNeon = false,
-		tela = Color3.fromRGB(120, 200, 120),
-		extra = function(modelo, cf)
-			-- toquinhos de madeira nos cantos de trás
-			for _, x in { -3.4, 3.4 } do
-				enfeite(modelo, cf * CFrame.new(x, 0.8, 6.3), Vector3.new(0.8, 1.6, 0.8), Color3.fromRGB(115, 75, 45), Enum.Material.Wood)
-			end
-		end,
+		faixa = Color3.fromRGB(45, 45, 50),
+		neon = nil,
+		tela = telaApagada,
 	},
-	-- 2: Esportiva, vermelha e branca de academia
+	-- 2: Intermediária, preta com neon azul
 	{
-		moldura = Color3.fromRGB(240, 240, 245),
-		materialMoldura = Enum.Material.SmoothPlastic,
-		lateral = Color3.fromRGB(220, 40, 50),
-		materialLateral = Enum.Material.SmoothPlastic,
-		pista = Color3.fromRGB(25, 25, 30),
-		materialPista = Enum.Material.Rubber,
-		acento = Color3.fromRGB(255, 255, 255),
-		faixas = { Color3.fromRGB(220, 40, 50), Color3.fromRGB(240, 240, 245) },
-		faixaNeon = false,
-		tela = Color3.fromRGB(255, 90, 90),
-		extra = function(modelo, cf)
-			-- garrafinha de água no painel
-			local garrafa = enfeite(
-				modelo,
-				cf * CFrame.new(2.6, 4.75, -6.2) * CFrame.Angles(0, 0, math.rad(90)),
-				Vector3.new(1, 0.5, 0.5),
-				Color3.fromRGB(90, 180, 255),
-				Enum.Material.Glass,
-				{ Shape = Enum.PartType.Cylinder, Transparency = 0.3 }
-			)
-			garrafa.Name = "Garrafa"
-			-- halteres no chão, atrás da esteira
-			for _, x in { -1.5, 1.5 } do
-				local cabo = cf * CFrame.new(x, 0.35, 7.8)
-				enfeite(modelo, cabo, Vector3.new(1.4, 0.25, 0.25), Color3.fromRGB(60, 60, 65), Enum.Material.Metal)
-				for _, ponta in { -0.7, 0.7 } do
-					enfeite(
-						modelo,
-						cabo * CFrame.new(ponta, 0, 0),
-						Vector3.new(0.35, 0.7, 0.7),
-						Color3.fromRGB(220, 40, 50),
-						Enum.Material.SmoothPlastic,
-						{ Shape = Enum.PartType.Cylinder }
-					)
-				end
-			end
-			local anexo = Instance.new("Attachment")
-			anexo.Position = Vector3.new(0, 1.2, 0)
-			anexo.Parent = modelo:FindFirstChild("Pista")
-			particulas(anexo, {
-				Texture = FAISCA,
-				Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 120, 120)),
-				Size = NumberSequence.new(0.35, 0),
-				Lifetime = NumberRange.new(0.6, 1),
-				Rate = 4,
-				Speed = NumberRange.new(1.5, 3),
-				SpreadAngle = Vector2.new(60, 60),
+		estrutura = PRETO,
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(20, 20, 24),
+		materialPista = Enum.Material.Fabric,
+		faixa = Color3.fromRGB(35, 40, 50),
+		neon = Color3.fromRGB(0, 170, 255),
+		tela = graficoBarras,
+	},
+	-- 3: Avançada, neon roxo, fumaça roxa e quadradinhos flutuando
+	{
+		estrutura = PRETO,
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(22, 20, 28),
+		materialPista = Enum.Material.Fabric,
+		faixa = Color3.fromRGB(45, 35, 60),
+		neon = Color3.fromRGB(115, 60, 255),
+		tela = icone("🏃"),
+		extra = function(modelo, cf, cor)
+			local aura = area(modelo, cf * CFrame.new(0, 0.3, 0), Vector3.new(8, 0.5, 14))
+			particulas(aura, {
+				Texture = FUMACA,
+				Color = ColorSequence.new(cor),
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.3, 0.6),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+				Size = NumberSequence.new(2.5, 5),
+				Lifetime = NumberRange.new(2, 3),
+				Rate = 6,
+				Speed = NumberRange.new(0.3, 0.8),
 				LightEmission = 0.6,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
 			})
+			flutuantes(modelo, cf, cor, 8, Vector3.new(0.45, 0.45, 0.45))
 		end,
 	},
-	-- 3: Sci-Fi, metal com neon ciano
+	-- 4: Épica, dourada grossa, anel dourado girando e brilhos
 	{
-		moldura = Color3.fromRGB(150, 160, 175),
-		materialMoldura = Enum.Material.DiamondPlate,
-		lateral = Color3.fromRGB(55, 60, 75),
-		materialLateral = Enum.Material.Metal,
-		pista = Color3.fromRGB(20, 30, 40),
-		materialPista = Enum.Material.SmoothPlastic,
-		acento = Color3.fromRGB(0, 230, 255),
-		faixas = { Color3.fromRGB(0, 230, 255) },
-		faixaNeon = true,
-		tela = Color3.fromRGB(0, 230, 255),
-		extra = function(modelo, cf)
-			local ciano = Color3.fromRGB(0, 230, 255)
-			-- arco "scanner" no meio da pista
-			for _, x in { -3.5, 3.5 } do
-				enfeite(modelo, cf * CFrame.new(x, 3, 1.5), Vector3.new(0.4, 6, 0.4), Color3.fromRGB(55, 60, 75), Enum.Material.Metal)
-				enfeite(modelo, cf * CFrame.new(x * 0.93, 3, 1.5), Vector3.new(0.15, 5.6, 0.5), ciano, Enum.Material.Neon)
-			end
-			local topo = enfeite(modelo, cf * CFrame.new(0, 6.1, 1.5), Vector3.new(7.4, 0.4, 0.6), Color3.fromRGB(55, 60, 75), Enum.Material.Metal)
-			enfeite(modelo, cf * CFrame.new(0, 5.85, 1.5), Vector3.new(6.6, 0.12, 0.3), ciano, Enum.Material.Neon)
-			luz(topo, ciano, 14, 1.5)
-			-- faíscas saindo dos lados da pista
-			for _, x in { -3.6, 3.6 } do
-				local anexo = Instance.new("Attachment")
-				anexo.Position = Vector3.new(x, 0.4, 0)
-				anexo.Parent = modelo:FindFirstChild("Pista")
-				particulas(anexo, {
-					Texture = FAISCA,
-					Color = ColorSequence.new(ciano, Color3.fromRGB(180, 255, 255)),
-					Size = NumberSequence.new(0.3, 0),
-					Lifetime = NumberRange.new(0.4, 0.8),
-					Rate = 5,
-					Speed = NumberRange.new(2, 4),
-					SpreadAngle = Vector2.new(30, 30),
-					EmissionDirection = if x < 0 then Enum.NormalId.Left else Enum.NormalId.Right,
-					Acceleration = Vector3.new(0, -6, 0),
-					LightEmission = 1,
-				})
-			end
-		end,
-	},
-	-- 4: Lava, pedra escura com rachaduras de fogo
-	{
-		moldura = Color3.fromRGB(45, 38, 38),
-		materialMoldura = Enum.Material.Basalt,
-		lateral = Color3.fromRGB(70, 50, 45),
-		materialLateral = Enum.Material.Basalt,
-		pista = Color3.fromRGB(60, 30, 25),
-		materialPista = Enum.Material.CrackedLava,
-		acento = Color3.fromRGB(255, 110, 20),
-		faixas = { Color3.fromRGB(255, 90, 20), Color3.fromRGB(255, 170, 40) },
-		faixaNeon = true,
-		tela = Color3.fromRGB(255, 120, 30),
-		extra = function(modelo, cf)
-			local laranja = Color3.fromRGB(255, 110, 20)
-			-- vulcõezinhos nos cantos de trás: pedra em degraus com lava no topo
-			for _, x in { -3.9, 3.9 } do
-				local base = cf * CFrame.new(x, 0, 6.2) * CFrame.Angles(0, math.rad(x * 6), 0)
-				for degrau = 0, 2 do
-					local largura = 2.4 - degrau * 0.6
-					enfeite(
-						modelo,
-						base * CFrame.new(0, 0.5 + degrau * 0.9, 0) * CFrame.Angles(0, math.rad(degrau * 30), 0),
-						Vector3.new(largura, 1, largura),
-						Color3.fromRGB(45 + degrau * 8, 38, 38),
-						Enum.Material.Basalt
-					)
+		estrutura = Color3.fromRGB(22, 22, 24),
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(20, 20, 22),
+		materialPista = Enum.Material.Fabric,
+		faixa = Color3.fromRGB(50, 45, 30),
+		neon = Color3.fromRGB(255, 165, 20),
+		grosso = true,
+		tela = icone("👑"),
+		extra = function(modelo, cf, cor)
+			-- placas douradas nas laterais e nas colunas, tipo armadura
+			for _, x in { -1, 1 } do
+				for _, z in { -4.2, 4.6 } do
+					enfeite(modelo, cf * CFrame.new(x * 3.64, 0.65, z), Vector3.new(0.06, 1, 3.4), cor, Enum.Material.Neon)
 				end
-				enfeite(modelo, base * CFrame.new(0, 1.45, 0), Vector3.new(1.9, 0.12, 1.9), laranja, Enum.Material.Neon)
-				local pedra = enfeite(
-					modelo,
-					base * CFrame.new(0, 2.85, 0),
-					Vector3.new(1, 1, 1),
-					Color3.fromRGB(255, 140, 30),
-					Enum.Material.Neon,
-					{ Shape = Enum.PartType.Ball }
-				)
-				pedra.Name = "Lava"
+				local coluna = cf * CFrame.new(x * 2.95, 4.5, -5.75) * CFrame.Angles(math.rad(10), 0, 0)
+				enfeite(modelo, coluna * CFrame.new(x * 0.47, 0.3, 0), Vector3.new(0.05, 5.4, 0.8), cor, Enum.Material.Neon)
+			end
+			-- anel girando em volta da esteira
+			local centro = (cf * CFrame.new(0, 3, 0)).Position
+			local pedacos = 22
+			local function ponto(i: number): Vector3
+				local angulo = i / pedacos * math.pi * 2
+				-- anel um pouco inclinado
+				return (cf * CFrame.new(0, 3 + math.sin(angulo) * 1.2, 0) * CFrame.new(math.cos(angulo) * 6, 0, math.sin(angulo) * 8)).Position
+			end
+			for i = 0, pedacos - 1 do
+				if i % 6 ~= 5 then -- uns buracos para parecer um rastro
+					local de, ate = ponto(i), ponto(i + 1)
+					local pedaco = enfeite(
+						modelo,
+						CFrame.lookAt((de + ate) / 2, ate),
+						Vector3.new(0.18, 0.18, (ate - de).Magnitude + 0.1),
+						cor,
+						Enum.Material.Neon,
+						{ CastShadow = false, Transparency = 0.15 + (i % 6) * 0.12, Name = "Anel" }
+					)
+					girar(pedaco, 50, 0, centro)
+				end
+			end
+			local aura = area(modelo, cf * CFrame.new(0, 4, 0), Vector3.new(9, 7, 15))
+			particulas(aura, {
+				Texture = FAISCA,
+				Color = ColorSequence.new(cor, Color3.fromRGB(255, 240, 160)),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.5), NumberSequenceKeypoint.new(1, 0) }),
+				Lifetime = NumberRange.new(1, 2),
+				Rate = 10,
+				Speed = NumberRange.new(0.3, 1),
+				LightEmission = 1,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+			flutuantes(modelo, cf, cor, 10, Vector3.new(0.4, 0.4, 0.4))
+		end,
+	},
+	-- 5: Lendária, neon vermelho, espinhos, chamas e cristais
+	{
+		estrutura = Color3.fromRGB(20, 18, 20),
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(35, 12, 14),
+		materialPista = Enum.Material.DiamondPlate,
+		faixa = Color3.fromRGB(110, 20, 25),
+		neon = Color3.fromRGB(255, 35, 45),
+		grosso = true,
+		tela = icone("🔥"),
+		extra = function(modelo, cf, cor)
+			-- espinhos nas colunas, no painel e nos cantos
+			local function espinho(lugar: CFrame, tamanho: number)
+				local base = enfeite(modelo, lugar, Vector3.new(0.5, tamanho, 0.9), Color3.fromRGB(20, 18, 20), Enum.Material.SmoothPlastic, {
+					Name = "Espinho",
+				})
+				local ponta = Instance.new("WedgePart")
+				ponta.Anchored = true
+				ponta.CanCollide = false
+				ponta.CanQuery = false
+				ponta.CanTouch = false
+				ponta.Size = Vector3.new(0.5, tamanho * 0.8, 0.9)
+				ponta.CFrame = lugar * CFrame.new(0, tamanho * 0.9, 0)
+				ponta.Color = cor
+				ponta.Material = Enum.Material.Neon
+				ponta.Parent = modelo
+				return base
+			end
+			for _, x in { -1, 1 } do
+				-- no topo das colunas, apontando para fora
+				espinho(cf * CFrame.new(x * 3.4, 8, -5.6) * CFrame.Angles(0, 0, math.rad(-x * 35)), 1.4)
+				espinho(cf * CFrame.new(x * 3.2, 6.6, -5.8) * CFrame.Angles(0, 0, math.rad(-x * 55)), 1.1)
+				-- dos lados do painel
+				espinho(cf * CFrame.new(x * 2.6, 9.3, -5.6) * CFrame.Angles(0, 0, math.rad(-x * 20)), 1.3)
+				-- cantos de trás e da frente, deitados para fora
+				espinho(cf * CFrame.new(x * 3.8, 0.9, 6.4) * CFrame.Angles(math.rad(50), 0, math.rad(-x * 40)), 1.2)
+				espinho(cf * CFrame.new(x * 3.8, 0.9, -6.6) * CFrame.Angles(math.rad(-50), 0, math.rad(-x * 40)), 1.2)
+			end
+			-- chamas e aura vermelha
+			for _, x in { -3.2, 3.2 } do
+				local suporte = area(modelo, cf * CFrame.new(x, 1, 6.4), Vector3.new(1, 1, 1))
 				local fogo = Instance.new("Fire")
 				fogo.Size = 4
-				fogo.Heat = 8
-				fogo.Color = laranja
-				fogo.SecondaryColor = Color3.fromRGB(255, 220, 80)
-				fogo.Parent = pedra
+				fogo.Heat = 7
+				fogo.Color = cor
+				fogo.SecondaryColor = Color3.fromRGB(255, 120, 60)
+				fogo.Parent = suporte
 			end
-			-- brasas subindo da pista e fumaça atrás
-			local pista = modelo:FindFirstChild("Pista")
-			local brasas = Instance.new("Attachment")
-			brasas.Position = Vector3.new(0, 0.3, 0)
-			brasas.Parent = pista
-			particulas(brasas, {
-				Texture = FOGO,
-				Color = ColorSequence.new(Color3.fromRGB(255, 200, 60), Color3.fromRGB(255, 60, 20)),
-				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) }),
-				Lifetime = NumberRange.new(1, 1.8),
-				Rate = 8,
-				Speed = NumberRange.new(1.5, 3),
-				SpreadAngle = Vector2.new(20, 20),
-				Shape = Enum.ParticleEmitterShape.Box,
-				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
-				LightEmission = 1,
-			})
-			local fumaca = Instance.new("Attachment")
-			fumaca.Position = Vector3.new(0, 1, 6.5)
-			fumaca.Parent = pista
-			particulas(fumaca, {
+			local aura = area(modelo, cf * CFrame.new(0, 0.5, 0), Vector3.new(8.5, 0.5, 14.5))
+			particulas(aura, {
 				Texture = FUMACA,
-				Color = ColorSequence.new(Color3.fromRGB(70, 60, 60)),
-				Transparency = NumberSequence.new(0.6, 1),
-				Size = NumberSequence.new(1.5, 4),
-				Lifetime = NumberRange.new(2, 3),
-				Rate = 3,
-				Speed = NumberRange.new(1.5, 2.5),
-				SpreadAngle = Vector2.new(15, 15),
-			})
-			luz(pista :: BasePart, laranja, 16, 2)
-		end,
-	},
-	-- 5: Galáxia, roxa com estrelas e arco-íris
-	{
-		moldura = Color3.fromRGB(25, 15, 45),
-		materialMoldura = Enum.Material.SmoothPlastic,
-		lateral = Color3.fromRGB(80, 35, 150),
-		materialLateral = Enum.Material.SmoothPlastic,
-		pista = Color3.fromRGB(35, 15, 70),
-		materialPista = Enum.Material.Glass,
-		acento = Color3.fromRGB(255, 80, 220),
-		faixas = ARCO_IRIS,
-		faixaNeon = true,
-		tela = Color3.fromRGB(200, 120, 255),
-		extra = function(modelo, cf)
-			-- arco-íris por cima da pista
-			local segmentos = 12
-			local function ponto(i: number): Vector3
-				local angulo = math.pi * i / segmentos
-				return (cf * CFrame.new(math.cos(angulo) * 4, 1 + math.sin(angulo) * 5.2, 3)).Position
-			end
-			for i = 0, segmentos - 1 do
-				-- cada pedaço liga um ponto da curva ao próximo
-				local de, ate = ponto(i), ponto(i + 1)
-				enfeite(
-					modelo,
-					CFrame.lookAt((de + ate) / 2, ate),
-					Vector3.new(0.5, 0.5, (ate - de).Magnitude + 0.3),
-					ARCO_IRIS[i // 2 % #ARCO_IRIS + 1],
-					Enum.Material.Neon
-				)
-			end
-			-- cristal girando em cima do painel
-			local cristal = enfeite(
-				modelo,
-				cf * CFrame.new(0, 7.2, -6.3) * CFrame.Angles(math.rad(45), 0, math.rad(45)),
-				Vector3.new(1.3, 1.3, 1.3),
-				Color3.fromRGB(255, 120, 240),
-				Enum.Material.Neon
-			)
-			cristal.Name = "Cristal"
-			girar(cristal, 90)
-			luz(cristal, Color3.fromRGB(220, 120, 255), 16, 2)
-			-- estrelas em volta
-			local estrelas = Instance.new("Attachment")
-			estrelas.Position = Vector3.new(0, 3, 0)
-			estrelas.Parent = modelo:FindFirstChild("Pista")
-			particulas(estrelas, {
-				Texture = FAISCA,
-				Color = sequencia({ Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 120, 240), Color3.fromRGB(120, 200, 255) }),
-				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.6), NumberSequenceKeypoint.new(1, 0) }),
+				Color = ColorSequence.new(cor, Color3.fromRGB(120, 0, 10)),
+				Transparency = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 1),
+					NumberSequenceKeypoint.new(0.3, 0.55),
+					NumberSequenceKeypoint.new(1, 1),
+				}),
+				Size = NumberSequence.new(2, 4.5),
 				Lifetime = NumberRange.new(1.5, 2.5),
-				Rate = 10,
-				Speed = NumberRange.new(0.5, 1.5),
-				SpreadAngle = Vector2.new(180, 180),
+				Rate = 8,
+				Speed = NumberRange.new(1, 2.5),
+				LightEmission = 0.8,
 				Shape = Enum.ParticleEmitterShape.Box,
 				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
-				LightEmission = 1,
-				RotSpeed = NumberRange.new(-90, 90),
 			})
-			-- um pouco de brilho na própria pista
-			local sparkles = Instance.new("Sparkles")
-			sparkles.SparkleColor = Color3.fromRGB(200, 140, 255)
-			sparkles.Parent = cristal
+			flutuantes(modelo, cf, cor, 9, Vector3.new(0.35, 1, 0.35))
 		end,
 	},
 }
 
--- Malhas 3D geradas pela IA do Roblox (Studio > Assistente). Quando um nível
--- tem malha, ela substitui a moldura de blocos; os efeitos do nível continuam.
--- As medidas vêm da malha: altura da faixa onde se corre e onde fica o meio dela.
-type Malha = {
-	malha: string,
-	textura: string,
-	tamanho: Vector3, -- tamanho final da malha no jogo
-	alturaPista: number, -- altura da faixa (onde o jogador pisa) acima do chão
-	deslocamentoZ: number, -- quanto a malha anda para a frente para a faixa ficar no centro
-	comprimentoPista: number,
-	virar: boolean, -- a malha veio com o painel virado para trás
-}
-
-local MALHAS: { [number]: Malha } = {
-	[4] = {
-		malha = "rbxassetid://82021596761232",
-		textura = "rbxassetid://73924392816165",
-		tamanho = Vector3.new(7, 7.2, 13.5),
-		alturaPista = 1.62,
-		deslocamentoZ = -1.35,
-		comprimentoPista = 10,
-		virar = true,
-	},
-}
-
-local moldes: { [number]: MeshPart | false } = {}
-
--- Carrega a malha uma vez e guarda como molde (false se não deu certo).
-local function molde(nivel: number): MeshPart?
-	local info = MALHAS[nivel]
-	if not info then
-		return nil
-	end
-	if moldes[nivel] == nil then
-		local ok, resultado = pcall(function()
-			return AssetService:CreateMeshPartAsync(Content.fromUri(info.malha))
-		end)
-		if ok then
-			local parte = resultado :: MeshPart
-			parte.TextureID = info.textura
-			parte.Size = info.tamanho
-			parte.Anchored = true
-			parte.CanCollide = false
-			parte.CanQuery = false
-			parte.CanTouch = false
-			parte.Name = "Malha"
-			moldes[nivel] = parte
-		else
-			warn(`Não consegui carregar a malha da esteira nível {nivel}, usando a de blocos:`, resultado)
-			moldes[nivel] = false
-		end
-	end
-	return moldes[nivel] or nil
-end
-
-local function criarComMalha(nivel: number, cf: CFrame, estilo: Estilo, info: Malha, forma: MeshPart): Model
-	local modelo = Instance.new("Model")
-	modelo.Name = "Esteira"
-
-	-- A pista fica invisível na altura da faixa da malha.
-	local tamanho = Vector3.new(Esteiras.TAMANHO_PISTA.X, 0.4, info.comprimentoPista)
-	local pista = Mapa.parte({
-		Name = "Pista",
-		Size = tamanho,
-		CFrame = cf * CFrame.new(0, info.alturaPista - 0.4, 0),
-		Transparency = 1,
-		Parent = modelo,
-	})
-	pista.AssemblyLinearVelocity = -cf.LookVector * EMPURRAO
-	modelo.PrimaryPart = pista
-
-	local malha = forma:Clone()
-	local giro = if info.virar then CFrame.Angles(0, math.pi, 0) else CFrame.identity
-	-- "cf" está 0.2 acima do chão (meio da pista de blocos)
-	malha.CFrame = cf * CFrame.new(0, info.tamanho.Y / 2 - 0.2, info.deslocamentoZ) * giro
-	malha.Parent = modelo
-
-	if estilo.extra then
-		estilo.extra(modelo, cf)
-	end
-	return modelo
-end
-
--- Monta a esteira do nível pedido. "cf" é o centro da pista, olhando para
--- a frente (onde fica o painel); a pista empurra o jogador para trás.
+-- Monta a esteira do nível pedido. "cf" fica 0.2 acima do chão, no centro
+-- da esteira, olhando para a frente (onde fica o painel); a pista empurra o
+-- jogador para trás.
 function Esteiras.criar(nivel: number, cf: CFrame): Model
 	local estilo = ESTILOS[math.clamp(nivel, 1, #ESTILOS)]
-	local forma = molde(nivel)
-	if forma then
-		return criarComMalha(nivel, cf, estilo, MALHAS[nivel], forma)
-	end
-	local tamanho = Esteiras.TAMANHO_PISTA
-	local meio = tamanho.Z / 2
+	local cor = estilo.neon or estilo.estrutura
+	local chao = cf * CFrame.new(0, -0.2, 0) -- tudo é medido a partir do chão
 
 	local modelo = Instance.new("Model")
 	modelo.Name = "Esteira"
 
 	local pista = Mapa.parte({
 		Name = "Pista",
-		Size = tamanho,
-		CFrame = cf,
+		Size = Vector3.new(5, 0.3, 12.4),
+		CFrame = chao * CFrame.new(0, ALTURA_PISTA - 0.15, 0.3),
 		Color = estilo.pista,
 		Material = estilo.materialPista,
 		Parent = modelo,
@@ -457,73 +337,107 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	pista.AssemblyLinearVelocity = -cf.LookVector * EMPURRAO
 	modelo.PrimaryPart = pista
 
-	-- moldura por baixo e laterais
-	enfeite(modelo, cf * CFrame.new(0, -0.15, 0.3), Vector3.new(7.4, 0.5, tamanho.Z + 1), estilo.moldura, estilo.materialMoldura)
-	for _, lado in { -1, 1 } do
-		local x = lado * (tamanho.X / 2 + 0.35)
-		enfeite(modelo, cf * CFrame.new(x, 0.35, 0.3), Vector3.new(0.7, 0.5, tamanho.Z + 1), estilo.lateral, estilo.materialLateral)
-		if estilo.acento then
-			enfeite(
-				modelo,
-				cf * CFrame.new(lado * (tamanho.X / 2 + 0.75), 0.35, 0.3),
-				Vector3.new(0.12, 0.18, tamanho.Z + 0.6),
-				estilo.acento,
-				Enum.Material.Neon
-			)
+	local function peca(lugar: CFrame, tamanho: Vector3, props: any?): BasePart
+		return enfeite(modelo, chao * lugar, tamanho, estilo.estrutura, estilo.material, props)
+	end
+	local function preta(lugar: CFrame, tamanho: Vector3): BasePart
+		return enfeite(modelo, chao * lugar, tamanho, PRETO, Enum.Material.SmoothPlastic)
+	end
+	local function brilho(lugar: CFrame, tamanho: Vector3)
+		if estilo.neon then
+			enfeite(modelo, chao * lugar, tamanho, estilo.neon, Enum.Material.Neon, { CastShadow = false })
 		end
-		-- poste do painel e corrimão
-		enfeite(modelo, cf * CFrame.new(lado * 3.2, 2.2, -meio - 0.2), Vector3.new(0.5, 4.2, 0.5), estilo.lateral, estilo.materialLateral)
-		enfeite(modelo, cf * CFrame.new(lado * 3.2, 3.4, -meio + 2.3), Vector3.new(0.3, 0.3, 5), estilo.moldura, estilo.materialMoldura)
+	end
+	local largura = if estilo.grosso then 0.45 else 0.16
+
+	-- deck: corpo por baixo da pista, laterais, capô do motor e pés de trás
+	preta(CFrame.new(0, 0.4, 0.3), Vector3.new(5, 0.75, 12.6))
+	for _, x in { -1, 1 } do
+		peca(CFrame.new(x * 3.05, 0.65, 0.3), Vector3.new(1.1, 1.3, 13))
+		brilho(CFrame.new(x * 3.62, 0.65, 0.5), Vector3.new(0.1, largura, 11))
+		brilho(CFrame.new(x * 2.55, 1.31, 0.5), Vector3.new(0.14, 0.05, 11.5))
+		-- pé de trás, mais largo
+		peca(CFrame.new(x * 3.15, 0.8, 6.55), Vector3.new(1.5, 1.6, 1.3))
+		brilho(CFrame.new(x * 3.92, 0.8, 6.55), Vector3.new(0.1, 0.5, 0.8))
+	end
+	peca(CFrame.new(0, 0.9, -6.75), Vector3.new(7.2, 1.8, 1.9))
+	brilho(CFrame.new(0, 1.5, -5.79), Vector3.new(5.2, largura * 0.6, 0.06))
+	for _, x in { -1, 1 } do
+		brilho(CFrame.new(x * 3.62, 0.9, -6.75), Vector3.new(0.1, 0.9, 1.2))
 	end
 
-	-- painel com a telinha virada para quem corre
-	enfeite(modelo, cf * CFrame.new(0, 4.1, -meio - 0.2), Vector3.new(6.9, 0.4, 0.4), estilo.lateral, estilo.materialLateral)
-	local painel = enfeite(
+	-- colunas inclinadas e corrimão
+	for _, x in { -1, 1 } do
+		local coluna = CFrame.new(x * 2.95, 4.5, -5.75) * CFrame.Angles(math.rad(10), 0, 0)
+		peca(coluna, Vector3.new(0.9, 6.4, 1))
+		brilho(coluna * CFrame.new(0, 0, 0.51), Vector3.new(largura * 0.8, 5.4, 0.05))
+		if estilo.grosso then
+			-- placas de armadura na frente das colunas
+			brilho(coluna * CFrame.new(x * 0.46, -1.5, 0), Vector3.new(0.05, 2.5, 0.7))
+		end
+		peca(CFrame.new(x * 3.15, 7.35, -3.75), Vector3.new(0.75, 0.75, 3.6))
+		preta(CFrame.new(x * 3.15, 7.35, -1.75), Vector3.new(0.8, 0.8, 0.5))
+		brilho(CFrame.new(x * 3.15, 7.75, -3.75), Vector3.new(0.3, 0.05, 3.2))
+	end
+	peca(CFrame.new(0, 7.4, -5.2), Vector3.new(6.6, 0.7, 0.9))
+
+	-- painel inclinado com a tela virada para quem corre
+	local painel = chao * CFrame.new(0, 8.6, -5.3) * CFrame.Angles(math.rad(-25), 0, 0)
+	enfeite(modelo, painel, Vector3.new(4.6, 2.6, 0.8), PRETO, Enum.Material.SmoothPlastic)
+	if estilo.neon then
+		enfeite(modelo, painel * CFrame.new(0, 1.32, 0), Vector3.new(4.7, 0.08, 0.85), estilo.neon, Enum.Material.Neon)
+	end
+	local tela = enfeite(
 		modelo,
-		cf * CFrame.new(0, 4.9, -meio - 0.3) * CFrame.Angles(math.rad(-25), 0, 0),
-		Vector3.new(3.6, 1.9, 0.4),
-		estilo.lateral,
-		estilo.materialLateral
+		painel * CFrame.new(0, 0.25, 0.42),
+		Vector3.new(3.6, 1.6, 0.05),
+		Color3.fromRGB(10, 10, 14),
+		Enum.Material.SmoothPlastic,
+		{ Name = "Tela" }
 	)
-	local tela = enfeite(modelo, painel.CFrame * CFrame.new(0, 0, 0.21), Vector3.new(3.1, 1.5, 0.05), estilo.tela, Enum.Material.Neon)
-	tela.Name = "Tela"
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Back
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
+	gui.PixelsPerStud = 50
 	gui.LightInfluence = 0
+	gui.Brightness = 2
 	gui.Parent = tela
-	local texto = Instance.new("TextLabel")
-	texto.Size = UDim2.fromScale(1, 1)
-	texto.BackgroundTransparency = 1
-	texto.TextScaled = true
-	texto.Font = Enum.Font.FredokaOne
-	texto.TextColor3 = Color3.fromRGB(20, 20, 30)
-	texto.Text = `NÍVEL {nivel}`
-	texto.Parent = gui
+	estilo.tela(gui, cor)
+	for i = -1, 1 do
+		enfeite(
+			modelo,
+			painel * CFrame.new(i * 0.9, -0.9, 0.42),
+			Vector3.new(0.65, 0.3, 0.06),
+			if estilo.neon then estilo.neon else Color3.fromRGB(220, 220, 225),
+			if estilo.neon then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		)
+	end
+	if estilo.neon then
+		luz(tela, estilo.neon, 10, 1)
+		luz(pista, estilo.neon, 12, if estilo.grosso then 2 else 1)
+	end
 
 	-- faixas da pista (o cliente faz elas andarem)
 	local quantidade = 6
-	local espaco = tamanho.Z / quantidade
+	local curso = 12
 	for i = 0, quantidade - 1 do
-		local fase = i * espaco
+		local fase = i * curso / quantidade
 		local faixa = enfeite(
 			modelo,
-			cf * CFrame.new(0, tamanho.Y / 2 + 0.03, -meio + fase + 0.3),
-			Vector3.new(tamanho.X - 0.4, 0.06, 0.5),
-			estilo.faixas[i % #estilo.faixas + 1],
-			if estilo.faixaNeon then Enum.Material.Neon else Enum.Material.SmoothPlastic,
-			{ CastShadow = false }
+			pista.CFrame * CFrame.new(0, 0.17, -curso / 2 + fase),
+			Vector3.new(4.8, 0.04, 0.25),
+			estilo.faixa,
+			Enum.Material.SmoothPlastic,
+			{ CastShadow = false, Name = "Faixa" }
 		)
-		faixa.Name = "Faixa"
 		faixa:SetAttribute("Fase", fase)
-		faixa:SetAttribute("Curso", tamanho.Z - 0.6)
+		faixa:SetAttribute("Curso", curso)
 		faixa:SetAttribute("Velocidade", VELOCIDADE_FAIXAS)
 		CollectionService:AddTag(faixa, "FaixaEsteira")
 	end
 
 	if estilo.extra then
-		estilo.extra(modelo, cf)
+		estilo.extra(modelo, chao, cor)
 	end
 	return modelo
 end

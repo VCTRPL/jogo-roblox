@@ -235,7 +235,7 @@ local function criarBase(info: Mapa.InfoBase): Base
 		nivelEsteira = 1,
 		textoBotao = Mapa.placa(botao, "Trancar", 3, 160),
 		textoPlaca = Mapa.placa(info.piso, "Base livre", 14),
-		textoEsteira = Mapa.placa(marcoEsteira, "Esteira", 9, 220),
+		textoEsteira = Mapa.placa(marcoEsteira, "Esteira", 12, 220),
 	}
 	promptTrancar.Triggered:Connect(function(player)
 		trancar(player, base)
