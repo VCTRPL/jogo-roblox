@@ -11,7 +11,6 @@ local Biblioteca = require(script.Parent.Biblioteca)
 local Blocos = require(script.Parent.Blocos)
 local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
-local Modelos = require(script.Parent.Modelos)
 local Montanhas = require(script.Parent.Montanhas)
 
 local Decoracao = {}
@@ -461,49 +460,87 @@ local function plantar(modelo: Model, pasta: Instance, chao: Vector3, olhar: Vec
 	modelo.Parent = pasta
 end
 
--- Pedestal com neon e uma estátua gigante de um Brainrot.
-local function estatuaBrainrot(pasta: Instance, id: string, mutacao: string?, chao: Vector3, olhar: Vector3)
+-- Túnel no começo da estrada: as duas esteiras rolantes saem dele. Por
+-- dentro é escuro, com luzes no teto; na boca tem uma moldura de neon, o
+-- nome do jogo e duas bolas de luz soltando confete.
+local TUNEL_FUNDO = Mapa.INICIO_ESTRADA - 1
+local TUNEL_BOCA = -110
+local function tunel(pasta: Instance)
+	local comprimento = TUNEL_BOCA - TUNEL_FUNDO
+	local meio = (TUNEL_BOCA + TUNEL_FUNDO) / 2
+	local pedra = Color3.fromRGB(95, 85, 120)
+	local escuro = Color3.fromRGB(18, 16, 26)
+
+	-- paredes, teto e fundo
+	for _, z in { -9.75, 9.75 } do
+		parte({
+			Name = "ParedeTunel",
+			Size = Vector3.new(comprimento, 12, 2.5),
+			Position = Vector3.new(meio, 6, z),
+			Color = pedra,
+			Material = Enum.Material.SmoothPlastic,
+			Parent = pasta,
+		})
+	end
 	parte({
-		Name = "Pedestal",
-		Size = Vector3.new(9, 2, 9),
-		Position = chao + Vector3.new(0, 1, 0),
-		Color = Color3.fromRGB(70, 50, 110),
+		Name = "TetoTunel",
+		Size = Vector3.new(comprimento, 2, 22),
+		Position = Vector3.new(meio, 13, 0),
+		Color = pedra,
 		Material = Enum.Material.SmoothPlastic,
 		Parent = pasta,
 	})
 	parte({
-		Name = "PedestalNeon",
-		Size = Vector3.new(9.4, 0.5, 9.4),
-		Position = chao + Vector3.new(0, 2, 0),
-		Color = NEON[1],
-		Material = Enum.Material.Neon,
+		Name = "TopoTunel",
+		Size = Vector3.new(comprimento, 1.5, 14),
+		Position = Vector3.new(meio, 14.75, 0),
+		Color = escurecer(pedra, 0.15),
+		Material = Enum.Material.SmoothPlastic,
 		Parent = pasta,
 	})
-	local modelo = Modelos.boneco(id, mutacao)
-	if modelo then
-		modelo.Name = `Estatua{id}`
-		plantar(modelo, pasta, chao + Vector3.new(0, 2.25, 0), olhar, 2.6)
-	end
-end
+	parte({
+		Name = "FundoTunel",
+		Size = Vector3.new(1, 12, 17),
+		Position = Vector3.new(TUNEL_FUNDO + 0.5, 6, 0),
+		Color = escuro,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pasta,
+	})
 
--- Entrada no começo da estrada: duas colunas listradas com confete saindo
--- do topo e duas estátuas gigantes de Brainrots.
-local function arcoDeEntrada(pasta: Instance)
-	local x = -118
+	-- luzes no teto
+	for x = TUNEL_FUNDO + 6, TUNEL_BOCA - 4, 6 do
+		local lampada = parte({
+			Name = "LuzTunel",
+			Size = Vector3.new(1, 0.3, 10),
+			Position = Vector3.new(x, 11.85, 0),
+			Color = Color3.fromRGB(255, 225, 150),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = pasta,
+		})
+		local luz = Instance.new("PointLight")
+		luz.Color = Color3.fromRGB(255, 220, 160)
+		luz.Range = 14
+		luz.Brightness = 1.2
+		luz.Parent = lampada
+	end
+
+	-- moldura da boca
+	local x = TUNEL_BOCA + 1.5
 	local topos = {}
-	for _, z in { -15, 15 } do
+	for _, z in { -11.5, 11.5 } do
 		parte({
-			Name = "Coluna",
-			Size = Vector3.new(3, 22, 3),
-			Position = Vector3.new(x, 11, z),
+			Name = "PilarTunel",
+			Size = Vector3.new(3, 17, 6),
+			Position = Vector3.new(x, 8.5, z),
 			Color = Color3.fromRGB(110, 70, 190),
 			Material = Enum.Material.SmoothPlastic,
 			Parent = pasta,
 		})
-		for i, y in { 3, 7, 11, 15, 19 } do
+		for i, y in { 3, 7, 11 } do
 			parte({
 				Name = "Listra",
-				Size = Vector3.new(3.3, 0.6, 3.3),
+				Size = Vector3.new(3.3, 0.6, 6.3),
 				Position = Vector3.new(x, y, z),
 				Color = NEON[(i - 1) % #NEON + 1],
 				Material = Enum.Material.Neon,
@@ -514,7 +551,7 @@ local function arcoDeEntrada(pasta: Instance)
 			Name = "Bola",
 			Shape = Enum.PartType.Ball,
 			Size = Vector3.one * 4.5,
-			Position = Vector3.new(x, 24, z),
+			Position = Vector3.new(x, 19.25, z),
 			Color = NEON[3],
 			Material = Enum.Material.Neon,
 			Parent = pasta,
@@ -526,7 +563,38 @@ local function arcoDeEntrada(pasta: Instance)
 		luz.Parent = bola
 		table.insert(topos, bola)
 	end
-	-- confete colorido saindo do topo das colunas
+	local verga = parte({
+		Name = "VergaTunel",
+		Size = Vector3.new(3, 5, 29),
+		Position = Vector3.new(x, 14.5, 0),
+		Color = Color3.fromRGB(110, 70, 190),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pasta,
+	})
+	texto(verga, Enum.NormalId.Right, "ROUBE UM OVO BRAINROT", Color3.new(1, 1, 1))
+	-- contorno de neon em volta da abertura
+	for _, z in { -8.8, 8.8 } do
+		parte({
+			Name = "NeonTunel",
+			Size = Vector3.new(0.4, 12, 0.6),
+			Position = Vector3.new(x + 1.6, 6, z),
+			Color = NEON[2],
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = pasta,
+		})
+	end
+	parte({
+		Name = "NeonTunel",
+		Size = Vector3.new(0.4, 0.6, 18.2),
+		Position = Vector3.new(x + 1.6, 11.7, 0),
+		Color = NEON[2],
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = pasta,
+	})
+
+	-- confete colorido saindo das bolas
 	local confete = Instance.new("ParticleEmitter")
 	confete.Name = "Confete"
 	confete.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -543,9 +611,6 @@ local function arcoDeEntrada(pasta: Instance)
 		confete:Clone().Parent = bola
 	end
 	confete:Destroy()
-
-	estatuaBrainrot(pasta, "Tralalero", nil, Vector3.new(x, 0.05, -34), Vector3.xAxis)
-	estatuaBrainrot(pasta, "Bombardiro", "Dourado", Vector3.new(x, 0.05, 34), Vector3.xAxis)
 end
 
 -- Portal de cada bioma: arco com neon, o nome em cima, brilhos e duas
@@ -657,8 +722,8 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 				Parent = pasta,
 			})
 		end
-		-- sem poste colado nos portais dos biomas
-		for x = a + 10, b - 16, 26 do
+		-- sem poste colado nos portais dos biomas nem dentro do túnel
+		for x = math.max(a + 10, TUNEL_BOCA + 8), b - 16, 26 do
 			local z = ladoPoste * 9.5
 			ladoPoste = -ladoPoste
 			parte({
@@ -696,7 +761,7 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 		end
 	end
 
-	arcoDeEntrada(pasta)
+	tunel(pasta)
 end
 
 local function decorarFloresta(info: Mapa.InfoBioma)
@@ -892,7 +957,7 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 			return false -- bases
 		end
 		if p.X > -140 and p.X < -100 and math.abs(p.Z) < 48 then
-			return false -- entrada e estátuas
+			return false -- túnel da entrada
 		end
 		for _, bioma in biomas do
 			if math.abs(p.X - bioma.centro.X) < 60 and math.abs(p.Z) < 60 then
