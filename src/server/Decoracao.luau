@@ -70,7 +70,7 @@ local function iluminar()
 		Haze = 1,
 	})
 	-- cores fortes de desenho e neon brilhando bastante
-	efeito("BloomEffect", { Intensity = 0.65, Size = 28, Threshold = 1.25 })
+	efeito("BloomEffect", { Intensity = 0.5, Size = 24, Threshold = 1.45 })
 	efeito("ColorCorrectionEffect", { Saturation = 0.3, Contrast = 0.1, Brightness = 0.03 })
 	efeito("SunRaysEffect", { Intensity = 0.04, Spread = 0.7 })
 
@@ -661,7 +661,8 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 				Parent = pasta,
 			})
 		end
-		for x = a + 10, b - 5, 26 do
+		-- sem poste colado nos portais dos biomas
+		for x = a + 10, b - 16, 26 do
 			local z = ladoPoste * 9.5
 			ladoPoste = -ladoPoste
 			parte({

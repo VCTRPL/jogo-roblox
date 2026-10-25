@@ -125,11 +125,10 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 			CanQuery = false,
 			Parent = pastaBioma,
 		})
-		local texto = config.nome
+		-- o nome já aparece na faixa do arco; a placa só avisa a Velocidade necessária
 		if config.velocidadeMinima > 0 then
-			texto ..= `\nPrecisa de {Config.formatar(config.velocidadeMinima)} de Velocidade`
+			Mapa.placa(portal, `Precisa de {Config.formatar(config.velocidadeMinima)} de Velocidade`, 4, 320)
 		end
-		Mapa.placa(portal, texto, 10, 320)
 
 		table.insert(biomas, {
 			config = config,

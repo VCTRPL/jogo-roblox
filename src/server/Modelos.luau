@@ -60,8 +60,9 @@ local function brilhar(parte: BasePart, cor: Color3, quantidade: number)
 	emissor.Parent = parte
 	local luz = Instance.new("PointLight")
 	luz.Color = cor
-	luz.Range = 6 + quantidade
-	luz.Brightness = 0.6 + quantidade / 10
+	-- luz fraca e curta: com vários na base, luz forte estoura o chão
+	luz.Range = 4 + quantidade * 0.4
+	luz.Brightness = 0.3 + quantidade / 40
 	luz.Parent = parte
 end
 
@@ -243,8 +244,10 @@ local function finalizar(modelo: Model, nome: string, escala: number, linhas): M
 		end
 	end
 
+	-- pivot embaixo do modelo, para ele ficar em pé em cima da vaga. Com
+	-- PrimaryPart o Roblox ignora o WorldPivot, então o ajuste vai no PivotOffset.
 	local centro, tamanho = modelo:GetBoundingBox()
-	modelo.WorldPivot = centro * CFrame.new(0, -tamanho.Y / 2, 0)
+	primaria.PivotOffset = primaria.CFrame:ToObjectSpace(centro * CFrame.new(0, -tamanho.Y / 2, 0))
 	local topo = centro.Position.Y + tamanho.Y / 2
 
 	local placa = Instance.new("BillboardGui")
