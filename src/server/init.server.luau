@@ -1,5 +1,6 @@
 -- Script principal do servidor: liga todos os sistemas do jogo.
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
 local Avisos = require(script.Avisos)
 local Bases = require(script.Bases)
@@ -9,6 +10,27 @@ local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
 local Ninhos = require(script.Ninhos)
 local Velocidade = require(script.Velocidade)
+
+-- Todo mundo nasce na própria base: tira o SpawnLocation que vem no lugar
+-- (ficava no meio da estrada) e deixa um escondido no começo dela, só para
+-- quem ainda não ganhou base.
+for _, objeto in Workspace:GetDescendants() do
+	if objeto:IsA("SpawnLocation") then
+		objeto:Destroy()
+	end
+end
+local nascer = Instance.new("SpawnLocation")
+nascer.Name = "SpawnEscondido"
+nascer.Anchored = true
+nascer.Transparency = 1
+nascer.CanCollide = false
+nascer.Size = Vector3.new(6, 1, 6)
+nascer.Position = Vector3.new(Mapa.INICIO_ESTRADA + 6, 1, 0)
+nascer.Neutral = true
+nascer.Parent = Workspace
+for _, decal in nascer:GetChildren() do
+	decal:Destroy()
+end
 
 local infoBases, infoBiomas = Mapa.construir()
 Decoracao.construir(infoBases, infoBiomas)
