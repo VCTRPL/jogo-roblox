@@ -3,23 +3,27 @@ local Players = game:GetService("Players")
 
 local Avisos = require(script.Avisos)
 local Bases = require(script.Bases)
+local Carregar = require(script.Carregar)
 local Dados = require(script.Dados)
-local Esteira = require(script.Esteira)
-local Roubo = require(script.Roubo)
+local Mapa = require(script.Mapa)
+local Ninhos = require(script.Ninhos)
+local Velocidade = require(script.Velocidade)
 
-Bases.iniciar()
-Esteira.iniciar()
-Roubo.iniciar()
+local infoBases, infoBiomas = Mapa.construir()
+Velocidade.iniciar()
+Bases.iniciar(infoBases)
+Carregar.iniciar()
+Ninhos.iniciar(infoBiomas)
 
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)
 	if base then
-		Dados.salvar(player, Bases.ids(base))
+		Dados.salvar(player, Bases.itens(base))
 	end
 end
 
 local function aoEntrar(player: Player)
-	local salvos = Dados.carregar(player)
+	local itens = Dados.carregar(player)
 	if player.Parent == nil then
 		return -- saiu enquanto carregava
 	end
@@ -28,9 +32,10 @@ local function aoEntrar(player: Player)
 		player:Kick("O servidor está cheio, tente outro.")
 		return
 	end
-	for _, id in salvos do
-		Bases.colocar(base, id)
+	for _, item in itens do
+		Bases.colocar(base, item)
 	end
+	Velocidade.atualizar(player)
 
 	local function nascerNaBase(personagem: Model)
 		personagem:WaitForChild("HumanoidRootPart")
@@ -42,7 +47,7 @@ local function aoEntrar(player: Player)
 		task.spawn(nascerNaBase, player.Character)
 	end
 
-	Avisos.enviar(player, "Compre Verities na esteira e roube os dos outros!")
+	Avisos.enviar(player, "Pegue ovos nos ninhos e leve para a sua base! Cuidado com o guardião!")
 end
 
 Players.PlayerAdded:Connect(aoEntrar)
@@ -51,7 +56,7 @@ for _, player in Players:GetPlayers() do
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	Roubo.jogadorSaiu(player)
+	Carregar.perder(player)
 	salvar(player)
 	Dados.esquecer(player)
 	Bases.liberar(player)
