@@ -266,7 +266,12 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 		return
 	end
 	local chegou = delta.Magnitude <= passo
-	if chegou then
+	if chegou and not guardiao.alvo then
+		-- voltou para casa: vira de novo para a entrada
+		guardiao.posicao = destino
+		guardiao.modelo:PivotTo(guardiao.casa)
+		return
+	elseif chegou then
 		guardiao.posicao = destino
 	else
 		guardiao.posicao += delta.Unit * passo
