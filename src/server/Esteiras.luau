@@ -17,6 +17,7 @@ local PRETO = Color3.fromRGB(28, 28, 32)
 
 local FAISCA = "rbxasset://textures/particles/sparkles_main.dds"
 local FUMACA = "rbxasset://textures/particles/smoke_main.dds"
+local FOGO = "rbxasset://textures/particles/fire_main.dds"
 
 type Estilo = {
 	estrutura: Color3, -- deck, colunas e corrimão
@@ -101,6 +102,80 @@ local function flutuantes(modelo: Model, cf: CFrame, cor: Color3, quantidade: nu
 	end
 end
 
+-- Círculo de luz no chão em volta da esteira.
+local function halo(modelo: Model, cf: CFrame, cor: Color3, transparencia: number)
+	enfeite(
+		modelo,
+		cf * CFrame.new(0, 0.03, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Vector3.new(0.05, 15, 15),
+		cor,
+		Enum.Material.Neon,
+		{ Shape = Enum.PartType.Cylinder, Transparency = transparencia, CastShadow = false, Name = "Halo" }
+	)
+end
+
+-- Brilhos subindo da esteira.
+local function brilhosSubindo(modelo: Model, cf: CFrame, cor: Color3, taxa: number)
+	local aura = area(modelo, cf * CFrame.new(0, 1.2, 0), Vector3.new(8, 0.5, 14))
+	particulas(aura, {
+		Texture = FAISCA,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(1, 2),
+		Rate = taxa,
+		Speed = NumberRange.new(2, 4),
+		SpreadAngle = Vector2.new(10, 10),
+		LightEmission = 1,
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+	})
+end
+
+-- Fumaça colorida rente ao chão.
+local function fumaca(modelo: Model, cf: CFrame, cor: Color3, taxa: number)
+	local aura = area(modelo, cf * CFrame.new(0, 0.4, 0), Vector3.new(9, 0.5, 15))
+	particulas(aura, {
+		Texture = FUMACA,
+		Color = ColorSequence.new(cor),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.3, 0.55),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Size = NumberSequence.new(2.5, 5),
+		Lifetime = NumberRange.new(2, 3),
+		Rate = taxa,
+		Speed = NumberRange.new(0.5, 1.5),
+		LightEmission = 0.7,
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+	})
+end
+
+-- Anel girando em volta da esteira, um pouco ondulado.
+local function anel(modelo: Model, cf: CFrame, cor: Color3, raioX: number, raioZ: number, altura: number, onda: number, giro: number)
+	local centro = (cf * CFrame.new(0, altura, 0)).Position
+	local pedacos = 22
+	local function ponto(i: number): Vector3
+		local angulo = i / pedacos * math.pi * 2
+		return (cf * CFrame.new(math.cos(angulo) * raioX, altura + math.sin(angulo) * onda, math.sin(angulo) * raioZ)).Position
+	end
+	for i = 0, pedacos - 1 do
+		if i % 6 ~= 5 then -- uns buracos para parecer um rastro
+			local de, ate = ponto(i), ponto(i + 1)
+			local pedaco = enfeite(
+				modelo,
+				CFrame.lookAt((de + ate) / 2, ate),
+				Vector3.new(0.18, 0.18, (ate - de).Magnitude + 0.1),
+				cor,
+				Enum.Material.Neon,
+				{ CastShadow = false, Transparency = 0.15 + (i % 6) * 0.12, Name = "Anel" }
+			)
+			girar(pedaco, giro, 0, centro)
+		end
+	end
+end
+
 -- Telas do painel ------------------------------------------------------------
 
 local function icone(texto: string)
@@ -158,6 +233,11 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(35, 40, 50),
 		neon = Color3.fromRGB(0, 170, 255),
 		tela = graficoBarras,
+		extra = function(modelo, cf, cor)
+			halo(modelo, cf, cor, 0.7)
+			brilhosSubindo(modelo, cf, cor, 5)
+			flutuantes(modelo, cf, cor, 5, Vector3.new(0.35, 0.35, 0.35))
+		end,
 	},
 	-- 3: Avançada, neon roxo, fumaça roxa e quadradinhos flutuando
 	{
@@ -169,27 +249,13 @@ local ESTILOS: { Estilo } = {
 		neon = Color3.fromRGB(115, 60, 255),
 		tela = icone("🏃"),
 		extra = function(modelo, cf, cor)
-			local aura = area(modelo, cf * CFrame.new(0, 0.3, 0), Vector3.new(8, 0.5, 14))
-			particulas(aura, {
-				Texture = FUMACA,
-				Color = ColorSequence.new(cor),
-				Transparency = NumberSequence.new({
-					NumberSequenceKeypoint.new(0, 1),
-					NumberSequenceKeypoint.new(0.3, 0.6),
-					NumberSequenceKeypoint.new(1, 1),
-				}),
-				Size = NumberSequence.new(2.5, 5),
-				Lifetime = NumberRange.new(2, 3),
-				Rate = 6,
-				Speed = NumberRange.new(0.3, 0.8),
-				LightEmission = 0.6,
-				Shape = Enum.ParticleEmitterShape.Box,
-				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
-			})
-			flutuantes(modelo, cf, cor, 8, Vector3.new(0.45, 0.45, 0.45))
+			halo(modelo, cf, cor, 0.55)
+			fumaca(modelo, cf, cor, 8)
+			brilhosSubindo(modelo, cf, cor, 8)
+			flutuantes(modelo, cf, cor, 12, Vector3.new(0.45, 0.45, 0.45))
 		end,
 	},
-	-- 4: Épica, dourada grossa, anel dourado girando e brilhos
+	-- 4: Épica, dourada grossa, anéis dourados girando e muito brilho
 	{
 		estrutura = Color3.fromRGB(22, 22, 24),
 		material = Enum.Material.SmoothPlastic,
@@ -208,44 +274,28 @@ local ESTILOS: { Estilo } = {
 				local coluna = cf * CFrame.new(x * 2.95, 4.5, -5.75) * CFrame.Angles(math.rad(10), 0, 0)
 				enfeite(modelo, coluna * CFrame.new(x * 0.47, 0.3, 0), Vector3.new(0.05, 5.4, 0.8), cor, Enum.Material.Neon)
 			end
-			-- anel girando em volta da esteira
-			local centro = (cf * CFrame.new(0, 3, 0)).Position
-			local pedacos = 22
-			local function ponto(i: number): Vector3
-				local angulo = i / pedacos * math.pi * 2
-				-- anel um pouco inclinado
-				return (cf * CFrame.new(0, 3 + math.sin(angulo) * 1.2, 0) * CFrame.new(math.cos(angulo) * 6, 0, math.sin(angulo) * 8)).Position
-			end
-			for i = 0, pedacos - 1 do
-				if i % 6 ~= 5 then -- uns buracos para parecer um rastro
-					local de, ate = ponto(i), ponto(i + 1)
-					local pedaco = enfeite(
-						modelo,
-						CFrame.lookAt((de + ate) / 2, ate),
-						Vector3.new(0.18, 0.18, (ate - de).Magnitude + 0.1),
-						cor,
-						Enum.Material.Neon,
-						{ CastShadow = false, Transparency = 0.15 + (i % 6) * 0.12, Name = "Anel" }
-					)
-					girar(pedaco, 50, 0, centro)
-				end
-			end
+			-- dois anéis girando para lados opostos
+			anel(modelo, cf, cor, 6, 8, 3, 1.2, 50)
+			anel(modelo, cf, Color3.fromRGB(255, 225, 120), 5, 7, 5, -1, -70)
+			halo(modelo, cf, cor, 0.45)
+			brilhosSubindo(modelo, cf, cor, 14)
 			local aura = area(modelo, cf * CFrame.new(0, 4, 0), Vector3.new(9, 7, 15))
 			particulas(aura, {
 				Texture = FAISCA,
 				Color = ColorSequence.new(cor, Color3.fromRGB(255, 240, 160)),
-				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.5), NumberSequenceKeypoint.new(1, 0) }),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.3, 0.6), NumberSequenceKeypoint.new(1, 0) }),
 				Lifetime = NumberRange.new(1, 2),
-				Rate = 10,
+				Rate = 12,
 				Speed = NumberRange.new(0.3, 1),
+				RotSpeed = NumberRange.new(-120, 120),
 				LightEmission = 1,
 				Shape = Enum.ParticleEmitterShape.Box,
 				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
 			})
-			flutuantes(modelo, cf, cor, 10, Vector3.new(0.4, 0.4, 0.4))
+			flutuantes(modelo, cf, cor, 14, Vector3.new(0.4, 0.4, 0.4))
 		end,
 	},
-	-- 5: Lendária, neon vermelho, espinhos, chamas e cristais
+	-- 5: Lendária, neon vermelho, espinhos, chamas, brasas e cristais
 	{
 		estrutura = Color3.fromRGB(20, 18, 20),
 		material = Enum.Material.SmoothPlastic,
@@ -258,7 +308,7 @@ local ESTILOS: { Estilo } = {
 		extra = function(modelo, cf, cor)
 			-- espinhos nas colunas, no painel e nos cantos
 			local function espinho(lugar: CFrame, tamanho: number)
-				local base = enfeite(modelo, lugar, Vector3.new(0.5, tamanho, 0.9), Color3.fromRGB(20, 18, 20), Enum.Material.SmoothPlastic, {
+				enfeite(modelo, lugar, Vector3.new(0.5, tamanho, 0.9), Color3.fromRGB(20, 18, 20), Enum.Material.SmoothPlastic, {
 					Name = "Espinho",
 				})
 				local ponta = Instance.new("WedgePart")
@@ -271,7 +321,6 @@ local ESTILOS: { Estilo } = {
 				ponta.Color = cor
 				ponta.Material = Enum.Material.Neon
 				ponta.Parent = modelo
-				return base
 			end
 			for _, x in { -1, 1 } do
 				-- no topo das colunas, apontando para fora
@@ -283,34 +332,34 @@ local ESTILOS: { Estilo } = {
 				espinho(cf * CFrame.new(x * 3.8, 0.9, 6.4) * CFrame.Angles(math.rad(50), 0, math.rad(-x * 40)), 1.2)
 				espinho(cf * CFrame.new(x * 3.8, 0.9, -6.6) * CFrame.Angles(math.rad(-50), 0, math.rad(-x * 40)), 1.2)
 			end
-			-- chamas e aura vermelha
-			for _, x in { -3.2, 3.2 } do
-				local suporte = area(modelo, cf * CFrame.new(x, 1, 6.4), Vector3.new(1, 1, 1))
+			-- chamas nos cantos de trás e no topo das colunas
+			for _, lugar in { Vector3.new(-3.2, 1, 6.4), Vector3.new(3.2, 1, 6.4), Vector3.new(-3.4, 8.6, -5.6), Vector3.new(3.4, 8.6, -5.6) } do
+				local suporte = area(modelo, cf * CFrame.new(lugar), Vector3.new(1, 1, 1))
 				local fogo = Instance.new("Fire")
-				fogo.Size = 4
-				fogo.Heat = 7
+				fogo.Size = if lugar.Y > 2 then 3 else 5
+				fogo.Heat = 8
 				fogo.Color = cor
 				fogo.SecondaryColor = Color3.fromRGB(255, 120, 60)
 				fogo.Parent = suporte
 			end
-			local aura = area(modelo, cf * CFrame.new(0, 0.5, 0), Vector3.new(8.5, 0.5, 14.5))
-			particulas(aura, {
-				Texture = FUMACA,
-				Color = ColorSequence.new(cor, Color3.fromRGB(120, 0, 10)),
-				Transparency = NumberSequence.new({
-					NumberSequenceKeypoint.new(0, 1),
-					NumberSequenceKeypoint.new(0.3, 0.55),
-					NumberSequenceKeypoint.new(1, 1),
-				}),
-				Size = NumberSequence.new(2, 4.5),
-				Lifetime = NumberRange.new(1.5, 2.5),
-				Rate = 8,
-				Speed = NumberRange.new(1, 2.5),
-				LightEmission = 0.8,
+			halo(modelo, cf, cor, 0.4)
+			fumaca(modelo, cf, cor, 12)
+			-- brasas subindo por toda a esteira
+			local brasas = area(modelo, cf * CFrame.new(0, 1.2, 0), Vector3.new(8, 0.5, 14))
+			particulas(brasas, {
+				Texture = FOGO,
+				Color = ColorSequence.new(Color3.fromRGB(255, 170, 60), cor),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) }),
+				Lifetime = NumberRange.new(1, 2),
+				Rate = 16,
+				Speed = NumberRange.new(2, 5),
+				SpreadAngle = Vector2.new(15, 15),
+				RotSpeed = NumberRange.new(-90, 90),
+				LightEmission = 1,
 				Shape = Enum.ParticleEmitterShape.Box,
 				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
 			})
-			flutuantes(modelo, cf, cor, 9, Vector3.new(0.35, 1, 0.35))
+			flutuantes(modelo, cf, cor, 14, Vector3.new(0.4, 1.2, 0.4))
 		end,
 	},
 }
@@ -440,6 +489,36 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 		estilo.extra(modelo, chao, cor)
 	end
 	return modelo
+end
+
+-- Explosão de brilhos na cor do nível, para quando alguém compra a melhoria.
+function Esteiras.celebrar(modelo: Model, nivel: number)
+	local estilo = ESTILOS[math.clamp(nivel, 1, #ESTILOS)]
+	local cor = estilo.neon or Color3.new(1, 1, 1)
+	local pista = modelo:FindFirstChild("Pista")
+	if not pista then
+		return
+	end
+	local anexo = Instance.new("Attachment")
+	anexo.Position = Vector3.new(0, 2, 0)
+	anexo.Parent = pista
+	local explosao = particulas(anexo, {
+		Texture = FAISCA,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(1, 1.8),
+		Rate = 0,
+		Speed = NumberRange.new(12, 22),
+		SpreadAngle = Vector2.new(180, 180),
+		Acceleration = Vector3.new(0, -18, 0),
+		Drag = 2,
+		RotSpeed = NumberRange.new(-180, 180),
+		LightEmission = 1,
+	})
+	explosao:Emit(120)
+	task.delay(3, function()
+		anexo:Destroy()
+	end)
 end
 
 return Esteiras

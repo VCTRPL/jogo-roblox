@@ -122,7 +122,8 @@ local function melhorarEsteira(player: Player, base: Base)
 		Dados.adicionar(player, "Dinheiro", -proximo.preco)
 		player:SetAttribute("NivelEsteira", nivel + 1)
 		atualizarEsteira(base)
-		Avisos.enviar(player, `Esteira melhorada: +{proximo.ganho} Velocidade!`, VERDE)
+		Esteiras.celebrar(base.modeloEsteira, nivel + 1)
+		Avisos.enviar(player, `{proximo.nome}! +{proximo.ganho} Velocidade!`, VERDE)
 	end
 end
 
