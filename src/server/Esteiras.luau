@@ -3,6 +3,7 @@
 -- empurra para trás, então ele corre parado.
 -- O cliente anima as faixas da pista (tag "FaixaEsteira") e o que gira
 -- (tag "GirarEsteira"), veja src/client/init.client.luau.
+local AssetService = game:GetService("AssetService")
 local CollectionService = game:GetService("CollectionService")
 
 local Mapa = require(script.Parent.Mapa)
@@ -348,10 +349,97 @@ local ESTILOS: { Estilo } = {
 	},
 }
 
+-- Malhas 3D geradas pela IA do Roblox (Studio > Assistente). Quando um nível
+-- tem malha, ela substitui a moldura de blocos; os efeitos do nível continuam.
+-- As medidas vêm da malha: altura da faixa onde se corre e onde fica o meio dela.
+type Malha = {
+	malha: string,
+	textura: string,
+	tamanho: Vector3, -- tamanho final da malha no jogo
+	alturaPista: number, -- altura da faixa (onde o jogador pisa) acima do chão
+	deslocamentoZ: number, -- quanto a malha anda para a frente para a faixa ficar no centro
+	comprimentoPista: number,
+	virar: boolean, -- a malha veio com o painel virado para trás
+}
+
+local MALHAS: { [number]: Malha } = {
+	[4] = {
+		malha = "rbxassetid://82021596761232",
+		textura = "rbxassetid://73924392816165",
+		tamanho = Vector3.new(7, 7.2, 13.5),
+		alturaPista = 1.62,
+		deslocamentoZ = -1.35,
+		comprimentoPista = 10,
+		virar = true,
+	},
+}
+
+local moldes: { [number]: MeshPart | false } = {}
+
+-- Carrega a malha uma vez e guarda como molde (false se não deu certo).
+local function molde(nivel: number): MeshPart?
+	local info = MALHAS[nivel]
+	if not info then
+		return nil
+	end
+	if moldes[nivel] == nil then
+		local ok, resultado = pcall(function()
+			return AssetService:CreateMeshPartAsync(Content.fromUri(info.malha))
+		end)
+		if ok then
+			local parte = resultado :: MeshPart
+			parte.TextureID = info.textura
+			parte.Size = info.tamanho
+			parte.Anchored = true
+			parte.CanCollide = false
+			parte.CanQuery = false
+			parte.CanTouch = false
+			parte.Name = "Malha"
+			moldes[nivel] = parte
+		else
+			warn(`Não consegui carregar a malha da esteira nível {nivel}, usando a de blocos:`, resultado)
+			moldes[nivel] = false
+		end
+	end
+	return moldes[nivel] or nil
+end
+
+local function criarComMalha(nivel: number, cf: CFrame, estilo: Estilo, info: Malha, forma: MeshPart): Model
+	local modelo = Instance.new("Model")
+	modelo.Name = "Esteira"
+
+	-- A pista fica invisível na altura da faixa da malha.
+	local tamanho = Vector3.new(Esteiras.TAMANHO_PISTA.X, 0.4, info.comprimentoPista)
+	local pista = Mapa.parte({
+		Name = "Pista",
+		Size = tamanho,
+		CFrame = cf * CFrame.new(0, info.alturaPista - 0.4, 0),
+		Transparency = 1,
+		Parent = modelo,
+	})
+	pista.AssemblyLinearVelocity = -cf.LookVector * EMPURRAO
+	modelo.PrimaryPart = pista
+
+	local malha = forma:Clone()
+	local giro = if info.virar then CFrame.Angles(0, math.pi, 0) else CFrame.identity
+	-- "cf" está 0.2 acima do chão (meio da pista de blocos)
+	malha.CFrame = cf * CFrame.new(0, info.tamanho.Y / 2 - 0.2, info.deslocamentoZ) * giro
+	malha.Parent = modelo
+
+	if estilo.extra then
+		estilo.extra(modelo, cf)
+	end
+	return modelo
+end
+
 -- Monta a esteira do nível pedido. "cf" é o centro da pista, olhando para
 -- a frente (onde fica o painel); a pista empurra o jogador para trás.
 function Esteiras.criar(nivel: number, cf: CFrame): Model
 	local estilo = ESTILOS[math.clamp(nivel, 1, #ESTILOS)]
+	local forma = molde(nivel)
+	if forma then
+		return criarComMalha(nivel, cf, estilo, MALHAS[nivel], forma)
+	end
 	local tamanho = Esteiras.TAMANHO_PISTA
 	local meio = tamanho.Z / 2
 
