@@ -2,6 +2,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Blocos = require(script.Parent.Blocos)
 
 local Modelos = {}
 
@@ -162,29 +163,46 @@ local function bonecoBrainrot(def, mutacao): Model
 	return modelo
 end
 
+-- Ovo de blocos: camadas quadradas, largas no meio e estreitas nas pontas,
+-- na cor do Brainrot que vai nascer, com pintas e uma faixa de neon na cor
+-- da raridade.
+local CAMADAS_OVO = { { 1.5, 0.4 }, { 2.1, 0.5 }, { 2.4, 0.8 }, { 2.3, 0.5 }, { 1.9, 0.4 }, { 1.2, 0.4 } }
+
 local function bonecoOvo(def): Model
 	local modelo = Instance.new("Model")
 	local cor = Config.CORES_RARIDADE[def.raridade]
-	local casca = peca(modelo, "Casca", Vector3.new(2.4, 3, 2.4), CFrame.new(), cor, { Material = Enum.Material.Glass, Reflectance = 0.15 })
-	local malha = Instance.new("SpecialMesh")
-	malha.MeshType = Enum.MeshType.Sphere
-	malha.Parent = casca
+	local brainrot = Config.brainrot(def.brainrot)
+	local corCasca = if brainrot then brainrot.cor:Lerp(Color3.new(1, 1, 1), 0.3) else cor
+	local corPinta = if brainrot then brainrot.corCabeca else cor:Lerp(Color3.new(1, 1, 1), 0.6)
 
-	-- pintas e uma faixa brilhante
-	local aleatorio = Random.new(#def.id)
-	for _ = 1, 6 do
-		local direcao = aleatorio:NextUnitVector()
-		local ponto = Vector3.new(direcao.X * 1.1, direcao.Y * 1.35, direcao.Z * 1.1)
-		bola(modelo, "Pinta", 0.6, CFrame.new(ponto), cor:Lerp(Color3.new(1, 1, 1), 0.6))
+	local casca: Part? = nil
+	local y = -1.5
+	for i, camada in CAMADAS_OVO do
+		local largura, altura = camada[1], camada[2]
+		local p = peca(modelo, if i == 3 then "Casca" else "Camada", Vector3.new(largura, altura, largura), CFrame.new(0, y + altura / 2, 0), corCasca)
+		if i == 3 then
+			casca = p
+		end
+		y += altura
 	end
-	local faixa = peca(modelo, "Faixa", Vector3.new(0.35, 2.5, 2.5), CFrame.Angles(0, 0, math.rad(90)), Color3.new(1, 1, 1), {
-		Shape = Enum.PartType.Cylinder,
+
+	-- pintas nos quatro lados (sempre iguais para o mesmo ovo)
+	local aleatorio = Random.new(#def.id)
+	for lado = 0, 3 do
+		local giro = CFrame.Angles(0, lado * math.pi / 2, 0)
+		local deslocamento = if lado % 2 == 0 then 0.45 else -0.45
+		for _, altura in { { 0.45, 2.3 }, { -0.85, 2.1 } } do
+			local x = deslocamento * (if aleatorio:NextNumber() < 0.5 then 1 else -1)
+			peca(modelo, "Pinta", Vector3.new(0.55, 0.38, 0.12), giro * CFrame.new(x, altura[1], -altura[2] / 2 - 0.04), corPinta)
+		end
+	end
+	peca(modelo, "Faixa", Vector3.new(2.52, 0.22, 2.52), CFrame.new(0, -0.2, 0), cor:Lerp(Color3.new(1, 1, 1), 0.3), {
 		Material = Enum.Material.Neon,
 	})
-	faixa.Color = cor:Lerp(Color3.new(1, 1, 1), 0.3)
 
-	brilhar(casca, cor, BRILHO_RARIDADE[def.raridade] or 0)
-	modelo.PrimaryPart = casca
+	local principal = casca :: Part
+	brilhar(principal, cor, BRILHO_RARIDADE[def.raridade] or 0)
+	modelo.PrimaryPart = principal
 	return modelo
 end
 
@@ -196,6 +214,8 @@ local function doStudio(pastaNome: string, id: string): Model?
 		return nil
 	end
 	local modelo = molde:Clone()
+	-- modelo feito por você: o estilo Lego não mexe nele
+	modelo:SetAttribute("Biblioteca", true)
 	if not modelo.PrimaryPart then
 		modelo.PrimaryPart = modelo:FindFirstChildWhichIsA("BasePart", true)
 	end
@@ -224,6 +244,10 @@ end
 -- Ancora, solda as peças, põe o pivot nos pés e cria placa e prompt.
 local function finalizar(modelo: Model, nome: string, escala: number, linhas): Model
 	modelo.Name = nome
+	-- estilo Lego antes das soldas e do pivot (bolas e cilindros viram blocos)
+	if not modelo:GetAttribute("Biblioteca") then
+		Blocos.aplicar(modelo)
+	end
 	if escala ~= 1 then
 		modelo:ScaleTo(escala)
 	end
@@ -314,7 +338,12 @@ function Modelos.boneco(id: string, mutacao: string?): Model?
 	if not def then
 		return nil
 	end
-	return doStudio("ModelosBrainrot", def.id) or bonecoBrainrot(def, Config.mutacao(mutacao))
+	local modelo = doStudio("ModelosBrainrot", def.id)
+	if not modelo then
+		modelo = bonecoBrainrot(def, Config.mutacao(mutacao))
+		Blocos.aplicar(modelo)
+	end
+	return modelo
 end
 
 function Modelos.prompt(modelo: Model): ProximityPrompt

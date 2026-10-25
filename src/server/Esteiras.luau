@@ -364,6 +364,95 @@ local ESTILOS: { Estilo } = {
 	},
 }
 
+-- Efeitos que toda esteira tem, mais fortes a cada nível: riscos de vento
+-- correndo pela pista, faíscas (ou poeira, na Básica) saindo do rolo de trás
+-- e um pilar de brilhos subindo nas laterais.
+local function efeitosPista(modelo: Model, chao: CFrame, nivel: number, cor: Color3)
+	local forca = nivel / #ESTILOS
+
+	-- riscos de vento: nascem na frente da pista e correm para trás
+	local frente = area(modelo, chao * CFrame.new(0, ALTURA_PISTA + 0.9, -4), Vector3.new(4.4, 1.6, 0.5))
+	particulas(frente, {
+		Name = "Vento",
+		Texture = FAISCA,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.2, 0.2),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+		Size = NumberSequence.new(0.18 + forca * 0.12),
+		Squash = NumberSequence.new(-2.2),
+		Orientation = Enum.ParticleOrientation.VelocityParallel,
+		EmissionDirection = Enum.NormalId.Back,
+		Lifetime = NumberRange.new(0.35, 0.55),
+		Rate = 6 + forca * 22,
+		Speed = NumberRange.new(20, 28),
+		SpreadAngle = Vector2.new(4, 4),
+		LightEmission = 1,
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+	})
+
+	-- rolo de trás: faíscas pulando (ou poeira na esteira básica)
+	local rolo = area(modelo, chao * CFrame.new(0, ALTURA_PISTA, 6.3), Vector3.new(4.6, 0.3, 0.3))
+	if nivel == 1 then
+		particulas(rolo, {
+			Name = "Poeira",
+			Texture = FUMACA,
+			Color = ColorSequence.new(Color3.fromRGB(200, 195, 185)),
+			Transparency = NumberSequence.new(0.55, 1),
+			Size = NumberSequence.new(0.8, 2.2),
+			EmissionDirection = Enum.NormalId.Back,
+			Lifetime = NumberRange.new(0.6, 1),
+			Rate = 6,
+			Speed = NumberRange.new(2, 4),
+			SpreadAngle = Vector2.new(30, 30),
+			Acceleration = Vector3.new(0, 1.5, 0),
+			Shape = Enum.ParticleEmitterShape.Box,
+		})
+	else
+		particulas(rolo, {
+			Name = "Faiscas",
+			Texture = FAISCA,
+			Color = ColorSequence.new(Color3.fromRGB(255, 250, 220), cor),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0) }),
+			EmissionDirection = Enum.NormalId.Back,
+			Lifetime = NumberRange.new(0.4, 0.8),
+			Rate = 4 + forca * 26,
+			Speed = NumberRange.new(8, 14),
+			SpreadAngle = Vector2.new(35, 25),
+			Acceleration = Vector3.new(0, -40, 0),
+			Drag = 1,
+			LightEmission = 1,
+			Shape = Enum.ParticleEmitterShape.Box,
+		})
+	end
+
+	-- pilares de brilho subindo dos dois lados
+	if nivel >= 2 then
+		for _, x in { -1, 1 } do
+			local lateral = area(modelo, chao * CFrame.new(x * 3.6, 1.4, 0.4), Vector3.new(0.3, 0.3, 11))
+			particulas(lateral, {
+				Name = "Pilar",
+				Texture = FAISCA,
+				Color = ColorSequence.new(cor, Color3.new(1, 1, 1)),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 0) }),
+				Lifetime = NumberRange.new(0.8, 1.4),
+				Rate = 3 + forca * 12,
+				Speed = NumberRange.new(3, 6),
+				SpreadAngle = Vector2.new(5, 5),
+				LightEmission = 1,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+		end
+	else
+		halo(modelo, chao, Color3.fromRGB(255, 255, 255), 0.85)
+		brilhosSubindo(modelo, chao, Color3.fromRGB(255, 255, 255), 2)
+	end
+end
+
 -- Monta a esteira do nível pedido. "cf" fica 0.2 acima do chão, no centro
 -- da esteira, olhando para a frente (onde fica o painel); a pista empurra o
 -- jogador para trás.
@@ -394,7 +483,9 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	end
 	local function brilho(lugar: CFrame, tamanho: Vector3)
 		if estilo.neon then
-			enfeite(modelo, chao * lugar, tamanho, estilo.neon, Enum.Material.Neon, { CastShadow = false })
+			local luzNeon = enfeite(modelo, chao * lugar, tamanho, estilo.neon, Enum.Material.Neon, { CastShadow = false })
+			-- o cliente faz as luzes pulsarem
+			CollectionService:AddTag(luzNeon, "PulsarEsteira")
 		end
 	end
 	local largura = if estilo.grosso then 0.45 else 0.16
@@ -485,6 +576,7 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 		CollectionService:AddTag(faixa, "FaixaEsteira")
 	end
 
+	efeitosPista(modelo, chao, nivel, estilo.neon or Color3.fromRGB(235, 235, 240))
 	if estilo.extra then
 		estilo.extra(modelo, chao, cor)
 	end
