@@ -1,4 +1,5 @@
--- Manda mensagens que aparecem na tela do jogador (o cliente mostra).
+-- Manda mensagens que aparecem na tela do jogador e pede efeitos
+-- visuais para os clientes (o cliente mostra tudo, veja src/client).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Avisos = {}
@@ -8,6 +9,9 @@ pasta.Name = "Remotes"
 local evento = Instance.new("RemoteEvent")
 evento.Name = "Aviso"
 evento.Parent = pasta
+local eventoEfeito = Instance.new("RemoteEvent")
+eventoEfeito.Name = "Efeito"
+eventoEfeito.Parent = pasta
 pasta.Parent = ReplicatedStorage
 
 function Avisos.enviar(player: Player, texto: string, cor: Color3?)
@@ -17,9 +21,14 @@ function Avisos.enviar(player: Player, texto: string, cor: Color3?)
 	evento:FireClient(player, texto, cor or Color3.new(1, 1, 1))
 end
 
--- Manda a mesma mensagem para todo mundo no servidor.
+-- Anúncio grande para todo mundo no servidor (por exemplo, quando nasce um raro).
 function Avisos.todos(texto: string, cor: Color3?)
-	evento:FireAllClients(texto, cor or Color3.new(1, 1, 1))
+	evento:FireAllClients(texto, cor or Color3.new(1, 1, 1), "anuncio")
+end
+
+-- Pede para todos os clientes mostrarem um efeito, como a explosão quando um ovo choca.
+function Avisos.efeito(nome: string, ...: any)
+	eventoEfeito:FireAllClients(nome, ...)
 end
 
 return Avisos

@@ -135,6 +135,13 @@ local function chocar(base: Base, vaga: number)
 		`Nasceu um {nome}! +${Config.formatar(renda * 30)} e +{bonus} Velocidade`,
 		Config.CORES_RARIDADE[brainrot.raridade]
 	)
+	-- explosão de partículas na vaga, que todo mundo por perto vê
+	Avisos.efeito("Chocou", {
+		posicao = base.vagas[vaga].Position,
+		raridade = brainrot.raridade,
+		mutacao = nascido.mutacao,
+		ganho = renda * 30,
+	})
 	if Config.ANUNCIAR_RARIDADES[brainrot.raridade] or Config.ANUNCIAR_MUTACOES[nascido.mutacao] then
 		Avisos.todos(`{dono.DisplayName} chocou um {nome}!`, Config.CORES_RARIDADE[brainrot.raridade])
 	end
@@ -242,7 +249,10 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 			task.wait(1)
 			for _, base in bases do
 				if base.dono then
-					Dados.adicionar(base.dono, "Dinheiro", Bases.renda(base))
+					local renda = Bases.renda(base)
+					Dados.adicionar(base.dono, "Dinheiro", renda)
+					-- o cliente mostra a renda por segundo no painel de dinheiro
+					base.dono:SetAttribute("Renda", renda)
 				end
 			end
 		end
