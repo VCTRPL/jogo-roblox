@@ -11,8 +11,8 @@ local Mapa = require(script.Parent.Mapa)
 local Montanhas = {}
 
 -- Até onde vai cada área (as linhas internas das montanhas).
-Montanhas.INICIO = -132 -- atrás do arco de entrada
-Montanhas.Z_BASES = 84 -- bases vão até z = 63, sobra espaço para árvores
+Montanhas.INICIO = -150 -- atrás da entrada
+Montanhas.Z_BASES = 94 -- bases vão até z = 79, sobra espaço para árvores
 Montanhas.Z_FASES = 56 -- o piso das fases vai até z = 50
 Montanhas.TRANSICAO = Mapa.INICIO_BIOMAS - 16 -- onde a área das bases vira estrada das fases
 

@@ -489,7 +489,7 @@ end
 -- Entrada no começo da estrada: duas colunas listradas com confete saindo
 -- do topo e duas estátuas gigantes de Brainrots.
 local function arcoDeEntrada(pasta: Instance)
-	local x = -104
+	local x = -118
 	local topos = {}
 	for _, z in { -15, 15 } do
 		parte({
@@ -624,7 +624,7 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 	local fim = Mapa.INICIO_BIOMAS + #biomas * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
 	-- trechos de estrada à mostra (dentro dos biomas o piso cobre a estrada)
 	local trechos = {}
-	local inicio = -100
+	local inicio = Mapa.INICIO_ESTRADA
 	for _, bioma in biomas do
 		local comeco = bioma.centro.X - Mapa.TAMANHO_BIOMA / 2
 		table.insert(trechos, { inicio, comeco })
@@ -888,10 +888,10 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 		if p.X >= Montanhas.TRANSICAO - 6 and math.abs(p.Z) > Montanhas.Z_FASES - 4 then
 			return false
 		end
-		if math.abs(p.X) < 96 and math.abs(p.Z) < 70 then
+		if math.abs(p.X) < 100 and math.abs(p.Z) < 84 then
 			return false -- bases
 		end
-		if p.X > -125 and p.X < -90 and math.abs(p.Z) < 48 then
+		if p.X > -140 and p.X < -100 and math.abs(p.Z) < 48 then
 			return false -- entrada e estátuas
 		end
 		for _, bioma in biomas do
