@@ -14,10 +14,15 @@ require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
 require(script.Interface).iniciar()
 require(script.Corrida).iniciar()
+local Prompts = require(script.Prompts)
+Prompts.iniciar()
 
 -- Esconde "Roubar" nos Brainrots da sua própria base ----------------------
 
 local function verificarPrompt(objeto: Instance)
+	if objeto:IsA("ProximityPrompt") then
+		Prompts.estilizar(objeto)
+	end
 	if objeto:IsA("ProximityPrompt") and objeto:GetAttribute("DonoId") == jogador.UserId then
 		-- Mudança só no seu computador: os outros jogadores continuam vendo o botão.
 		objeto.MaxActivationDistance = 0
