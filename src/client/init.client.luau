@@ -1,7 +1,9 @@
--- Script do cliente: mostra os avisos na tela e esconde o botão
--- "Roubar" dos seus próprios Verities.
+-- Script do cliente: mostra os avisos na tela, esconde o botão
+-- "Roubar" dos seus próprios Verities e anima as esteiras.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -54,3 +56,42 @@ Workspace.DescendantAdded:Connect(verificarPrompt)
 for _, objeto in Workspace:GetDescendants() do
 	verificarPrompt(objeto)
 end
+
+-- Anima as esteiras ---------------------------------------------------------
+-- As faixas andam pela pista e o que tem a tag "GirarEsteira" gira. Só neste
+-- computador: o servidor não precisa mandar nada.
+
+local inicios: { [BasePart]: CFrame } = {}
+
+local function esquecer(parte: Instance)
+	inicios[parte :: BasePart] = nil
+end
+CollectionService:GetInstanceRemovedSignal("FaixaEsteira"):Connect(esquecer)
+CollectionService:GetInstanceRemovedSignal("GirarEsteira"):Connect(esquecer)
+
+RunService.RenderStepped:Connect(function()
+	local agora = os.clock()
+	for _, faixa in CollectionService:GetTagged("FaixaEsteira") do
+		if faixa:IsA("BasePart") and faixa:IsDescendantOf(Workspace) then
+			local fase = faixa:GetAttribute("Fase") or 0
+			local inicio = inicios[faixa]
+			if not inicio then
+				inicio = faixa.CFrame * CFrame.new(0, 0, -fase)
+				inicios[faixa] = inicio
+			end
+			local andou = (fase + agora * (faixa:GetAttribute("Velocidade") or 10)) % (faixa:GetAttribute("Curso") or 10)
+			faixa.CFrame = inicio * CFrame.new(0, 0, andou)
+		end
+	end
+	for _, parte in CollectionService:GetTagged("GirarEsteira") do
+		if parte:IsA("BasePart") and parte:IsDescendantOf(Workspace) then
+			local inicio = inicios[parte]
+			if not inicio then
+				inicio = parte.CFrame
+				inicios[parte] = inicio
+			end
+			local giro = CFrame.Angles(0, math.rad(agora * (parte:GetAttribute("Giro") or 45)), 0)
+			parte.CFrame = (giro * inicio.Rotation) + inicio.Position + Vector3.new(0, math.sin(agora * 2) * 0.3, 0)
+		end
+	end
+end)
