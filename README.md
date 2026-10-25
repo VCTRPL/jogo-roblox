@@ -41,6 +41,7 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/client/Interface.luau` | Barra do próximo bioma, faixa "Carregando" com trilha até a base, Índice e Ajuda |
 | `src/client/Corrida.luau` | Efeitos de quem corre na esteira e luzes das esteiras pulsando |
 | `src/client/Ui.luau` | Peças de interface usadas por todas as telas |
+| `src/client/Prompts.luau` | Botões "Pegar", "Roubar" etc. no estilo do jogo (tocar funciona no celular) |
 
 ## Trocar os bonecos pelos modelos de verdade
 
