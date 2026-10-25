@@ -44,7 +44,7 @@ Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())
 function Bases.renda(base: Base): number
 	local total = 0
 	for _, dados in base.itens do
-		if dados.item.tipo == "verity" then
+		if dados.item.tipo == "brainrot" then
 			total += Config.renda(dados.item)
 		end
 	end
@@ -115,10 +115,10 @@ local function chocar(base: Base, vaga: number)
 		return
 	end
 	local ovo = Config.ovo(dados.item.id)
-	local verity = Config.verity(ovo.verity)
+	local brainrot = Config.brainrot(ovo.brainrot)
 	local nascido: Modelos.Item = {
-		tipo = "verity",
-		id = verity.id,
+		tipo = "brainrot",
+		id = brainrot.id,
 		tamanho = dados.item.tamanho,
 		mutacao = Config.sortearMutacao().nome,
 	}
@@ -126,15 +126,18 @@ local function chocar(base: Base, vaga: number)
 	Bases.colocar(base, nascido, vaga)
 
 	local renda = Config.renda(nascido)
-	local bonus = Config.BONUS_VELOCIDADE[verity.raridade] or 0
+	local bonus = Config.BONUS_VELOCIDADE[brainrot.raridade] or 0
 	Dados.adicionar(dono, "Dinheiro", renda * 30)
 	Velocidade.adicionar(dono, bonus)
-	local nome = if nascido.mutacao == "Normal" then verity.nome else `{verity.nome} {nascido.mutacao}`
+	local nome = if nascido.mutacao == "Normal" then brainrot.nome else `{brainrot.nome} {nascido.mutacao}`
 	Avisos.enviar(
 		dono,
 		`Nasceu um {nome}! +${Config.formatar(renda * 30)} e +{bonus} Velocidade`,
-		Config.CORES_RARIDADE[verity.raridade]
+		Config.CORES_RARIDADE[brainrot.raridade]
 	)
+	if Config.ANUNCIAR_RARIDADES[brainrot.raridade] or Config.ANUNCIAR_MUTACOES[nascido.mutacao] then
+		Avisos.todos(`{dono.DisplayName} chocou um {nome}!`, Config.CORES_RARIDADE[brainrot.raridade])
+	end
 end
 
 local function criarBase(info: Mapa.InfoBase): Base
@@ -332,7 +335,7 @@ function Bases.vagaLivre(base: Base): number?
 	return nil
 end
 
--- Coloca um ovo ou Verity numa vaga livre (ou na vaga pedida, se estiver livre).
+-- Coloca um ovo ou Brainrot numa vaga livre (ou na vaga pedida, se estiver livre).
 -- Retorna false se a base estiver cheia.
 function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): boolean
 	local vaga = if vagaPreferida and not base.itens[vagaPreferida] then vagaPreferida else Bases.vagaLivre(base)
@@ -343,7 +346,7 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	if item.tipo == "ovo" and not Config.ovo(item.id) then
 		return false
 	end
-	if item.tipo == "verity" and not Config.verity(item.id) then
+	if item.tipo == "brainrot" and not Config.brainrot(item.id) then
 		return false
 	end
 

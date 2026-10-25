@@ -53,8 +53,8 @@ local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
 	local corpo = Instance.new("Part")
 	corpo.Name = "Corpo"
 	corpo.Size = Vector3.new(7, 8, 7)
-	corpo.Color = Color3.fromRGB(60, 30, 30)
-	corpo.Material = Enum.Material.Slate
+	corpo.Color = info.config.corGuardiao or Color3.fromRGB(60, 30, 30)
+	corpo.Material = Enum.Material.Wood
 	corpo.Anchored = true
 	corpo.CanCollide = false
 	corpo.Parent = modelo
@@ -72,10 +72,21 @@ local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
 		olho.Parent = modelo
 	end
 
+	-- o taco que ele carrega
+	local taco = Instance.new("Part")
+	taco.Name = "Taco"
+	taco.Size = Vector3.new(1, 1, 7)
+	taco.Color = Color3.fromRGB(200, 160, 100)
+	taco.Material = Enum.Material.Wood
+	taco.Anchored = true
+	taco.CanCollide = false
+	taco.CFrame = corpo.CFrame * CFrame.new(4.2, 0.5, -2) * CFrame.Angles(math.rad(35), 0, 0)
+	taco.Parent = modelo
+
 	modelo.PrimaryPart = corpo
 	-- pivot nos pés
 	modelo.WorldPivot = corpo.CFrame * CFrame.new(0, -4, 0)
-	Mapa.placa(corpo, `Guardião da {info.config.nome}`, 6, 220)
+	Mapa.placa(corpo, info.config.guardiao, 6, 260)
 
 	local casa = CFrame.lookAt(info.centro, info.centro + Vector3.new(-1, 0, 0))
 	modelo:PivotTo(casa)
@@ -119,7 +130,7 @@ local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 			devolver()
 			return
 		end
-		Avisos.enviar(player, "Corra para a sua base! O guardião acordou!", VERDE)
+		Avisos.enviar(player, `Corra para a sua base! {bioma.info.config.guardiao} acordou!`, VERDE)
 		local guardiao = bioma.guardiao
 		if not guardiao.alvo then
 			guardiao.correEm = os.clock() + TEMPO_ACORDAR
@@ -202,7 +213,7 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 				guardiao.posicao.Z
 			)).Magnitude
 			if distancia <= DISTANCIA_PEGAR then
-				Carregar.derrubar(alvo, "O guardião te pegou! Você perdeu o ovo.")
+				Carregar.derrubar(alvo, `{info.config.guardiao} te pegou! Você perdeu o ovo.`)
 				guardiao.alvo = nil
 			end
 		else

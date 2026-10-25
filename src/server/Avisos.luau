@@ -17,4 +17,9 @@ function Avisos.enviar(player: Player, texto: string, cor: Color3?)
 	evento:FireClient(player, texto, cor or Color3.new(1, 1, 1))
 end
 
+-- Manda a mesma mensagem para todo mundo no servidor.
+function Avisos.todos(texto: string, cor: Color3?)
+	evento:FireAllClients(texto, cor or Color3.new(1, 1, 1))
+end
+
 return Avisos
