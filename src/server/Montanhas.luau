@@ -11,7 +11,7 @@ local Mapa = require(script.Parent.Mapa)
 local Montanhas = {}
 
 -- Até onde vai cada área (as linhas internas das montanhas).
-Montanhas.INICIO = -150 -- atrás da entrada
+Montanhas.INICIO = -150 -- atrás do túnel da entrada
 Montanhas.Z_BASES = 94 -- bases vão até z = 79, sobra espaço para árvores
 Montanhas.Z_FASES = 56 -- o piso das fases vai até z = 50
 Montanhas.TRANSICAO = Mapa.INICIO_BIOMAS - 16 -- onde a área das bases vira estrada das fases
@@ -112,6 +112,53 @@ local function cordilheira(pasta: Instance, de: Vector3, ate: Vector3, fora: Vec
 	barreira(pasta, de, ate)
 end
 
+-- Montanha da frente, onde a estrada sai do túnel: uma fileira que vai de
+-- uma lateral à outra encostada na boca do túnel (sem cobrir a passagem) e
+-- um morro em cima do túnel.
+local function montanhaDoTunel(pasta: Instance)
+	local boca = Mapa.TUNEL_BOCA
+	local fundo = Montanhas.INICIO
+	local zb = Montanhas.Z_BASES
+	local LIVRE = 12 -- metade da largura do túnel, com folga
+
+	local z = -zb - 8
+	while z < zb + 8 do
+		local largura = aleatorio:NextNumber(22, 32)
+		-- até onde o bloco (e a grama escorrendo) pode ir para os lados
+		local alcance = largura * 0.7
+		local zc = z
+		if math.abs(zc) < LIVRE + alcance then
+			zc = (if zc < 0 then -1 else 1) * (LIVRE + alcance)
+		end
+		local ponto = Vector3.new(boca - largura / 2 + 1, 0, zc)
+		montanha(pasta, ponto, largura, aleatorio:NextNumber(28, 40))
+		z += largura * aleatorio:NextNumber(0.55, 0.75)
+	end
+
+	-- terra dos lados e em cima do túnel, fechando os buracos
+	local comprimento = boca - fundo
+	local meio = (boca + fundo) / 2
+	for _, lado in { -1, 1 } do
+		Mapa.parte({
+			Name = "Montanha",
+			Size = Vector3.new(comprimento, 18, 8),
+			Position = Vector3.new(meio, 9, lado * 15),
+			Color = TERRA,
+			Material = Enum.Material.Plastic,
+			Parent = pasta,
+		})
+	end
+	Mapa.parte({
+		Name = "Montanha",
+		Size = Vector3.new(comprimento, 10, 34),
+		Position = Vector3.new(meio, 21, 0),
+		Color = escolher(GRAMA),
+		Material = Enum.Material.Plastic,
+		Parent = pasta,
+	})
+	montanha(pasta, Vector3.new(meio - 4, 26, 0), 30, 26)
+end
+
 function Montanhas.construir()
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Montanhas"
@@ -129,7 +176,8 @@ function Montanhas.construir()
 		-- laterais das fases
 		cordilheira(pasta, Vector3.new(t, 0, lado * zf), Vector3.new(fim, 0, lado * zf), fora, 24, 38)
 	end
-	-- começo (atrás do arco) e fim da estrada
+	-- começo (o túnel entra na montanha) e fim da estrada
+	montanhaDoTunel(pasta)
 	cordilheira(pasta, Vector3.new(inicio, 0, -zb), Vector3.new(inicio, 0, zb), -Vector3.xAxis, 34, 50)
 	cordilheira(pasta, Vector3.new(fim, 0, -zf), Vector3.new(fim, 0, zf), Vector3.xAxis, 30, 44)
 
