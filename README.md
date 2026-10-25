@@ -19,21 +19,25 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 
 | Arquivo | O que faz |
 | --- | --- |
-| `src/shared/Config.luau` | Verities, ovos, biomas e números do jogo |
+| `src/shared/Config.luau` | Brainrots, ovos, biomas e números do jogo |
 | `src/server/init.server.luau` | Liga tudo e cuida de quem entra e sai |
 | `src/server/Mapa.luau` | Cria as bases, a estrada e os biomas |
 | `src/server/Ninhos.luau` | Ninhos de ovos, guardião e bloqueio por Velocidade |
-| `src/server/Carregar.luau` | Carregar ovos/Verities, entregar na base e roubar |
+| `src/server/Guardioes.luau` | Modelos dos guardiões (Tung Tung Tung Sahur, Cappuccino Assassino) |
+| `src/server/Carregar.luau` | Carregar ovos/Brainrots, entregar na base e roubar |
 | `src/server/Bases.luau` | Vagas, chocar ovos, renda, esteira de corrida e tranca |
 | `src/server/Velocidade.luau` | Velocidade de andar (atributo, peso do ovo, atordoado) |
 | `src/server/Dados.luau` | Placar e salvamento |
-| `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Verities |
-| `src/server/Avisos.luau` | Mensagens na tela do jogador |
-| `src/client/init.client.luau` | Mostra os avisos e esconde "Roubar" nas suas próprias coisas |
+| `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Brainrots |
+| `src/server/Decoracao.luau` | Céu, árvores, praia, arco de entrada, estátuas e portais |
+| `src/server/Avisos.luau` | Mensagens na tela, anúncios e pedidos de efeitos para os clientes |
+| `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
+| `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
+| `src/client/Efeitos.luau` | Explosão de partículas quando um ovo choca |
 
 ## Trocar os bonecos pelos modelos de verdade
 
-Por enquanto cada Brainrot é um boneco simples com as cores do personagem, e cada ovo é uma esfera. Para usar modelos de verdade:
+Por enquanto cada Brainrot é um boneco feito de peças com as cores e um detalhe do personagem, e cada ovo é uma esfera com pintas. Para usar modelos de verdade:
 
 1. No Studio, crie as pastas `ModelosBrainrot` e `ModelosOvo` dentro de `ReplicatedStorage`.
 2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `Tralalero` em `ModelosBrainrot`, `OvoTralalero` em `ModelosOvo`).
