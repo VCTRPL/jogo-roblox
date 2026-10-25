@@ -40,6 +40,8 @@ local bases: { Base } = {}
 local porJogador: { [Player]: Base } = {}
 -- Quem está correndo na esteira da própria base.
 local correndo: { [Player]: Base } = {}
+-- Quem já saiu de cima da pista desde a última corrida (pode subir de novo).
+local desceu: { [Player]: boolean } = {}
 
 local VERMELHO = Color3.fromRGB(255, 90, 90)
 local VERDE = Color3.fromRGB(90, 255, 120)
@@ -235,24 +237,6 @@ local function criarBase(info: Mapa.InfoBase): Base
 	promptEsteira.HoldDuration = 0.5
 	promptEsteira.Parent = marcoEsteira
 
-	-- botão para entrar na esteira, atrás dela
-	local entradaEsteira = Instance.new("Part")
-	entradaEsteira.Name = "EntradaEsteira"
-	entradaEsteira.Anchored = true
-	entradaEsteira.CanCollide = false
-	entradaEsteira.CanQuery = false
-	entradaEsteira.CanTouch = false
-	entradaEsteira.Transparency = 1
-	entradaEsteira.Size = Vector3.new(1, 1, 1)
-	entradaEsteira.CFrame = cframeEsteira * CFrame.new(0, 2, 8)
-	entradaEsteira.Parent = info.pasta
-	local promptCorrer = Instance.new("ProximityPrompt")
-	promptCorrer.ActionText = "Correr"
-	promptCorrer.ObjectText = "Esteira"
-	promptCorrer.RequiresLineOfSight = false
-	promptCorrer.MaxActivationDistance = 12
-	promptCorrer.Parent = entradaEsteira
-
 	local base: Base = {
 		info = info,
 		dono = nil,
@@ -275,22 +259,15 @@ local function criarBase(info: Mapa.InfoBase): Base
 	promptEsteira.Triggered:Connect(function(player)
 		melhorarEsteira(player, base)
 	end)
-	promptCorrer.Triggered:Connect(function(player)
-		Bases.entrarNaEsteira(player, base)
-	end)
 	return base
 end
 
--- Correr na esteira: o personagem fica preso (ancorado) em cima da pista,
--- olhando para o painel, e o cliente toca a animação de corrida. Assim
--- ninguém é jogado para fora, por mais rápido que seja.
+-- Correr na esteira: quem sobe na pista da própria esteira fica preso
+-- (ancorado) em cima dela, olhando para o painel, e o cliente toca a
+-- animação de corrida. Assim ninguém atravessa a esteira, por mais rápido
+-- que seja.
 function Bases.entrarNaEsteira(player: Player, base: Base)
-	if base.dono ~= player then
-		Avisos.enviar(player, "Essa não é a sua esteira!", VERMELHO)
-		return
-	end
-	if correndo[player] then
-		Bases.sairDaEsteira(player)
+	if base.dono ~= player or correndo[player] then
 		return
 	end
 	local personagem = player.Character
@@ -314,6 +291,8 @@ function Bases.sairDaEsteira(player: Player)
 		return
 	end
 	correndo[player] = nil
+	-- só volta a correr depois de descer da pista
+	desceu[player] = nil
 	player:SetAttribute("NaEsteira", false)
 	local personagem = player.Character
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -349,6 +328,33 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 					Dados.adicionar(base.dono, "Dinheiro", renda)
 					-- o cliente mostra a renda por segundo no painel de dinheiro
 					base.dono:SetAttribute("Renda", renda)
+				end
+			end
+		end
+	end)
+
+	-- Subiu na pista da própria esteira: começa a correr sozinho
+	task.spawn(function()
+		while true do
+			task.wait(0.1)
+			for player, base in porJogador do
+				if not correndo[player] then
+					local personagem = player.Character
+					local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+					local pista = base.esteira
+					local emCima = false
+					if raiz and pista then
+						local ponto = pista.CFrame:PointToObjectSpace(raiz.Position)
+						emCima = math.abs(ponto.X) <= pista.Size.X / 2 + 0.5
+							and math.abs(ponto.Z) <= pista.Size.Z / 2
+							and ponto.Y > 0
+							and ponto.Y < 7
+					end
+					if not emCima then
+						desceu[player] = true
+					elseif desceu[player] then
+						Bases.entrarNaEsteira(player, base)
+					end
 				end
 			end
 		end
@@ -425,6 +431,7 @@ end
 
 function Bases.liberar(player: Player)
 	correndo[player] = nil
+	desceu[player] = nil
 	local base = porJogador[player]
 	if not base then
 		return
