@@ -1,4 +1,4 @@
--- Placar (Dinheiro e Velocidade) e salvamento com DataStore.
+-- Placar (Dinheiro, Velocidade e Roubos) e salvamento com DataStore.
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,7 +9,7 @@ local Dados = {}
 local store = nil
 if Config.SALVAR_DADOS then
 	local ok, resultado = pcall(function()
-		return DataStoreService:GetDataStore("RoubeUmVerity_v2")
+		return DataStoreService:GetDataStore("RoubeUmOvoBrainrot_v1")
 	end)
 	if ok then
 		store = resultado
@@ -56,6 +56,10 @@ function Dados.carregar(player: Player): { any }
 	velocidade.Name = "Velocidade"
 	velocidade.Value = salvo.velocidade or 0
 	velocidade.Parent = stats
+	local roubos = Instance.new("IntValue")
+	roubos.Name = "Roubos"
+	roubos.Value = salvo.roubos or 0
+	roubos.Parent = stats
 	stats.Parent = player
 
 	player:SetAttribute("NivelEsteira", salvo.nivelEsteira or 1)
@@ -73,6 +77,7 @@ function Dados.salvar(player: Player, itens: { any })
 		store:SetAsync(chave(player), {
 			dinheiro = dinheiro.Value,
 			velocidade = velocidade.Value,
+			roubos = Dados.valor(player, "Roubos"),
 			nivelEsteira = player:GetAttribute("NivelEsteira"),
 			itens = itens,
 		})
@@ -86,7 +91,7 @@ function Dados.esquecer(player: Player)
 	podeSalvar[player] = nil
 end
 
--- nome: "Dinheiro" ou "Velocidade"
+-- nome: "Dinheiro", "Velocidade" ou "Roubos"
 function Dados.valor(player: Player, nome: string): number
 	local valor = stat(player, nome)
 	return if valor then valor.Value else 0

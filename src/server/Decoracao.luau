@@ -1,11 +1,14 @@
 -- Decoração do mapa: céu e iluminação, chão de grama, árvores, o lago,
--- cercas das bases e postes da estrada. Só enfeite: nada aqui muda
+-- cercas das bases, postes da estrada, o arco de entrada com estátuas
+-- gigantes e os portais dos biomas. Só enfeite: nada aqui muda
 -- as regras do jogo. O sorteio usa sempre a mesma semente, então o
 -- mapa fica igual toda vez.
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
+local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
+local Modelos = require(script.Parent.Modelos)
 
 local Decoracao = {}
 
@@ -42,7 +45,7 @@ end
 
 local function iluminar()
 	Lighting.ClockTime = 14.5
-	Lighting.Brightness = 2.5
+	Lighting.Brightness = 2.8
 	Lighting.Ambient = Color3.fromRGB(110, 110, 125)
 	Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 165)
 	Lighting.EnvironmentDiffuseScale = 0.5
@@ -66,8 +69,9 @@ local function iluminar()
 		Glare = 0.2,
 		Haze = 1,
 	})
-	efeito("BloomEffect", { Intensity = 0.4, Size = 24, Threshold = 1.6 })
-	efeito("ColorCorrectionEffect", { Saturation = 0.15, Contrast = 0.06, Brightness = 0.02 })
+	-- cores fortes de desenho e neon brilhando bastante
+	efeito("BloomEffect", { Intensity = 0.5, Size = 24, Threshold = 1.45 })
+	efeito("ColorCorrectionEffect", { Saturation = 0.3, Contrast = 0.1, Brightness = 0.03 })
 	efeito("SunRaysEffect", { Intensity = 0.04, Spread = 0.7 })
 
 	local nuvens = Workspace.Terrain:FindFirstChildOfClass("Clouds") or Instance.new("Clouds")
@@ -352,6 +356,28 @@ local function decorarBase(info: Mapa.InfoBase)
 		end
 	end
 
+	-- faixa de neon em cima dos muros, na cor da base
+	parte({
+		Name = "Neon",
+		Size = Vector3.new(Mapa.TAMANHO_BASE, 0.4, 1.2),
+		Position = topo + Vector3.new(0, 3.2, lado * (meio - 0.5)),
+		Color = cor:Lerp(Color3.new(1, 1, 1), 0.2),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = pasta,
+	})
+	for _, x in { -1, 1 } do
+		parte({
+			Name = "Neon",
+			Size = Vector3.new(1.2, 0.4, Mapa.TAMANHO_BASE),
+			Position = topo + Vector3.new(x * (meio - 0.5), 3.2, 0),
+			Color = cor:Lerp(Color3.new(1, 1, 1), 0.2),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = pasta,
+		})
+	end
+
 	-- placa com o número da base, em cima do muro dos fundos, virada para a estrada
 	local placa = parte({
 		Name = "Placa",
@@ -362,6 +388,240 @@ local function decorarBase(info: Mapa.InfoBase)
 		Parent = pasta,
 	})
 	texto(placa, if lado == 1 then Enum.NormalId.Front else Enum.NormalId.Back, info.pasta.Name:gsub("Base", "BASE "), Color3.new(1, 1, 1))
+end
+
+local ARCO_IRIS = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 90)),
+	ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 220, 60)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(70, 230, 110)),
+	ColorSequenceKeypoint.new(0.75, Color3.fromRGB(70, 160, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 90, 255)),
+})
+local NEON = {
+	Color3.fromRGB(255, 80, 200),
+	Color3.fromRGB(60, 220, 255),
+	Color3.fromRGB(255, 230, 60),
+}
+
+-- Põe um modelo em pé num ponto do chão, olhando para "olhar", e ancora tudo.
+local function plantar(modelo: Model, pasta: Instance, chao: Vector3, olhar: Vector3, escala: number)
+	modelo:ScaleTo(escala)
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.Anchored = true
+			p.CanCollide = false
+		end
+	end
+	local caixa, tamanho = modelo:GetBoundingBox()
+	local pes = caixa.Position - Vector3.new(0, tamanho.Y / 2, 0)
+	modelo:PivotTo(modelo:GetPivot() + (Vector3.zero - pes))
+	local giro = CFrame.lookAt(Vector3.zero, Vector3.new(olhar.X, 0, olhar.Z))
+	modelo:PivotTo(CFrame.new(chao) * giro * modelo:GetPivot())
+	modelo.Parent = pasta
+end
+
+-- Pedestal com neon e uma estátua gigante de um Brainrot.
+local function estatuaBrainrot(pasta: Instance, id: string, mutacao: string?, chao: Vector3, olhar: Vector3)
+	parte({
+		Name = "Pedestal",
+		Size = Vector3.new(9, 2, 9),
+		Position = chao + Vector3.new(0, 1, 0),
+		Color = Color3.fromRGB(70, 50, 110),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pasta,
+	})
+	parte({
+		Name = "PedestalNeon",
+		Size = Vector3.new(9.4, 0.5, 9.4),
+		Position = chao + Vector3.new(0, 2, 0),
+		Color = NEON[1],
+		Material = Enum.Material.Neon,
+		Parent = pasta,
+	})
+	local modelo = Modelos.boneco(id, mutacao)
+	if modelo then
+		modelo.Name = `Estatua{id}`
+		plantar(modelo, pasta, chao + Vector3.new(0, 2.25, 0), olhar, 2.6)
+	end
+end
+
+-- Placa com "ROUBE UM OVO" e "BRAINROT" em arco-íris.
+local function letreiro(parent: BasePart, face: Enum.NormalId)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	gui.LightInfluence = 0
+	gui.Parent = parent
+	local function linha(conteudo: string, y: number, altura: number): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(0.92, altura)
+		label.Position = UDim2.fromScale(0.04, y)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Font = Enum.Font.FredokaOne
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.Text = conteudo
+		local contorno = Instance.new("UIStroke")
+		contorno.Thickness = 5
+		contorno.Color = Color3.fromRGB(40, 20, 70)
+		contorno.Parent = label
+		label.Parent = gui
+		return label
+	end
+	linha("ROUBE UM OVO", 0.06, 0.38).TextColor3 = Color3.fromRGB(255, 245, 200)
+	local brainrot = linha("BRAINROT", 0.44, 0.5)
+	local gradiente = Instance.new("UIGradient")
+	gradiente.Color = ARCO_IRIS
+	gradiente.Parent = brainrot
+end
+
+-- Arco de entrada no começo da estrada, virado para as bases, com duas
+-- estátuas gigantes de Brainrots e confete caindo.
+local function arcoDeEntrada(pasta: Instance)
+	local x = -104
+	for _, z in { -15, 15 } do
+		parte({
+			Name = "Coluna",
+			Size = Vector3.new(3, 22, 3),
+			Position = Vector3.new(x, 11, z),
+			Color = Color3.fromRGB(110, 70, 190),
+			Material = Enum.Material.SmoothPlastic,
+			Parent = pasta,
+		})
+		for i, y in { 3, 7, 11, 15, 19 } do
+			parte({
+				Name = "Listra",
+				Size = Vector3.new(3.3, 0.6, 3.3),
+				Position = Vector3.new(x, y, z),
+				Color = NEON[(i - 1) % #NEON + 1],
+				Material = Enum.Material.Neon,
+				Parent = pasta,
+			})
+		end
+		local bola = parte({
+			Name = "Bola",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 4.5,
+			Position = Vector3.new(x, 24, z),
+			Color = NEON[3],
+			Material = Enum.Material.Neon,
+			Parent = pasta,
+		})
+		local luz = Instance.new("PointLight")
+		luz.Color = NEON[3]
+		luz.Range = 24
+		luz.Brightness = 2
+		luz.Parent = bola
+	end
+	parte({
+		Name = "Moldura",
+		Size = Vector3.new(1, 13.4, 31.4),
+		Position = Vector3.new(x, 18, 0),
+		Color = NEON[1],
+		Material = Enum.Material.Neon,
+		Parent = pasta,
+	})
+	local painel = parte({
+		Name = "BoasVindas",
+		Size = Vector3.new(1.4, 12, 30),
+		Position = Vector3.new(x, 18, 0),
+		Color = Color3.fromRGB(255, 200, 60),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pasta,
+	})
+	letreiro(painel, Enum.NormalId.Right)
+	letreiro(painel, Enum.NormalId.Left)
+
+	-- confete colorido caindo do arco
+	local confete = Instance.new("ParticleEmitter")
+	confete.Name = "Confete"
+	confete.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	confete.Color = ARCO_IRIS
+	confete.LightEmission = 0.8
+	confete.Rate = 18
+	confete.Lifetime = NumberRange.new(2.5, 3.5)
+	confete.Speed = NumberRange.new(2, 5)
+	confete.SpreadAngle = Vector2.new(70, 70)
+	confete.Acceleration = Vector3.new(0, -4, 0)
+	confete.Size = NumberSequence.new(0.7, 0.2)
+	confete.RotSpeed = NumberRange.new(-180, 180)
+	confete.Parent = painel
+
+	estatuaBrainrot(pasta, "Tralalero", nil, Vector3.new(x, 0.05, -34), Vector3.xAxis)
+	estatuaBrainrot(pasta, "Bombardiro", "Dourado", Vector3.new(x, 0.05, 34), Vector3.xAxis)
+end
+
+-- Portal de cada bioma: arco com neon, o nome em cima, brilhos e duas
+-- estátuas do guardião do bioma, uma de cada lado.
+local function decorarPortal(info: Mapa.InfoBioma)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "DecoracaoPortal"
+	pasta.Parent = info.pasta
+	local x = info.centro.X - Mapa.TAMANHO_BIOMA / 2
+	local cor = info.config.cor
+	local escura = escurecer(cor, 0.35)
+
+	for _, z in { -11.5, 11.5 } do
+		parte({
+			Name = "Pilar",
+			Size = Vector3.new(3, 20, 3),
+			Position = Vector3.new(x, 10.5, z),
+			Color = escura,
+			Material = Enum.Material.SmoothPlastic,
+			Parent = pasta,
+		})
+		for y = 4, 16, 4 do
+			parte({
+				Name = "Listra",
+				Size = Vector3.new(3.3, 0.5, 3.3),
+				Position = Vector3.new(x, y, z),
+				Color = cor:Lerp(Color3.new(1, 1, 1), 0.3),
+				Material = Enum.Material.Neon,
+				Parent = pasta,
+			})
+		end
+	end
+	local viga = parte({
+		Name = "Viga",
+		Size = Vector3.new(3.4, 4, 27),
+		Position = Vector3.new(x, 22, 0),
+		Color = escura,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = pasta,
+	})
+	parte({
+		Name = "VigaNeon",
+		Size = Vector3.new(3.6, 0.5, 27.4),
+		Position = Vector3.new(x, 19.9, 0),
+		Color = cor:Lerp(Color3.new(1, 1, 1), 0.3),
+		Material = Enum.Material.Neon,
+		Parent = pasta,
+	})
+	texto(viga, Enum.NormalId.Left, string.upper(info.config.nome), Color3.new(1, 1, 1))
+	texto(viga, Enum.NormalId.Right, string.upper(info.config.nome), Color3.new(1, 1, 1))
+
+	local portal = info.pasta:FindFirstChild("Portal")
+	if portal then
+		local brilho = Instance.new("ParticleEmitter")
+		brilho.Name = "Brilho"
+		brilho.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		brilho.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.4), Color3.new(1, 1, 1))
+		brilho.LightEmission = 1
+		brilho.Rate = 30
+		brilho.Lifetime = NumberRange.new(1, 2)
+		brilho.Speed = NumberRange.new(0.5, 2)
+		brilho.SpreadAngle = Vector2.new(180, 180)
+		brilho.Size = NumberSequence.new(0.6, 0)
+		brilho.Parent = portal
+	end
+
+	-- estátuas do guardião, olhando para quem chega pela estrada
+	for _, z in { -18, 18 } do
+		local estatua = Guardioes.estatua(info.config.guardiao)
+		estatua.Name = "EstatuaGuardiao"
+		plantar(estatua, pasta, Vector3.new(x - 5, 0.05, z), -Vector3.xAxis, 0.8)
+	end
 end
 
 local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
@@ -401,7 +661,8 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 				Parent = pasta,
 			})
 		end
-		for x = a + 10, b - 5, 26 do
+		-- sem poste colado nos portais dos biomas
+		for x = a + 10, b - 16, 26 do
 			local z = ladoPoste * 9.5
 			ladoPoste = -ladoPoste
 			parte({
@@ -439,35 +700,7 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 		end
 	end
 
-	-- placa de boas-vindas no começo da estrada, virada para as bases
-	for _, z in { -12, 12 } do
-		parte({
-			Name = "Coluna",
-			Size = Vector3.new(2, 20, 2),
-			Position = Vector3.new(-104, 10, z),
-			Color = Color3.fromRGB(120, 80, 200),
-			Material = Enum.Material.SmoothPlastic,
-			Parent = pasta,
-		})
-	end
-	local painel = parte({
-		Name = "BoasVindas",
-		Size = Vector3.new(1.2, 10, 28),
-		Position = Vector3.new(-104, 17, 0),
-		Color = Color3.fromRGB(255, 200, 60),
-		Material = Enum.Material.SmoothPlastic,
-		Parent = pasta,
-	})
-	texto(painel, Enum.NormalId.Right, "ROUBE UM VERITY", Color3.new(1, 1, 1))
-	texto(painel, Enum.NormalId.Left, "ROUBE UM VERITY", Color3.new(1, 1, 1))
-	parte({
-		Name = "Moldura",
-		Size = Vector3.new(1, 11, 29),
-		Position = Vector3.new(-104, 17, 0),
-		Color = Color3.fromRGB(120, 80, 200),
-		Material = Enum.Material.SmoothPlastic,
-		Parent = pasta,
-	})
+	arcoDeEntrada(pasta)
 end
 
 local function decorarFloresta(info: Mapa.InfoBioma)
@@ -559,6 +792,23 @@ local function decorarLago(info: Mapa.InfoBioma)
 		CastShadow = false,
 	})
 
+	-- barbatanas de tubarão (do Tralalero Tralala) saindo da água
+	for i, graus in { 30, 150, 260 } do
+		local angulo = math.rad(graus)
+		local raio = 10 + i * 2
+		local ponto = centro + Vector3.new(math.cos(angulo) * raio, 0.65, math.sin(angulo) * raio)
+		parte({
+			Name = "Barbatana",
+			Size = Vector3.new(0.5, 2.4, 2.4),
+			CFrame = CFrame.lookAt(ponto, ponto + Vector3.new(-math.sin(angulo), 0, math.cos(angulo)))
+				* CFrame.Angles(math.rad(45), 0, 0),
+			Color = Color3.fromRGB(85, 115, 145),
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			Parent = pasta,
+		})
+	end
+
 	-- vitórias-régias
 	for i = 1, 10 do
 		local angulo = i / 10 * math.pi * 2 + aleatorio:NextNumber(-0.2, 0.2)
@@ -627,6 +877,9 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 		if math.abs(p.X) < 96 and math.abs(p.Z) < 72 then
 			return false -- bases
 		end
+		if p.X > -125 and p.X < -90 and math.abs(p.Z) < 48 then
+			return false -- arco de entrada e estátuas
+		end
 		for _, bioma in biomas do
 			if math.abs(p.X - bioma.centro.X) < 60 and math.abs(p.Z) < 60 then
 				return false
@@ -675,11 +928,12 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 		decorarBase(info)
 	end
 	for _, info in biomas do
-		if info.config.nome == "Lago" then
+		if info.config.estilo == "praia" then
 			decorarLago(info)
 		else
 			decorarFloresta(info)
 		end
+		decorarPortal(info)
 	end
 
 	pasta.Parent = Workspace
