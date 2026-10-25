@@ -88,7 +88,7 @@ local function flutuantes(modelo: Model, cf: CFrame, cor: Color3, quantidade: nu
 	local aleatorio = Random.new(quantidade)
 	for i = 1, quantidade do
 		local angulo = i / quantidade * math.pi * 2
-		local raio = aleatorio:NextNumber(4.5, 6.5)
+		local raio = aleatorio:NextNumber(4.2, 5.4)
 		local posicao = cf * CFrame.new(math.cos(angulo) * raio, aleatorio:NextNumber(1.5, 7), math.sin(angulo) * raio * 1.3)
 		local peca = enfeite(
 			modelo,
@@ -107,7 +107,7 @@ local function halo(modelo: Model, cf: CFrame, cor: Color3, transparencia: numbe
 	enfeite(
 		modelo,
 		cf * CFrame.new(0, 0.03, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Vector3.new(0.05, 15, 15),
+		Vector3.new(0.05, 12, 12),
 		cor,
 		Enum.Material.Neon,
 		{ Shape = Enum.PartType.Cylinder, Transparency = transparencia, CastShadow = false, Name = "Halo" }
@@ -275,8 +275,8 @@ local ESTILOS: { Estilo } = {
 				enfeite(modelo, coluna * CFrame.new(x * 0.47, 0.3, 0), Vector3.new(0.05, 5.4, 0.8), cor, Enum.Material.Neon)
 			end
 			-- dois anéis girando para lados opostos
-			anel(modelo, cf, cor, 6, 8, 3, 1.2, 50)
-			anel(modelo, cf, Color3.fromRGB(255, 225, 120), 5, 7, 5, -1, -70)
+			anel(modelo, cf, cor, 5, 8, 3, 1.2, 50)
+			anel(modelo, cf, Color3.fromRGB(255, 225, 120), 4.4, 7, 5, -1, -70)
 			halo(modelo, cf, cor, 0.45)
 			brilhosSubindo(modelo, cf, cor, 14)
 			local aura = area(modelo, cf * CFrame.new(0, 4, 0), Vector3.new(9, 7, 15))
