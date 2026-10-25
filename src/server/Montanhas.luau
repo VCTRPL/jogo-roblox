@@ -113,13 +113,16 @@ local function cordilheira(pasta: Instance, de: Vector3, ate: Vector3, fora: Vec
 end
 
 -- Montanha da frente, onde a estrada sai do túnel: uma fileira que vai de
--- uma lateral à outra encostada na boca do túnel (sem cobrir a passagem) e
--- um morro em cima do túnel.
+-- uma lateral à outra encostada na boca do túnel (sem cobrir a passagem),
+-- um morro em cima do túnel e uma parede invisível na frente, para ninguém
+-- escalar e sair do mapa.
 local function montanhaDoTunel(pasta: Instance)
 	local boca = Mapa.TUNEL_BOCA
 	local fundo = Montanhas.INICIO
 	local zb = Montanhas.Z_BASES
-	local LIVRE = 12 -- metade da largura do túnel, com folga
+	local meia = Mapa.TUNEL_LARGURA / 2
+	local altura = Mapa.TUNEL_ALTURA
+	local LIVRE = meia + 3 -- metade do túnel com as paredes, com folga
 
 	local z = -zb - 8
 	while z < zb + 8 do
@@ -131,7 +134,7 @@ local function montanhaDoTunel(pasta: Instance)
 			zc = (if zc < 0 then -1 else 1) * (LIVRE + alcance)
 		end
 		local ponto = Vector3.new(boca - largura / 2 + 1, 0, zc)
-		montanha(pasta, ponto, largura, aleatorio:NextNumber(28, 40))
+		montanha(pasta, ponto, largura, aleatorio:NextNumber(32, 44))
 		z += largura * aleatorio:NextNumber(0.55, 0.75)
 	end
 
@@ -141,8 +144,8 @@ local function montanhaDoTunel(pasta: Instance)
 	for _, lado in { -1, 1 } do
 		Mapa.parte({
 			Name = "Montanha",
-			Size = Vector3.new(comprimento, 18, 8),
-			Position = Vector3.new(meio, 9, lado * 15),
+			Size = Vector3.new(comprimento, altura + 4, 8),
+			Position = Vector3.new(meio, (altura + 4) / 2, lado * (meia + 6.5)),
 			Color = TERRA,
 			Material = Enum.Material.Plastic,
 			Parent = pasta,
@@ -150,13 +153,28 @@ local function montanhaDoTunel(pasta: Instance)
 	end
 	Mapa.parte({
 		Name = "Montanha",
-		Size = Vector3.new(comprimento, 10, 34),
-		Position = Vector3.new(meio, 21, 0),
+		Size = Vector3.new(comprimento, 10, meia * 2 + 18),
+		Position = Vector3.new(meio, altura + 9, 0),
 		Color = escolher(GRAMA),
 		Material = Enum.Material.Plastic,
 		Parent = pasta,
 	})
-	montanha(pasta, Vector3.new(meio - 4, 26, 0), 30, 26)
+	montanha(pasta, Vector3.new(meio - 4, altura + 14, 0), 32, 28)
+
+	-- parede invisível na frente da montanha, deixando a boca do túnel livre
+	local x = boca + 1.5
+	for _, lado in { -1, 1 } do
+		barreira(pasta, Vector3.new(x, 0, lado * meia), Vector3.new(x, 0, lado * (zb + 2)))
+	end
+	Mapa.parte({
+		Name = "Barreira",
+		Size = Vector3.new(2, 200, meia * 2 + 2),
+		Position = Vector3.new(x, altura + 1 + 100, 0),
+		Transparency = 1,
+		CanQuery = false,
+		CanTouch = false,
+		Parent = pasta,
+	})
 end
 
 function Montanhas.construir()
