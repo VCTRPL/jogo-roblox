@@ -11,6 +11,7 @@ local Mapa = {}
 
 Mapa.TAMANHO_BASE = 54
 Mapa.INICIO_ESTRADA = -130
+Mapa.TUNEL_BOCA = -110 -- a estrada sai de um túnel na montanha
 Mapa.VELOCIDADE_ROLANTE = 22
 Mapa.TAMANHO_BIOMA = 100
 Mapa.INICIO_BIOMAS = 130 -- x onde começa o primeiro bioma
