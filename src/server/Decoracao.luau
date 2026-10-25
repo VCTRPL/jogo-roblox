@@ -4,11 +4,15 @@
 -- as regras do jogo. O sorteio usa sempre a mesma semente, então o
 -- mapa fica igual toda vez.
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Biblioteca = require(script.Parent.Biblioteca)
+local Blocos = require(script.Parent.Blocos)
 local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
+local Montanhas = require(script.Parent.Montanhas)
 
 local Decoracao = {}
 
@@ -41,6 +45,43 @@ end
 
 local function escolher<T>(lista: { T }): T
 	return lista[aleatorio:NextInteger(1, #lista)]
+end
+
+-- Árvores da biblioteca do Roblox, se alguém colocou em
+-- ReplicatedStorage.ModelosArvore (subpastas "Floresta" e "Praia", ou
+-- soltas na pasta para servir nas duas).
+local moldesArvore: { [string]: { Model } } = {}
+local function arvoresDaBiblioteca(estilo: string): { Model }
+	if moldesArvore[estilo] then
+		return moldesArvore[estilo]
+	end
+	local pasta = ReplicatedStorage:FindFirstChild("ModelosArvore")
+	local lista = Biblioteca.moldes(pasta and pasta:FindFirstChild(estilo))
+	if #lista == 0 and pasta then
+		for _, objeto in pasta:GetChildren() do
+			if objeto:IsA("Model") then
+				table.insert(lista, objeto)
+			end
+		end
+	end
+	moldesArvore[estilo] = lista
+	return lista
+end
+
+-- Planta uma árvore da biblioteca. Devolve false se não tiver nenhuma.
+local function arvoreBiblioteca(pasta: Instance, chao: Vector3, estilo: string, escala: number): boolean
+	local moldes = arvoresDaBiblioteca(estilo)
+	if #moldes == 0 then
+		return false
+	end
+	local modelo = Biblioteca.preparar(escolher(moldes), aleatorio:NextNumber(15, 22) * escala)
+	if not modelo then
+		return false
+	end
+	modelo.Name = "ArvoreBiblioteca"
+	modelo:PivotTo(CFrame.new(chao) * CFrame.Angles(0, aleatorio:NextNumber(0, math.pi * 2), 0) * modelo:GetPivot())
+	modelo.Parent = pasta
+	return true
 end
 
 local function iluminar()
@@ -206,7 +247,7 @@ local function pedra(pasta: Instance, chao: Vector3, tamanho: number, solida: bo
 		Name = "Pedra",
 		Size = Vector3.new(tamanho * 1.3, tamanho * 0.8, tamanho),
 		CFrame = CFrame.new(chao + Vector3.new(0, tamanho * 0.25, 0))
-			* CFrame.Angles(aleatorio:NextNumber(-0.3, 0.3), aleatorio:NextNumber(0, math.pi), aleatorio:NextNumber(-0.3, 0.3)),
+			* CFrame.Angles(0, aleatorio:NextNumber(0, math.pi), 0),
 		Color = Color3.fromRGB(cinza, cinza, cinza + 8),
 		Material = Enum.Material.Slate,
 		CanCollide = solida,
@@ -405,7 +446,7 @@ local NEON = {
 
 -- Põe um modelo em pé num ponto do chão, olhando para "olhar", e ancora tudo.
 local function plantar(modelo: Model, pasta: Instance, chao: Vector3, olhar: Vector3, escala: number)
-	modelo:ScaleTo(escala)
+	modelo:ScaleTo(modelo:GetScale() * escala)
 	for _, p in modelo:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.Anchored = true
@@ -445,41 +486,11 @@ local function estatuaBrainrot(pasta: Instance, id: string, mutacao: string?, ch
 	end
 end
 
--- Placa com "ROUBE UM OVO" e "BRAINROT" em arco-íris.
-local function letreiro(parent: BasePart, face: Enum.NormalId)
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = face
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 20
-	gui.LightInfluence = 0
-	gui.Parent = parent
-	local function linha(conteudo: string, y: number, altura: number): TextLabel
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(0.92, altura)
-		label.Position = UDim2.fromScale(0.04, y)
-		label.BackgroundTransparency = 1
-		label.TextScaled = true
-		label.Font = Enum.Font.FredokaOne
-		label.TextColor3 = Color3.new(1, 1, 1)
-		label.Text = conteudo
-		local contorno = Instance.new("UIStroke")
-		contorno.Thickness = 5
-		contorno.Color = Color3.fromRGB(40, 20, 70)
-		contorno.Parent = label
-		label.Parent = gui
-		return label
-	end
-	linha("ROUBE UM OVO", 0.06, 0.38).TextColor3 = Color3.fromRGB(255, 245, 200)
-	local brainrot = linha("BRAINROT", 0.44, 0.5)
-	local gradiente = Instance.new("UIGradient")
-	gradiente.Color = ARCO_IRIS
-	gradiente.Parent = brainrot
-end
-
--- Arco de entrada no começo da estrada, virado para as bases, com duas
--- estátuas gigantes de Brainrots e confete caindo.
+-- Entrada no começo da estrada: duas colunas listradas com confete saindo
+-- do topo e duas estátuas gigantes de Brainrots.
 local function arcoDeEntrada(pasta: Instance)
 	local x = -104
+	local topos = {}
 	for _, z in { -15, 15 } do
 		parte({
 			Name = "Coluna",
@@ -513,27 +524,9 @@ local function arcoDeEntrada(pasta: Instance)
 		luz.Range = 24
 		luz.Brightness = 2
 		luz.Parent = bola
+		table.insert(topos, bola)
 	end
-	parte({
-		Name = "Moldura",
-		Size = Vector3.new(1, 13.4, 31.4),
-		Position = Vector3.new(x, 18, 0),
-		Color = NEON[1],
-		Material = Enum.Material.Neon,
-		Parent = pasta,
-	})
-	local painel = parte({
-		Name = "BoasVindas",
-		Size = Vector3.new(1.4, 12, 30),
-		Position = Vector3.new(x, 18, 0),
-		Color = Color3.fromRGB(255, 200, 60),
-		Material = Enum.Material.SmoothPlastic,
-		Parent = pasta,
-	})
-	letreiro(painel, Enum.NormalId.Right)
-	letreiro(painel, Enum.NormalId.Left)
-
-	-- confete colorido caindo do arco
+	-- confete colorido saindo do topo das colunas
 	local confete = Instance.new("ParticleEmitter")
 	confete.Name = "Confete"
 	confete.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -546,7 +539,10 @@ local function arcoDeEntrada(pasta: Instance)
 	confete.Acceleration = Vector3.new(0, -4, 0)
 	confete.Size = NumberSequence.new(0.7, 0.2)
 	confete.RotSpeed = NumberRange.new(-180, 180)
-	confete.Parent = painel
+	for _, bola in topos do
+		confete:Clone().Parent = bola
+	end
+	confete:Destroy()
 
 	estatuaBrainrot(pasta, "Tralalero", nil, Vector3.new(x, 0.05, -34), Vector3.xAxis)
 	estatuaBrainrot(pasta, "Bombardiro", "Dourado", Vector3.new(x, 0.05, 34), Vector3.xAxis)
@@ -727,6 +723,9 @@ local function decorarFloresta(info: Mapa.InfoBioma)
 		local d = distanciaPlana(p, centro)
 		return d > 41 and math.abs(p.Z - centro.Z) > 11
 	end, function(p)
+		if aleatorio:NextNumber() < 0.6 and arvoreBiblioteca(pasta, p, "Floresta", 1) then
+			return
+		end
 		if aleatorio:NextNumber() < 0.3 then
 			pinheiro(pasta, p, aleatorio:NextNumber(0.8, 1.1))
 		else
@@ -853,6 +852,9 @@ local function decorarLago(info: Mapa.InfoBioma)
 	espalhar(centro - canto, centro + canto, 14, function(p)
 		return distanciaPlana(p, centro) > 41 and math.abs(p.Z - centro.Z) > 11
 	end, function(p)
+		if aleatorio:NextNumber() < 0.6 and arvoreBiblioteca(pasta, p, "Praia", 1) then
+			return
+		end
 		palmeira(pasta, p, aleatorio:NextNumber(0.85, 1.15))
 	end)
 	espalhar(centro - canto, centro + canto, 10, function(p)
@@ -868,17 +870,29 @@ local function decorarLago(info: Mapa.InfoBioma)
 	end)
 end
 
--- Árvores, arbustos e pedras em volta de tudo, fora das áreas de jogo.
+-- Árvores, arbustos e pedras nos cantos livres entre as montanhas, fora
+-- das áreas de jogo.
 local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
+	local fim = Mapa.INICIO_BIOMAS + #biomas * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
 	local function livre(p: Vector3): boolean
 		if math.abs(p.Z) < 16 then
 			return false -- estrada e postes
 		end
-		if math.abs(p.X) < 96 and math.abs(p.Z) < 72 then
+		-- dentro das montanhas
+		if p.X < Montanhas.INICIO + 6 or p.X > fim + 8 then
+			return false
+		end
+		if p.X < Montanhas.TRANSICAO and math.abs(p.Z) > Montanhas.Z_BASES - 5 then
+			return false
+		end
+		if p.X >= Montanhas.TRANSICAO - 6 and math.abs(p.Z) > Montanhas.Z_FASES - 4 then
+			return false
+		end
+		if math.abs(p.X) < 96 and math.abs(p.Z) < 70 then
 			return false -- bases
 		end
 		if p.X > -125 and p.X < -90 and math.abs(p.Z) < 48 then
-			return false -- arco de entrada e estátuas
+			return false -- entrada e estátuas
 		end
 		for _, bioma in biomas do
 			if math.abs(p.X - bioma.centro.X) < 60 and math.abs(p.Z) < 60 then
@@ -887,20 +901,22 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 		end
 		return true
 	end
-	local fim = Mapa.INICIO_BIOMAS + #biomas * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
-	local minimo = Vector3.new(-180, 0.05, -160)
-	local maximo = Vector3.new(fim + 40, 0.05, 160)
-	espalhar(minimo, maximo, 120, livre, function(p)
+	local minimo = Vector3.new(Montanhas.INICIO, 0.05, -Montanhas.Z_BASES)
+	local maximo = Vector3.new(fim + 10, 0.05, Montanhas.Z_BASES)
+	espalhar(minimo, maximo, 45, livre, function(p)
+		if aleatorio:NextNumber() < 0.6 and arvoreBiblioteca(pasta, p, "Floresta", 1.1) then
+			return
+		end
 		if aleatorio:NextNumber() < 0.35 then
 			pinheiro(pasta, p, aleatorio:NextNumber(0.9, 1.4))
 		else
 			arvore(pasta, p, aleatorio:NextNumber(0.9, 1.5), FOLHAS)
 		end
 	end)
-	espalhar(minimo, maximo, 50, livre, function(p)
+	espalhar(minimo, maximo, 30, livre, function(p)
 		arbusto(pasta, p, aleatorio:NextNumber(0.9, 1.4))
 	end)
-	espalhar(minimo, maximo, 25, livre, function(p)
+	espalhar(minimo, maximo, 14, livre, function(p)
 		pedra(pasta, p, aleatorio:NextNumber(2.5, 5), true)
 	end)
 end
@@ -923,6 +939,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	})
 
 	decorarEstrada(pasta, biomas)
+	Montanhas.construir()
 	decorarArredores(pasta, biomas)
 	for _, info in bases do
 		decorarBase(info)
@@ -937,6 +954,14 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	end
 
 	pasta.Parent = Workspace
+
+	-- tudo no estilo Lego (o que for criado depois nessas pastas também)
+	for _, nome in { "Mapa", "Decoracao", "Montanhas" } do
+		local raiz = Workspace:FindFirstChild(nome)
+		if raiz then
+			Blocos.vigiar(raiz)
+		end
+	end
 end
 
 return Decoracao
