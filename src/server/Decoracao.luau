@@ -458,8 +458,8 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 		Material = Enum.Material.SmoothPlastic,
 		Parent = pasta,
 	})
-	texto(painel, Enum.NormalId.Right, "ROUBE UM VERITY", Color3.new(1, 1, 1))
-	texto(painel, Enum.NormalId.Left, "ROUBE UM VERITY", Color3.new(1, 1, 1))
+	texto(painel, Enum.NormalId.Right, "ROUBE UM OVO\nBRAINROT", Color3.new(1, 1, 1))
+	texto(painel, Enum.NormalId.Left, "ROUBE UM OVO\nBRAINROT", Color3.new(1, 1, 1))
 	parte({
 		Name = "Moldura",
 		Size = Vector3.new(1, 11, 29),
@@ -675,7 +675,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 		decorarBase(info)
 	end
 	for _, info in biomas do
-		if info.config.nome == "Lago" then
+		if info.config.estilo == "praia" then
 			decorarLago(info)
 		else
 			decorarFloresta(info)

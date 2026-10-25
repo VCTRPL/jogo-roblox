@@ -1,26 +1,26 @@
--- Cria os modelos 3D de ovos e Verities, com placa de informações e um ProximityPrompt.
+-- Cria os modelos 3D de ovos e Brainrots, com placa de informações e um ProximityPrompt.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
 local Modelos = {}
 
--- Um item é um ovo ou um Verity que pode ficar num ninho, numa base ou ser carregado.
+-- Um item é um ovo ou um Brainrot que pode ficar num ninho, numa base ou ser carregado.
 export type Item = {
-	tipo: string, -- "ovo" ou "verity"
+	tipo: string, -- "ovo" ou "brainrot"
 	id: string,
 	tamanho: string,
-	mutacao: string?, -- só Verities
+	mutacao: string?, -- só Brainrots
 	restante: number?, -- só ovos: segundos que faltam para chocar
 }
 
-local function bonecoVerity(def, mutacao): Model
+local function bonecoBrainrot(def, mutacao): Model
 	local modelo = Instance.new("Model")
 
 	local corpo = Instance.new("Part")
 	corpo.Name = "Corpo"
 	corpo.Size = Vector3.new(3, 4, 2)
-	corpo.Color = Config.CORES_RARIDADE[def.raridade]
+	corpo.Color = def.cor or Config.CORES_RARIDADE[def.raridade]
 	corpo.Material = Enum.Material.SmoothPlastic
 	corpo.CFrame = CFrame.new()
 	corpo.Parent = modelo
@@ -29,7 +29,7 @@ local function bonecoVerity(def, mutacao): Model
 	cabeca.Name = "Cabeca"
 	cabeca.Shape = Enum.PartType.Ball
 	cabeca.Size = Vector3.new(2.6, 2.6, 2.6)
-	cabeca.Color = mutacao.cor or Color3.fromRGB(255, 220, 180)
+	cabeca.Color = mutacao.cor or def.corCabeca or Color3.fromRGB(255, 220, 180)
 	cabeca.Material = if mutacao.cor then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	cabeca.CFrame = CFrame.new(0, 3.2, 0)
 	cabeca.Parent = modelo
@@ -155,9 +155,9 @@ function Modelos.criar(item: Item): Model
 		return modelo
 	end
 
-	local def = Config.verity(item.id)
+	local def = Config.brainrot(item.id)
 	local mutacao = Config.mutacao(item.mutacao)
-	local modelo = doStudio("ModelosVerity", def.id) or bonecoVerity(def, mutacao)
+	local modelo = doStudio("ModelosBrainrot", def.id) or bonecoBrainrot(def, mutacao)
 	local nome = if mutacao.nome == "Normal" then def.nome else `{def.nome} {mutacao.nome}`
 	local linhas = {
 		{ "Raridade", def.raridade, Config.CORES_RARIDADE[def.raridade] },
