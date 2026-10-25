@@ -1,15 +1,15 @@
-# Roube um Verity
+# Roube um Ovo Brainrot
 
-Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ninhos dos biomas, fuja do guardião, leve para a sua base, espere chocar e ganhe dinheiro com os Verities que nascem.
+Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ninhos dos biomas, fuja do guardião, leve para a sua base, espere chocar e ganhe dinheiro com os Brainrots que nascem (Brr Brr Patapim, Chimpanzini Bananini, Tralalero Tralala, Bombardiro Crocodilo...).
 
 ## Como o jogo funciona
 
 - **Base**: cada jogador recebe uma das 8 bases ao entrar. Ela tem 10 vagas, uma esteira de corrida e um botão de tranca. O mapa é criado por código quando o jogo começa.
-- **Biomas**: seguindo a estrada, chega a Floresta e depois o Lago. Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. O Lago só deixa entrar quem tem 150 de Velocidade.
-- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
-- **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Depois de um tempo ele choca e vira um Verity, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Verity pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x).
+- **Biomas**: seguindo a estrada, chega à Selva Sahur e depois à Praia Tralalá. Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. A Praia só deixa entrar quem tem 150 de Velocidade.
+- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur na Selva, Cappuccino Assassino na Praia) e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
+- **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Depois de um tempo ele choca e vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, um Mítico ou um Arco-íris, o servidor inteiro fica sabendo.
 - **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Segure **E** nela para melhorar (5 níveis). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
-- **Roubar**: segure **E** num ovo ou Verity da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono.
+- **Roubar**: segure **E** num ovo ou Brainrot da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono. Cada roubo entregue conta no placar de **Roubos**.
 - **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
 - Dinheiro, Velocidade, nível da esteira e o que está na base ficam salvos (DataStore).
 
@@ -19,24 +19,28 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 
 | Arquivo | O que faz |
 | --- | --- |
-| `src/shared/Config.luau` | Verities, ovos, biomas e números do jogo |
+| `src/shared/Config.luau` | Brainrots, ovos, biomas e números do jogo |
 | `src/server/init.server.luau` | Liga tudo e cuida de quem entra e sai |
 | `src/server/Mapa.luau` | Cria as bases, a estrada e os biomas |
 | `src/server/Ninhos.luau` | Ninhos de ovos, guardião e bloqueio por Velocidade |
-| `src/server/Carregar.luau` | Carregar ovos/Verities, entregar na base e roubar |
+| `src/server/Guardioes.luau` | Modelos dos guardiões (Tung Tung Tung Sahur, Cappuccino Assassino) |
+| `src/server/Carregar.luau` | Carregar ovos/Brainrots, entregar na base e roubar |
 | `src/server/Bases.luau` | Vagas, chocar ovos, renda, esteira de corrida e tranca |
 | `src/server/Velocidade.luau` | Velocidade de andar (atributo, peso do ovo, atordoado) |
 | `src/server/Dados.luau` | Placar e salvamento |
-| `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Verities |
-| `src/server/Avisos.luau` | Mensagens na tela do jogador |
-| `src/client/init.client.luau` | Mostra os avisos e esconde "Roubar" nas suas próprias coisas |
+| `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Brainrots |
+| `src/server/Decoracao.luau` | Céu, árvores, praia, arco de entrada, estátuas e portais |
+| `src/server/Avisos.luau` | Mensagens na tela, anúncios e pedidos de efeitos para os clientes |
+| `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
+| `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
+| `src/client/Efeitos.luau` | Explosão de partículas quando um ovo choca |
 
 ## Trocar os bonecos pelos modelos de verdade
 
-Por enquanto cada Verity é um boneco simples colorido pela raridade, e cada ovo é uma esfera. Para usar modelos de verdade:
+Por enquanto cada Brainrot é um boneco feito de peças com as cores e um detalhe do personagem, e cada ovo é uma esfera com pintas. Para usar modelos de verdade:
 
-1. No Studio, crie as pastas `ModelosVerity` e `ModelosOvo` dentro de `ReplicatedStorage`.
-2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `VerityNinja` em `ModelosVerity`, `OvoNinja` em `ModelosOvo`).
+1. No Studio, crie as pastas `ModelosBrainrot` e `ModelosOvo` dentro de `ReplicatedStorage`.
+2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `Tralalero` em `ModelosBrainrot`, `OvoTralalero` em `ModelosOvo`).
 3. Pronto: o jogo passa a usar os seus modelos. Os que não tiverem modelo continuam com o boneco.
 
 Como essas pastas são criadas no Studio (e não no código), salve o lugar com **File > Publish to Roblox** para não perder.

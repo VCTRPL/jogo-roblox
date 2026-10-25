@@ -27,9 +27,12 @@ local function parte(props): Part
 end
 Mapa.parte = parte
 
+-- Placa flutuante. O tamanho é em studs (não em pixels), então as placas
+-- longe ficam pequenas e não enchem a tela. "largura" segue a escala antiga:
+-- 260 dá uma placa de 10 studs.
 function Mapa.placa(parent: BasePart, texto: string, altura: number, largura: number?): TextLabel
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(largura or 260, 80)
+	gui.Size = UDim2.fromScale((largura or 260) / 26, 3.5)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, altura, 0)
 	gui.MaxDistance = 120
 	gui.Parent = parent
@@ -122,11 +125,10 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 			CanQuery = false,
 			Parent = pastaBioma,
 		})
-		local texto = config.nome
+		-- o nome já aparece na faixa do arco; a placa só avisa a Velocidade necessária
 		if config.velocidadeMinima > 0 then
-			texto ..= `\nPrecisa de {Config.formatar(config.velocidadeMinima)} de Velocidade`
+			Mapa.placa(portal, `Precisa de {Config.formatar(config.velocidadeMinima)} de Velocidade`, 4, 320)
 		end
-		Mapa.placa(portal, texto, 10, 320)
 
 		table.insert(biomas, {
 			config = config,
