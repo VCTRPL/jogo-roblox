@@ -1,7 +1,7 @@
 -- Modelos 3D das esteiras de corrida: cada nível tem uma esteira diferente,
 -- todas no formato de esteira de academia (deck comprido, colunas, corrimão
 -- e painel), com neon e efeitos cada vez mais fortes.
--- A peça "Pista" é onde o jogador corre: quem aperta "Correr" fica preso em
+-- A peça "Pista" é onde o jogador corre: quem sobe nela fica preso em
 -- cima dela correndo sozinho (veja Bases.luau). O cliente anima as faixas da pista (tag "FaixaEsteira") e o
 -- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
