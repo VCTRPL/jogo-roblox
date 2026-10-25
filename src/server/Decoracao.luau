@@ -557,7 +557,7 @@ local function tunel(pasta: Instance)
 	end
 
 	-- ventiladores no teto, girando
-	for _, x in { TUNEL_FUNDO + 6, meio + 3 } do
+	for _, x in { TUNEL_BOCA - 4 } do
 		local centro = Vector3.new(x, altura - 1.6, 0)
 		enfeite({
 			Name = "EixoVentilador",
@@ -578,6 +578,36 @@ local function tunel(pasta: Instance)
 			pa:SetAttribute("Giro", 220)
 			CollectionService:AddTag(pa, "GirarEsteira")
 		end
+	end
+
+	-- camadas pretas no fundo, cada vez mais escuras: as primeiras dá para
+	-- atravessar (só sombra), as 3 últimas são blocos sólidos que fecham o
+	-- túnel
+	local CAMADAS = 7
+	local SOLIDAS = 3
+	local inicioCamadas = TUNEL_BOCA - 8
+	for i = 1, CAMADAS do
+		local solida = i > CAMADAS - SOLIDAS
+		local x = inicioCamadas - (i - 1) * 2
+		local grossura = if solida then 2 else 0.4
+		if i == CAMADAS then
+			-- o último vai até o fundo, bem grosso para ninguém passar correndo
+			grossura = x + 1 - TUNEL_FUNDO
+			x = (x + 1 + TUNEL_FUNDO) / 2
+		end
+		parte({
+			Name = if solida then "FimTunel" else "SombraTunel",
+			Size = Vector3.new(grossura, altura, Mapa.TUNEL_LARGURA),
+			Position = Vector3.new(x, altura / 2, 0),
+			Color = Color3.new(0, 0, 0),
+			Material = Enum.Material.SmoothPlastic,
+			Transparency = if solida then 0 else 0.8 - (i - 1) * 0.15,
+			CanCollide = solida,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Parent = pasta,
+		})
 	end
 
 	-- frente de concreto em volta da boca, encostada na montanha
