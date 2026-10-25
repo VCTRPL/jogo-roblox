@@ -1,4 +1,4 @@
--- Dinheiro do jogador (leaderstats) e salvamento com DataStore.
+-- Placar (Dinheiro e Velocidade) e salvamento com DataStore.
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,7 +9,7 @@ local Dados = {}
 local store = nil
 if Config.SALVAR_DADOS then
 	local ok, resultado = pcall(function()
-		return DataStoreService:GetDataStore("RoubeUmVerity_v1")
+		return DataStoreService:GetDataStore("RoubeUmVerity_v2")
 	end)
 	if ok then
 		store = resultado
@@ -25,13 +25,13 @@ local function chave(player: Player): string
 	return `jogador_{player.UserId}`
 end
 
-local function valorDinheiro(player: Player): IntValue?
+local function stat(player: Player, nome: string): IntValue?
 	local stats = player:FindFirstChild("leaderstats")
-	return stats and stats:FindFirstChild("Dinheiro") :: IntValue?
+	return stats and stats:FindFirstChild(nome) :: IntValue?
 end
 
--- Cria o placar e devolve os Verities salvos (lista de ids).
-function Dados.carregar(player: Player): { string }
+-- Cria o placar e devolve os itens salvos da base.
+function Dados.carregar(player: Player): { any }
 	local salvo = nil
 	if store then
 		local ok, resultado = pcall(function()
@@ -44,25 +44,38 @@ function Dados.carregar(player: Player): { string }
 			warn(`Não consegui carregar os dados de {player.Name}:`, resultado)
 		end
 	end
+	salvo = salvo or {}
 
 	local stats = Instance.new("Folder")
 	stats.Name = "leaderstats"
 	local dinheiro = Instance.new("IntValue")
 	dinheiro.Name = "Dinheiro"
-	dinheiro.Value = if salvo then salvo.dinheiro else Config.DINHEIRO_INICIAL
+	dinheiro.Value = salvo.dinheiro or Config.DINHEIRO_INICIAL
 	dinheiro.Parent = stats
+	local velocidade = Instance.new("IntValue")
+	velocidade.Name = "Velocidade"
+	velocidade.Value = salvo.velocidade or 0
+	velocidade.Parent = stats
 	stats.Parent = player
 
-	return if salvo then salvo.verities or {} else {}
+	player:SetAttribute("NivelEsteira", salvo.nivelEsteira or 1)
+
+	return salvo.itens or {}
 end
 
-function Dados.salvar(player: Player, verities: { string })
-	local dinheiro = valorDinheiro(player)
-	if not store or not dinheiro or not podeSalvar[player] then
+function Dados.salvar(player: Player, itens: { any })
+	local dinheiro = stat(player, "Dinheiro")
+	local velocidade = stat(player, "Velocidade")
+	if not store or not dinheiro or not velocidade or not podeSalvar[player] then
 		return
 	end
 	local ok, erro = pcall(function()
-		store:SetAsync(chave(player), { dinheiro = dinheiro.Value, verities = verities })
+		store:SetAsync(chave(player), {
+			dinheiro = dinheiro.Value,
+			velocidade = velocidade.Value,
+			nivelEsteira = player:GetAttribute("NivelEsteira"),
+			itens = itens,
+		})
 	end)
 	if not ok then
 		warn(`Não consegui salvar os dados de {player.Name}:`, erro)
@@ -73,13 +86,14 @@ function Dados.esquecer(player: Player)
 	podeSalvar[player] = nil
 end
 
-function Dados.dinheiro(player: Player): number
-	local valor = valorDinheiro(player)
+-- nome: "Dinheiro" ou "Velocidade"
+function Dados.valor(player: Player, nome: string): number
+	local valor = stat(player, nome)
 	return if valor then valor.Value else 0
 end
 
-function Dados.adicionar(player: Player, quantia: number)
-	local valor = valorDinheiro(player)
+function Dados.adicionar(player: Player, nome: string, quantia: number)
+	local valor = stat(player, nome)
 	if valor then
 		valor.Value += quantia
 	end
