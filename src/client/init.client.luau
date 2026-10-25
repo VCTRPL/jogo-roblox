@@ -90,8 +90,11 @@ RunService.RenderStepped:Connect(function()
 				inicio = parte.CFrame
 				inicios[parte] = inicio
 			end
+			-- gira em volta do "Centro" (ou dele mesmo) e sobe e desce um pouco
+			local centro = parte:GetAttribute("Centro") or inicio.Position
 			local giro = CFrame.Angles(0, math.rad(agora * (parte:GetAttribute("Giro") or 45)), 0)
-			parte.CFrame = (giro * inicio.Rotation) + inicio.Position + Vector3.new(0, math.sin(agora * 2) * 0.3, 0)
+			local flutua = Vector3.new(0, math.sin(agora * 2 + inicio.Position.X) * (parte:GetAttribute("Flutua") or 0), 0)
+			parte.CFrame = (CFrame.new(centro) * giro * CFrame.new(-centro) * inicio) + flutua
 		end
 	end
 end)

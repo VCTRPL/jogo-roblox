@@ -17,11 +17,11 @@ Config.TEMPO_ATORDOADO = 2 -- segundos parado depois que o guardião te pega
 -- Esteira de corrida da base: quanto de Velocidade ganha a cada meio segundo em cima dela.
 -- Cada nível tem um modelo de esteira diferente (veja src/server/Esteiras.luau).
 Config.NIVEIS_ESTEIRA = {
-	{ nome = "Esteira de Madeira", ganho = 1, preco = 0 },
-	{ nome = "Esteira Esportiva", ganho = 2, preco = 500 },
-	{ nome = "Esteira Sci-Fi", ganho = 5, preco = 15000 },
-	{ nome = "Esteira de Lava", ganho = 12, preco = 250000 },
-	{ nome = "Esteira Galáxia", ganho = 30, preco = 5000000 },
+	{ nome = "Esteira Básica", ganho = 1, preco = 0 },
+	{ nome = "Esteira Intermediária", ganho = 2, preco = 500 },
+	{ nome = "Esteira Avançada", ganho = 5, preco = 15000 },
+	{ nome = "Esteira Épica", ganho = 12, preco = 250000 },
+	{ nome = "Esteira Lendária", ganho = 30, preco = 5000000 },
 }
 
 Config.CORES_RARIDADE = {
