@@ -201,7 +201,8 @@ local function criarBase(info: Mapa.InfoBase): Base
 
 	-- Esteira de corrida: o modelo muda a cada nível (veja Esteiras.luau).
 	-- O botão de melhorar e a placa ficam numa peça invisível que não muda.
-	local centroEsteira = topo + Vector3.new(-(tamanho / 2 - 5), 0.2, -lado * (tamanho / 2 - 8))
+	-- longe o bastante do muro para os anéis e o brilho do chão não atravessarem
+	local centroEsteira = topo + Vector3.new(-(tamanho / 2 - 7), 0.2, -lado * (tamanho / 2 - 8))
 	local cframeEsteira = CFrame.lookAt(centroEsteira, centroEsteira + olhar)
 	local modeloEsteira = Esteiras.criar(1, cframeEsteira)
 	modeloEsteira.Parent = info.pasta
