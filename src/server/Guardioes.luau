@@ -158,8 +158,11 @@ local function montar(nome: string?): (Model, { BasePart }, number)
 	modelo.Name = "Guardiao"
 	local montador = MONTAR[nome or ""] or padrao
 	local pupilas, alturaCorpo = montador(modelo)
-	modelo.PrimaryPart = modelo:FindFirstChild("Corpo") :: BasePart
-	modelo.WorldPivot = CFrame.new() -- pivot nos pés
+	local corpo = modelo:FindFirstChild("Corpo") :: BasePart
+	modelo.PrimaryPart = corpo
+	-- pivot nos pés (a origem). Com PrimaryPart o Roblox usa o pivot da peça
+	-- e ignora o WorldPivot, por isso o ajuste vai no PivotOffset.
+	corpo.PivotOffset = corpo.CFrame:Inverse()
 	return modelo, pupilas, alturaCorpo
 end
 
@@ -172,16 +175,20 @@ function Guardioes.criar(config): Visual
 	local modelo, pupilas, alturaCorpo = montar(config.guardiao)
 	local corpo = modelo.PrimaryPart :: BasePart
 	local _, tamanho = modelo:GetBoundingBox()
-	Mapa.placa(corpo, config.guardiao or "Guardião", tamanho.Y - alturaCorpo + 2, 260)
+	-- As placas vão numa peça invisível sem rotação: o corpo é um cilindro
+	-- girado, e o deslocamento da placa gira junto com a peça.
+	local marcador = peca(modelo, "Marcador", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, alturaCorpo, 0), BRANCO)
+	marcador.Transparency = 1
+	Mapa.placa(marcador, config.guardiao or "Guardião", tamanho.Y - alturaCorpo + 2, 260)
 
 	local alerta = Instance.new("BillboardGui")
 	alerta.Name = "Alerta"
 	alerta.Size = UDim2.fromOffset(90, 90)
 	alerta.StudsOffsetWorldSpace = Vector3.new(0, tamanho.Y - alturaCorpo + 5.5, 0)
-	alerta.AlwaysOnTop = true
+	-- sem AlwaysOnTop: com ele ligado o "!" não aparecia
 	alerta.MaxDistance = 200
 	alerta.Enabled = false
-	alerta.Parent = corpo
+	alerta.Parent = marcador
 	local exclamacao = Instance.new("TextLabel")
 	exclamacao.Size = UDim2.fromScale(1, 1)
 	exclamacao.BackgroundTransparency = 1
@@ -195,8 +202,8 @@ function Guardioes.criar(config): Visual
 
 	local pes = Instance.new("Attachment")
 	pes.Name = "Pes"
-	pes.Parent = corpo
-	-- sem girar junto com o corpo (que é um cilindro deitado), para a poeira subir
+	pes.Parent = marcador
+	-- o marcador não gira, então a poeira sai para cima
 	pes.WorldCFrame = CFrame.new(0, 0.5, 0)
 	local rastro = Instance.new("ParticleEmitter")
 	rastro.Name = "Poeira"
