@@ -8,9 +8,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Ui = require(script.Parent.Ui)
 
 local Corrida = {}
 
@@ -98,12 +100,66 @@ local function ligar(player: Player)
 	ativos[player] = { pecas = { corpo, pes, luz } }
 end
 
+-- Na esteira o personagem fica parado no lugar, então a corrida é uma
+-- animação: a mesma "run" do script Animate do personagem.
+local trilha: AnimationTrack? = nil
+
+local function animarCorrida(ligada: boolean)
+	if trilha then
+		trilha:Stop(0.2)
+		trilha = nil
+	end
+	local personagem = jogador.Character
+	local hum = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	local animador = hum and hum:FindFirstChildOfClass("Animator")
+	local animate = personagem and personagem:FindFirstChild("Animate")
+	local correr = animate and animate:FindFirstChild("run")
+	local animacao = correr and correr:FindFirstChildOfClass("Animation")
+	if ligada and animador and animacao then
+		local nova = animador:LoadAnimation(animacao)
+		nova.Priority = Enum.AnimationPriority.Action
+		nova.Looped = true
+		nova:Play(0.2)
+		nova:AdjustSpeed(1.6)
+		trilha = nova
+	end
+end
+
+-- Botão "Sair" embaixo enquanto corre (pular também sai).
+local tela = Ui.tela("Corrida", 1)
+local botaoSair = Ui.criar("TextButton", {
+	Name = "Sair",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -26),
+	Size = UDim2.fromOffset(220, 62),
+	BackgroundColor3 = Ui.BRANCO,
+	Text = "",
+	Visible = false,
+	Parent = tela,
+}, { Ui.cantos(18), Ui.borda(Ui.CONTORNO, 3.5), Ui.gradiente(Color3.fromRGB(255, 120, 120), Color3.fromRGB(210, 40, 60)) })
+Ui.texto({ Text = "SAIR DA ESTEIRA", Position = UDim2.fromOffset(12, 10), Size = UDim2.new(1, -24, 1, -20), Parent = botaoSair })
+
+local function pedirSaida()
+	if jogador:GetAttribute("NaEsteira") then
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local sair = remotes and remotes:FindFirstChild("SairEsteira")
+		if sair then
+			(sair :: RemoteEvent):FireServer()
+		end
+	end
+end
+botaoSair.Activated:Connect(pedirSaida)
+UserInputService.JumpRequest:Connect(pedirSaida)
+
 local function atualizar(player: Player)
 	desligar(player)
 	if player:GetAttribute("NaEsteira") then
 		ligar(player)
 	end
 	if player == jogador then
+		local naEsteira = player:GetAttribute("NaEsteira") == true
+		botaoSair.Visible = naEsteira
+		animarCorrida(naEsteira)
 		local camera = Workspace.CurrentCamera
 		if camera then
 			local campo = if player:GetAttribute("NaEsteira") then CAMPO_CORRENDO else CAMPO_DE_VISAO
