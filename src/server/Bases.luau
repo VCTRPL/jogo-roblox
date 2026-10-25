@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Dados = require(script.Parent.Dados)
+local Esteiras = require(script.Parent.Esteiras)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
 local Velocidade = require(script.Parent.Velocidade)
@@ -26,7 +27,10 @@ export type Base = {
 	trancadaAte: number,
 	spawn: CFrame,
 	escudo: Part,
-	esteira: Part,
+	esteira: BasePart, -- a "Pista" do modelo atual
+	modeloEsteira: Model,
+	cframeEsteira: CFrame,
+	nivelEsteira: number, -- nível do modelo que está montado
 	textoBotao: TextLabel,
 	textoPlaca: TextLabel,
 	textoEsteira: TextLabel,
@@ -59,15 +63,29 @@ local function atualizarPlaca(base: Base)
 	end
 end
 
+-- Troca o modelo da esteira quando o nível muda.
+local function montarEsteira(base: Base, nivel: number)
+	if base.nivelEsteira == nivel then
+		return
+	end
+	base.modeloEsteira:Destroy()
+	local modelo = Esteiras.criar(nivel, base.cframeEsteira)
+	modelo.Parent = base.info.pasta
+	base.modeloEsteira = modelo
+	base.esteira = modelo:FindFirstChild("Pista") :: BasePart
+	base.nivelEsteira = nivel
+end
+
 local function atualizarEsteira(base: Base)
+	local nivel = if base.dono then base.dono:GetAttribute("NivelEsteira") or 1 else 1
+	montarEsteira(base, nivel)
 	if not base.dono then
 		base.textoEsteira.Text = "Esteira"
 		return
 	end
-	local nivel = base.dono:GetAttribute("NivelEsteira") or 1
 	local atual = Config.NIVEIS_ESTEIRA[nivel]
 	local proximo = Config.NIVEIS_ESTEIRA[nivel + 1]
-	local texto = `Esteira nível {nivel}\n+{atual.ganho} Velocidade`
+	local texto = `{atual.nome}\n+{atual.ganho} Velocidade`
 	if proximo then
 		texto ..= `\nMelhorar: ${Config.formatar(proximo.preco)}`
 	end
@@ -104,7 +122,8 @@ local function melhorarEsteira(player: Player, base: Base)
 		Dados.adicionar(player, "Dinheiro", -proximo.preco)
 		player:SetAttribute("NivelEsteira", nivel + 1)
 		atualizarEsteira(base)
-		Avisos.enviar(player, `Esteira melhorada: +{proximo.ganho} Velocidade!`, VERDE)
+		Esteiras.celebrar(base.modeloEsteira, nivel + 1)
+		Avisos.enviar(player, `{proximo.nome}! +{proximo.ganho} Velocidade!`, VERDE)
 	end
 end
 
@@ -190,22 +209,29 @@ local function criarBase(info: Mapa.InfoBase): Base
 	promptTrancar.RequiresLineOfSight = false
 	promptTrancar.Parent = botao
 
-	-- Esteira de corrida: empurra o jogador para trás, então ele corre parado.
-	local esteira = Instance.new("Part")
-	esteira.Name = "Esteira"
-	esteira.Anchored = true
-	esteira.Size = Vector3.new(6, 0.4, 12)
-	esteira.Position = topo + Vector3.new(-(tamanho / 2 - 5), 0.2, -lado * (tamanho / 2 - 8))
-	esteira.Color = Color3.fromRGB(30, 30, 35)
-	esteira.Material = Enum.Material.DiamondPlate
-	esteira.AssemblyLinearVelocity = Vector3.new(0, 0, lado * 18)
-	esteira.Parent = info.pasta
+	-- Esteira de corrida: o modelo muda a cada nível (veja Esteiras.luau).
+	-- O botão de melhorar e a placa ficam numa peça invisível que não muda.
+	-- longe o bastante do muro para os anéis e o brilho do chão não atravessarem
+	local centroEsteira = topo + Vector3.new(-(tamanho / 2 - 7), 0.2, -lado * (tamanho / 2 - 8))
+	local cframeEsteira = CFrame.lookAt(centroEsteira, centroEsteira + olhar)
+	local modeloEsteira = Esteiras.criar(1, cframeEsteira)
+	modeloEsteira.Parent = info.pasta
+	local marcoEsteira = Instance.new("Part")
+	marcoEsteira.Name = "MarcoEsteira"
+	marcoEsteira.Anchored = true
+	marcoEsteira.CanCollide = false
+	marcoEsteira.CanQuery = false
+	marcoEsteira.CanTouch = false
+	marcoEsteira.Transparency = 1
+	marcoEsteira.Size = Vector3.new(1, 1, 1)
+	marcoEsteira.CFrame = cframeEsteira
+	marcoEsteira.Parent = info.pasta
 	local promptEsteira = Instance.new("ProximityPrompt")
 	promptEsteira.ActionText = "Melhorar esteira"
 	promptEsteira.ObjectText = "Esteira"
 	promptEsteira.RequiresLineOfSight = false
 	promptEsteira.HoldDuration = 0.5
-	promptEsteira.Parent = esteira
+	promptEsteira.Parent = marcoEsteira
 
 	local base: Base = {
 		info = info,
@@ -215,10 +241,13 @@ local function criarBase(info: Mapa.InfoBase): Base
 		trancadaAte = 0,
 		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
 		escudo = escudo,
-		esteira = esteira,
+		esteira = modeloEsteira:FindFirstChild("Pista") :: BasePart,
+		modeloEsteira = modeloEsteira,
+		cframeEsteira = cframeEsteira,
+		nivelEsteira = 1,
 		textoBotao = Mapa.placa(botao, "Trancar", 3, 160),
 		textoPlaca = Mapa.placa(info.piso, "Base livre", 14),
-		textoEsteira = Mapa.placa(esteira, "Esteira", 5, 200),
+		textoEsteira = Mapa.placa(marcoEsteira, "Esteira", 12, 220),
 	}
 	promptTrancar.Triggered:Connect(function(player)
 		trancar(player, base)
