@@ -76,12 +76,12 @@ local function montanha(pasta: Instance, chao: Vector3, largura: number, altura:
 end
 
 -- Parede invisível e alta ao longo de uma linha.
-local function barreira(pasta: Instance, de: Vector3, ate: Vector3)
+local function barreira(pasta: Instance, de: Vector3, ate: Vector3, grossura: number?)
 	local meio = (de + ate) / 2
 	local comprimento = (ate - de).Magnitude
 	Mapa.parte({
 		Name = "Barreira",
-		Size = Vector3.new(2, 200, comprimento + 2),
+		Size = Vector3.new(grossura or 2, 200, comprimento + 2),
 		CFrame = CFrame.lookAt(meio, ate) + Vector3.new(0, 100, 0),
 		Transparency = 1,
 		CanQuery = false,
@@ -161,15 +161,17 @@ local function montanhaDoTunel(pasta: Instance)
 	})
 	montanha(pasta, Vector3.new(meio - 4, altura + 14, 0), 32, 28)
 
-	-- parede invisível na frente da montanha, deixando a boca do túnel livre
-	local x = boca + 1.5
+	-- parede invisível na frente da montanha, deixando a boca do túnel livre.
+	-- Bem grossa (para dentro da montanha) para ninguém atravessar correndo.
+	local GROSSURA = 16
+	local x = boca + 1.5 - GROSSURA / 2
 	for _, lado in { -1, 1 } do
-		barreira(pasta, Vector3.new(x, 0, lado * meia), Vector3.new(x, 0, lado * (zb + 2)))
+		barreira(pasta, Vector3.new(x, 0, lado * (meia + 1)), Vector3.new(x, 0, lado * (zb + 2)), GROSSURA)
 	end
 	Mapa.parte({
 		Name = "Barreira",
-		Size = Vector3.new(2, 200, meia * 2 + 2),
-		Position = Vector3.new(x, altura + 1 + 100, 0),
+		Size = Vector3.new(GROSSURA, 200, meia * 2 + 4),
+		Position = Vector3.new(x, altura + 100, 0),
 		Transparency = 1,
 		CanQuery = false,
 		CanTouch = false,
