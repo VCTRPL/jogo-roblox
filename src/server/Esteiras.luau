@@ -1,8 +1,8 @@
 -- Modelos 3D das esteiras de corrida: cada nível tem uma esteira diferente,
 -- todas no formato de esteira de academia (deck comprido, colunas, corrimão
 -- e painel), com neon e efeitos cada vez mais fortes.
--- A peça "Pista" é onde o jogador corre: ela empurra para trás, então ele
--- corre parado. O cliente anima as faixas da pista (tag "FaixaEsteira") e o
+-- A peça "Pista" é onde o jogador corre: quem aperta "Correr" fica preso em
+-- cima dela correndo sozinho (veja Bases.luau). O cliente anima as faixas da pista (tag "FaixaEsteira") e o
 -- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
 
@@ -10,7 +10,6 @@ local Mapa = require(script.Parent.Mapa)
 
 local Esteiras = {}
 
-local EMPURRAO = 18 -- velocidade com que a pista empurra o jogador
 local VELOCIDADE_FAIXAS = 12
 local ALTURA_PISTA = 1.05 -- topo da pista acima do chão
 local PRETO = Color3.fromRGB(28, 28, 32)
@@ -472,7 +471,6 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 		Material = estilo.materialPista,
 		Parent = modelo,
 	})
-	pista.AssemblyLinearVelocity = -cf.LookVector * EMPURRAO
 	modelo.PrimaryPart = pista
 
 	local function peca(lugar: CFrame, tamanho: Vector3, props: any?): BasePart
