@@ -15,12 +15,14 @@ Config.VELOCIDADE_MAXIMA = 120
 Config.TEMPO_ATORDOADO = 2 -- segundos parado depois que o guardião te pega
 
 -- Esteira de corrida da base: quanto de Velocidade ganha a cada meio segundo em cima dela.
+-- Cada nível tem um modelo de esteira diferente (veja src/server/Esteiras.luau).
 Config.NIVEIS_ESTEIRA = {
-	{ ganho = 1, preco = 0 },
-	{ ganho = 2, preco = 500 },
-	{ ganho = 5, preco = 15000 },
-	{ ganho = 12, preco = 250000 },
-	{ ganho = 30, preco = 5000000 },
+	-- "cor" é a cor do rastro e dos efeitos de quem corre nela.
+	{ nome = "Esteira Básica", ganho = 1, preco = 0, cor = Color3.fromRGB(235, 235, 240) },
+	{ nome = "Esteira Intermediária", ganho = 2, preco = 500, cor = Color3.fromRGB(0, 170, 255) },
+	{ nome = "Esteira Avançada", ganho = 5, preco = 15000, cor = Color3.fromRGB(115, 60, 255) },
+	{ nome = "Esteira Épica", ganho = 12, preco = 250000, cor = Color3.fromRGB(255, 165, 20) },
+	{ nome = "Esteira Lendária", ganho = 30, preco = 5000000, cor = Color3.fromRGB(255, 35, 45) },
 }
 
 Config.CORES_RARIDADE = {
@@ -50,50 +52,68 @@ Config.MUTACOES = {
 	{ nome = "Arco-iris", chance = 2, renda = 3.5, cor = Color3.fromRGB(255, 90, 200) },
 }
 
--- Os Verities que nascem dos ovos. "renda" é dinheiro por segundo.
--- O "id" é o nome do modelo em ReplicatedStorage.ModelosVerity (opcional, veja o README).
-Config.VERITIES = {
-	{ id = "VerityComum", nome = "Verity", raridade = "Comum", renda = 1 },
-	{ id = "VerityFeliz", nome = "Verity Feliz", raridade = "Comum", renda = 3 },
-	{ id = "VerityDourado", nome = "Verity Dourado", raridade = "Raro", renda = 10 },
-	{ id = "VerityNinja", nome = "Verity Ninja", raridade = "Epico", renda = 40 },
-	{ id = "VerityGigante", nome = "Verity Gigante", raridade = "Lendario", renda = 150 },
-	{ id = "VerityCosmico", nome = "Verity Cósmico", raridade = "Mitico", renda = 800 },
+-- Os Brainrots que nascem dos ovos. "renda" é dinheiro por segundo.
+-- "cor" é a cor do corpo e "corCabeca" a da cabeça no boneco padrão.
+-- O "id" é o nome do modelo em ReplicatedStorage.ModelosBrainrot (opcional, veja o README).
+Config.BRAINROTS = {
+	{ id = "Patapim", nome = "Brr Brr Patapim", raridade = "Comum", renda = 1,
+		cor = Color3.fromRGB(110, 150, 70), corCabeca = Color3.fromRGB(150, 110, 70) },
+	{ id = "Larila", nome = "Lirilì Larilà", raridade = "Comum", renda = 3,
+		cor = Color3.fromRGB(120, 170, 90), corCabeca = Color3.fromRGB(170, 160, 150) },
+	{ id = "Bananini", nome = "Chimpanzini Bananini", raridade = "Raro", renda = 10,
+		cor = Color3.fromRGB(255, 220, 60), corCabeca = Color3.fromRGB(110, 80, 50) },
+	{ id = "Cappuccina", nome = "Ballerina Cappuccina", raridade = "Epico", renda = 40,
+		cor = Color3.fromRGB(255, 170, 200), corCabeca = Color3.fromRGB(120, 80, 50) },
+	{ id = "Tralalero", nome = "Tralalero Tralala", raridade = "Lendario", renda = 150,
+		cor = Color3.fromRGB(80, 160, 230), corCabeca = Color3.fromRGB(70, 140, 210) },
+	{ id = "Bombardiro", nome = "Bombardiro Crocodilo", raridade = "Mitico", renda = 800,
+		cor = Color3.fromRGB(90, 110, 80), corCabeca = Color3.fromRGB(60, 140, 60) },
 }
 
--- Os ovos: qual Verity nasce e quantos segundos leva para chocar.
+-- Os ovos: qual Brainrot nasce e quantos segundos leva para chocar.
 -- O "id" é o nome do modelo em ReplicatedStorage.ModelosOvo (opcional).
 Config.OVOS = {
-	{ id = "OvoComum", nome = "Ovo Comum", raridade = "Comum", verity = "VerityComum", chocar = 20 },
-	{ id = "OvoFeliz", nome = "Ovo Feliz", raridade = "Comum", verity = "VerityFeliz", chocar = 30 },
-	{ id = "OvoDourado", nome = "Ovo Dourado", raridade = "Raro", verity = "VerityDourado", chocar = 45 },
-	{ id = "OvoNinja", nome = "Ovo Ninja", raridade = "Epico", verity = "VerityNinja", chocar = 90 },
-	{ id = "OvoGigante", nome = "Ovo Gigante", raridade = "Lendario", verity = "VerityGigante", chocar = 180 },
-	{ id = "OvoCosmico", nome = "Ovo Cósmico", raridade = "Mitico", verity = "VerityCosmico", chocar = 300 },
+	{ id = "OvoPatapim", nome = "Ovo Patapim", raridade = "Comum", brainrot = "Patapim", chocar = 20 },
+	{ id = "OvoLarila", nome = "Ovo Larilà", raridade = "Comum", brainrot = "Larila", chocar = 30 },
+	{ id = "OvoBananini", nome = "Ovo Bananini", raridade = "Raro", brainrot = "Bananini", chocar = 45 },
+	{ id = "OvoCappuccina", nome = "Ovo Cappuccina", raridade = "Epico", brainrot = "Cappuccina", chocar = 90 },
+	{ id = "OvoTralalero", nome = "Ovo Tralalero", raridade = "Lendario", brainrot = "Tralalero", chocar = 180 },
+	{ id = "OvoBombardiro", nome = "Ovo Bombardiro", raridade = "Mitico", brainrot = "Bombardiro", chocar = 300 },
 }
 
+-- Raridades que, ao chocar, são anunciadas para o servidor inteiro.
+Config.ANUNCIAR_RARIDADES = { Lendario = true, Mitico = true }
+Config.ANUNCIAR_MUTACOES = { ["Arco-iris"] = true }
+
 -- Biomas, na ordem da estrada. Cada um precisa de uma Velocidade mínima para entrar.
--- "ovos" lista os ovos que aparecem nos ninhos e a chance de cada um.
+-- "estilo" escolhe a decoração ("floresta" ou "praia") e "guardiao" é quem
+-- persegue quem pega um ovo. "ovos" lista os ovos dos ninhos e a chance de cada um.
 Config.BIOMAS = {
 	{
-		nome = "Floresta",
+		nome = "Selva Sahur",
+		estilo = "floresta",
+		guardiao = "Tung Tung Tung Sahur",
+		corGuardiao = Color3.fromRGB(150, 100, 60),
 		velocidadeMinima = 0,
 		velocidadeGuardiao = 14,
 		cor = Color3.fromRGB(80, 160, 70),
-		ovos = { OvoComum = 50, OvoFeliz = 30, OvoDourado = 15, OvoNinja = 5 },
+		ovos = { OvoPatapim = 50, OvoLarila = 30, OvoBananini = 15, OvoCappuccina = 5 },
 	},
 	{
-		nome = "Lago",
+		nome = "Praia Tralalá",
+		estilo = "praia",
+		guardiao = "Cappuccino Assassino",
+		corGuardiao = Color3.fromRGB(70, 40, 30),
 		velocidadeMinima = 150,
 		velocidadeGuardiao = 30,
 		cor = Color3.fromRGB(70, 150, 210),
-		ovos = { OvoDourado = 40, OvoNinja = 35, OvoGigante = 20, OvoCosmico = 5 },
+		ovos = { OvoBananini = 40, OvoCappuccina = 35, OvoTralalero = 20, OvoBombardiro = 5 },
 	},
 }
 
-local verityPorId = {}
-for _, verity in Config.VERITIES do
-	verityPorId[verity.id] = verity
+local brainrotPorId = {}
+for _, brainrot in Config.BRAINROTS do
+	brainrotPorId[brainrot.id] = brainrot
 end
 local ovoPorId = {}
 for _, ovo in Config.OVOS do
@@ -126,8 +146,8 @@ local function sortearLista(lista)
 	return lista[1]
 end
 
-function Config.verity(id: string)
-	return verityPorId[id]
+function Config.brainrot(id: string)
+	return brainrotPorId[id]
 end
 
 function Config.ovo(id: string)
@@ -161,13 +181,13 @@ function Config.sortearOvo(bioma)
 	return Config.ovo(sortearLista(lista).id)
 end
 
--- Renda por segundo de um Verity já chocado, contando tamanho e mutação.
+-- Renda por segundo de um Brainrot já chocado, contando tamanho e mutação.
 function Config.renda(item): number
-	local verity = Config.verity(item.id)
-	if not verity then
+	local brainrot = Config.brainrot(item.id)
+	if not brainrot then
 		return 0
 	end
-	return math.floor(verity.renda * Config.tamanho(item.tamanho).renda * Config.mutacao(item.mutacao).renda)
+	return math.floor(brainrot.renda * Config.tamanho(item.tamanho).renda * Config.mutacao(item.mutacao).renda)
 end
 
 -- 1500 -> "1.5K", 2000000 -> "2M"

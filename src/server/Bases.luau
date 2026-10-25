@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Dados = require(script.Parent.Dados)
+local Esteiras = require(script.Parent.Esteiras)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
 local Velocidade = require(script.Parent.Velocidade)
@@ -26,7 +27,10 @@ export type Base = {
 	trancadaAte: number,
 	spawn: CFrame,
 	escudo: Part,
-	esteira: Part,
+	esteira: BasePart, -- a "Pista" do modelo atual
+	modeloEsteira: Model,
+	cframeEsteira: CFrame,
+	nivelEsteira: number, -- nível do modelo que está montado
 	textoBotao: TextLabel,
 	textoPlaca: TextLabel,
 	textoEsteira: TextLabel,
@@ -44,7 +48,7 @@ Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())
 function Bases.renda(base: Base): number
 	local total = 0
 	for _, dados in base.itens do
-		if dados.item.tipo == "verity" then
+		if dados.item.tipo == "brainrot" then
 			total += Config.renda(dados.item)
 		end
 	end
@@ -59,15 +63,29 @@ local function atualizarPlaca(base: Base)
 	end
 end
 
+-- Troca o modelo da esteira quando o nível muda.
+local function montarEsteira(base: Base, nivel: number)
+	if base.nivelEsteira == nivel then
+		return
+	end
+	base.modeloEsteira:Destroy()
+	local modelo = Esteiras.criar(nivel, base.cframeEsteira)
+	modelo.Parent = base.info.pasta
+	base.modeloEsteira = modelo
+	base.esteira = modelo:FindFirstChild("Pista") :: BasePart
+	base.nivelEsteira = nivel
+end
+
 local function atualizarEsteira(base: Base)
+	local nivel = if base.dono then base.dono:GetAttribute("NivelEsteira") or 1 else 1
+	montarEsteira(base, nivel)
 	if not base.dono then
 		base.textoEsteira.Text = "Esteira"
 		return
 	end
-	local nivel = base.dono:GetAttribute("NivelEsteira") or 1
 	local atual = Config.NIVEIS_ESTEIRA[nivel]
 	local proximo = Config.NIVEIS_ESTEIRA[nivel + 1]
-	local texto = `Esteira nível {nivel}\n+{atual.ganho} Velocidade`
+	local texto = `{atual.nome}\n+{atual.ganho} Velocidade`
 	if proximo then
 		texto ..= `\nMelhorar: ${Config.formatar(proximo.preco)}`
 	end
@@ -104,7 +122,8 @@ local function melhorarEsteira(player: Player, base: Base)
 		Dados.adicionar(player, "Dinheiro", -proximo.preco)
 		player:SetAttribute("NivelEsteira", nivel + 1)
 		atualizarEsteira(base)
-		Avisos.enviar(player, `Esteira melhorada: +{proximo.ganho} Velocidade!`, VERDE)
+		Esteiras.celebrar(base.modeloEsteira, nivel + 1)
+		Avisos.enviar(player, `{proximo.nome}! +{proximo.ganho} Velocidade!`, VERDE)
 	end
 end
 
@@ -115,10 +134,10 @@ local function chocar(base: Base, vaga: number)
 		return
 	end
 	local ovo = Config.ovo(dados.item.id)
-	local verity = Config.verity(ovo.verity)
+	local brainrot = Config.brainrot(ovo.brainrot)
 	local nascido: Modelos.Item = {
-		tipo = "verity",
-		id = verity.id,
+		tipo = "brainrot",
+		id = brainrot.id,
 		tamanho = dados.item.tamanho,
 		mutacao = Config.sortearMutacao().nome,
 	}
@@ -126,15 +145,25 @@ local function chocar(base: Base, vaga: number)
 	Bases.colocar(base, nascido, vaga)
 
 	local renda = Config.renda(nascido)
-	local bonus = Config.BONUS_VELOCIDADE[verity.raridade] or 0
+	local bonus = Config.BONUS_VELOCIDADE[brainrot.raridade] or 0
 	Dados.adicionar(dono, "Dinheiro", renda * 30)
 	Velocidade.adicionar(dono, bonus)
-	local nome = if nascido.mutacao == "Normal" then verity.nome else `{verity.nome} {nascido.mutacao}`
+	local nome = if nascido.mutacao == "Normal" then brainrot.nome else `{brainrot.nome} {nascido.mutacao}`
 	Avisos.enviar(
 		dono,
 		`Nasceu um {nome}! +${Config.formatar(renda * 30)} e +{bonus} Velocidade`,
-		Config.CORES_RARIDADE[verity.raridade]
+		Config.CORES_RARIDADE[brainrot.raridade]
 	)
+	-- explosão de partículas na vaga, que todo mundo por perto vê
+	Avisos.efeito("Chocou", {
+		posicao = base.vagas[vaga].Position,
+		raridade = brainrot.raridade,
+		mutacao = nascido.mutacao,
+		ganho = renda * 30,
+	})
+	if Config.ANUNCIAR_RARIDADES[brainrot.raridade] or Config.ANUNCIAR_MUTACOES[nascido.mutacao] then
+		Avisos.todos(`{dono.DisplayName} chocou um {nome}!`, Config.CORES_RARIDADE[brainrot.raridade])
+	end
 end
 
 local function criarBase(info: Mapa.InfoBase): Base
@@ -180,22 +209,29 @@ local function criarBase(info: Mapa.InfoBase): Base
 	promptTrancar.RequiresLineOfSight = false
 	promptTrancar.Parent = botao
 
-	-- Esteira de corrida: empurra o jogador para trás, então ele corre parado.
-	local esteira = Instance.new("Part")
-	esteira.Name = "Esteira"
-	esteira.Anchored = true
-	esteira.Size = Vector3.new(6, 0.4, 12)
-	esteira.Position = topo + Vector3.new(-(tamanho / 2 - 5), 0.2, -lado * (tamanho / 2 - 8))
-	esteira.Color = Color3.fromRGB(30, 30, 35)
-	esteira.Material = Enum.Material.DiamondPlate
-	esteira.AssemblyLinearVelocity = Vector3.new(0, 0, lado * 18)
-	esteira.Parent = info.pasta
+	-- Esteira de corrida: o modelo muda a cada nível (veja Esteiras.luau).
+	-- O botão de melhorar e a placa ficam numa peça invisível que não muda.
+	-- longe o bastante do muro para os anéis e o brilho do chão não atravessarem
+	local centroEsteira = topo + Vector3.new(-(tamanho / 2 - 7), 0.2, -lado * (tamanho / 2 - 8))
+	local cframeEsteira = CFrame.lookAt(centroEsteira, centroEsteira + olhar)
+	local modeloEsteira = Esteiras.criar(1, cframeEsteira)
+	modeloEsteira.Parent = info.pasta
+	local marcoEsteira = Instance.new("Part")
+	marcoEsteira.Name = "MarcoEsteira"
+	marcoEsteira.Anchored = true
+	marcoEsteira.CanCollide = false
+	marcoEsteira.CanQuery = false
+	marcoEsteira.CanTouch = false
+	marcoEsteira.Transparency = 1
+	marcoEsteira.Size = Vector3.new(1, 1, 1)
+	marcoEsteira.CFrame = cframeEsteira
+	marcoEsteira.Parent = info.pasta
 	local promptEsteira = Instance.new("ProximityPrompt")
 	promptEsteira.ActionText = "Melhorar esteira"
 	promptEsteira.ObjectText = "Esteira"
 	promptEsteira.RequiresLineOfSight = false
 	promptEsteira.HoldDuration = 0.5
-	promptEsteira.Parent = esteira
+	promptEsteira.Parent = marcoEsteira
 
 	local base: Base = {
 		info = info,
@@ -205,10 +241,13 @@ local function criarBase(info: Mapa.InfoBase): Base
 		trancadaAte = 0,
 		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
 		escudo = escudo,
-		esteira = esteira,
+		esteira = modeloEsteira:FindFirstChild("Pista") :: BasePart,
+		modeloEsteira = modeloEsteira,
+		cframeEsteira = cframeEsteira,
+		nivelEsteira = 1,
 		textoBotao = Mapa.placa(botao, "Trancar", 3, 160),
 		textoPlaca = Mapa.placa(info.piso, "Base livre", 14),
-		textoEsteira = Mapa.placa(esteira, "Esteira", 5, 200),
+		textoEsteira = Mapa.placa(marcoEsteira, "Esteira", 12, 220),
 	}
 	promptTrancar.Triggered:Connect(function(player)
 		trancar(player, base)
@@ -239,7 +278,10 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 			task.wait(1)
 			for _, base in bases do
 				if base.dono then
-					Dados.adicionar(base.dono, "Dinheiro", Bases.renda(base))
+					local renda = Bases.renda(base)
+					Dados.adicionar(base.dono, "Dinheiro", renda)
+					-- o cliente mostra a renda por segundo no painel de dinheiro
+					base.dono:SetAttribute("Renda", renda)
 				end
 			end
 		end
@@ -253,9 +295,14 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 				local personagem = player.Character
 				local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
 				local minha = porJogador[player]
-				if raiz and minha and emCimaDaEsteira(minha, raiz.Position) then
+				local correndo = raiz ~= nil and minha ~= nil and emCimaDaEsteira(minha, raiz.Position)
+				if correndo then
 					local nivel = player:GetAttribute("NivelEsteira") or 1
 					Velocidade.adicionar(player, Config.NIVEIS_ESTEIRA[nivel].ganho)
+				end
+				-- o cliente mostra o rastro e os efeitos de corrida
+				if (player:GetAttribute("NaEsteira") == true) ~= correndo then
+					player:SetAttribute("NaEsteira", correndo)
 				end
 			end
 		end
@@ -296,6 +343,8 @@ function Bases.atribuir(player: Player): Base?
 			base.dono = player
 			base.trancadaAte = 0
 			porJogador[player] = base
+			-- o cliente usa para a seta que leva de volta para a base
+			player:SetAttribute("BaseCentro", base.info.centro)
 			atualizarPlaca(base)
 			atualizarEsteira(base)
 			return base
@@ -332,7 +381,7 @@ function Bases.vagaLivre(base: Base): number?
 	return nil
 end
 
--- Coloca um ovo ou Verity numa vaga livre (ou na vaga pedida, se estiver livre).
+-- Coloca um ovo ou Brainrot numa vaga livre (ou na vaga pedida, se estiver livre).
 -- Retorna false se a base estiver cheia.
 function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): boolean
 	local vaga = if vagaPreferida and not base.itens[vagaPreferida] then vagaPreferida else Bases.vagaLivre(base)
@@ -343,7 +392,7 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	if item.tipo == "ovo" and not Config.ovo(item.id) then
 		return false
 	end
-	if item.tipo == "verity" and not Config.verity(item.id) then
+	if item.tipo == "brainrot" and not Config.brainrot(item.id) then
 		return false
 	end
 

@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Carregar = require(script.Parent.Carregar)
 local Dados = require(script.Parent.Dados)
+local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
 
@@ -26,11 +27,13 @@ type Ninho = {
 
 type Guardiao = {
 	modelo: Model,
+	visual: Guardioes.Visual,
 	casa: CFrame,
 	posicao: Vector3,
 	alvo: Player?,
 	correEm: number,
 	velocidade: number,
+	bravo: boolean, -- mostrando o "!" e os olhos vermelhos
 }
 
 type Bioma = {
@@ -47,59 +50,53 @@ local VERMELHO = Color3.fromRGB(255, 90, 90)
 local VERDE = Color3.fromRGB(90, 255, 120)
 
 local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
-	local modelo = Instance.new("Model")
-	modelo.Name = "Guardiao"
-
-	local corpo = Instance.new("Part")
-	corpo.Name = "Corpo"
-	corpo.Size = Vector3.new(7, 8, 7)
-	corpo.Color = Color3.fromRGB(60, 30, 30)
-	corpo.Material = Enum.Material.Slate
-	corpo.Anchored = true
-	corpo.CanCollide = false
-	corpo.Parent = modelo
-
-	for _, x in { -1.6, 1.6 } do
-		local olho = Instance.new("Part")
-		olho.Name = "Olho"
-		olho.Shape = Enum.PartType.Ball
-		olho.Size = Vector3.new(1.4, 1.4, 1.4)
-		olho.Color = Color3.fromRGB(255, 40, 40)
-		olho.Material = Enum.Material.Neon
-		olho.Anchored = true
-		olho.CanCollide = false
-		olho.CFrame = corpo.CFrame * CFrame.new(x, 1.8, -3.5)
-		olho.Parent = modelo
-	end
-
-	modelo.PrimaryPart = corpo
-	-- pivot nos pés
-	modelo.WorldPivot = corpo.CFrame * CFrame.new(0, -4, 0)
-	Mapa.placa(corpo, `Guardião da {info.config.nome}`, 6, 220)
-
+	local visual = Guardioes.criar(info.config)
 	local casa = CFrame.lookAt(info.centro, info.centro + Vector3.new(-1, 0, 0))
-	modelo:PivotTo(casa)
-	modelo.Parent = info.pasta
+	visual.modelo:PivotTo(casa)
+	visual.modelo.Parent = info.pasta
 
 	return {
-		modelo = modelo,
+		modelo = visual.modelo,
+		visual = visual,
 		casa = casa,
 		posicao = info.centro,
 		alvo = nil,
 		correEm = 0,
 		velocidade = info.config.velocidadeGuardiao,
+		bravo = false,
 	}
+end
+
+-- Coluna de luz em cima dos ovos raros, para todo mundo ver de longe.
+local function colunaDeLuz(modelo: Model, cor: Color3)
+	local centro = modelo:GetPivot().Position
+	Mapa.parte({
+		Name = "ColunaDeLuz",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(60, 1.8, 1.8),
+		CFrame = CFrame.new(centro + Vector3.new(0, 30, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = cor,
+		Material = Enum.Material.Neon,
+		Transparency = 0.55,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+		Parent = modelo,
+	})
 end
 
 local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 	if ninho.modelo then
 		return
 	end
+	local novo = item == nil
 	if not item then
 		local ovo = Config.sortearOvo(bioma.info.config)
 		item = { tipo = "ovo", id = ovo.id, tamanho = Config.sortearTamanho().nome }
 	end
 	local itemNinho = item :: Modelos.Item
+	local ovo = Config.ovo(itemNinho.id)
 
 	local modelo = Modelos.criar(itemNinho)
 	local prompt = Modelos.prompt(modelo)
@@ -119,7 +116,7 @@ local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 			devolver()
 			return
 		end
-		Avisos.enviar(player, "Corra para a sua base! O guardião acordou!", VERDE)
+		Avisos.enviar(player, `Corra para a sua base! {bioma.info.config.guardiao} acordou!`, VERDE)
 		local guardiao = bioma.guardiao
 		if not guardiao.alvo then
 			guardiao.correEm = os.clock() + TEMPO_ACORDAR
@@ -128,9 +125,61 @@ local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 	end)
 
 	modelo:PivotTo(ninho.cframe)
+	if ovo.raridade == "Lendario" or ovo.raridade == "Mitico" then
+		colunaDeLuz(modelo, Config.CORES_RARIDADE[ovo.raridade])
+	end
 	modelo.Parent = bioma.info.pasta
 	ninho.modelo = modelo
 	ninho.item = itemNinho
+	if novo and ovo.raridade == "Mitico" then
+		Avisos.todos(`Um {ovo.nome} apareceu na {bioma.info.config.nome}! Corra!`, Config.CORES_RARIDADE.Mitico)
+	end
+end
+
+-- Ninho de galhos com um círculo de luz na cor do bioma embaixo.
+local function criarModeloNinho(info: Mapa.InfoBioma, pos: Vector3)
+	local modelo = Instance.new("Model")
+	modelo.Name = "Ninho"
+	local deitado = CFrame.Angles(0, 0, math.rad(90)) -- cilindros do Roblox deitam no eixo X
+	Mapa.parte({
+		Name = "Luz",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.15, 7.5, 7.5),
+		CFrame = CFrame.new(pos + Vector3.new(0, 0.2, 0)) * deitado,
+		Color = info.config.cor:Lerp(Color3.new(1, 1, 1), 0.35),
+		Material = Enum.Material.Neon,
+		Transparency = 0.35,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = modelo,
+	})
+	Mapa.parte({
+		Name = "Palha",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1, 5.5, 5.5),
+		CFrame = CFrame.new(pos + Vector3.new(0, 0.5, 0)) * deitado,
+		Color = Color3.fromRGB(196, 150, 85),
+		Material = Enum.Material.Grass,
+		Parent = modelo,
+	})
+	-- galhos em volta da borda
+	local galhos = 12
+	for i = 1, galhos do
+		local angulo = i / galhos * math.pi * 2
+		local borda = pos + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * 2.6
+		Mapa.parte({
+			Name = "Galho",
+			Size = Vector3.new(0.55, 0.55, 2.6),
+			CFrame = CFrame.lookAt(borda + Vector3.new(0, 1.15, 0), borda + Vector3.new(0, 1.15, 0) + Vector3.new(-math.sin(angulo), 0, math.cos(angulo)))
+				* CFrame.Angles(0, 0, math.rad(i * 37 % 60 - 30))
+				* CFrame.Angles(math.rad(i % 2 * 16 - 8), 0, 0),
+			Color = if i % 2 == 0 then Color3.fromRGB(120, 82, 48) else Color3.fromRGB(160, 112, 66),
+			Material = Enum.Material.Wood,
+			CanCollide = false,
+			Parent = modelo,
+		})
+	end
+	modelo.Parent = info.pasta
 end
 
 local function criarBioma(info: Mapa.InfoBioma): Bioma
@@ -145,15 +194,7 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 		local angulo = (i - 1) / NINHOS_POR_BIOMA * math.pi * 2
 		local pos = info.centro + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * RAIO_NINHOS
 
-		local base = Instance.new("Part")
-		base.Name = "Ninho"
-		base.Shape = Enum.PartType.Cylinder
-		base.Anchored = true
-		base.Size = Vector3.new(1, 5, 5)
-		base.CFrame = CFrame.new(pos + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90))
-		base.Color = Color3.fromRGB(120, 85, 50)
-		base.Material = Enum.Material.WoodPlanks
-		base.Parent = info.pasta
+		criarModeloNinho(info, pos)
 
 		local ninho: Ninho = {
 			cframe = CFrame.lookAt(pos + Vector3.new(0, 1, 0), info.centro + Vector3.new(0, 1, 0)),
@@ -174,6 +215,13 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 	bioma.textoTempo = Mapa.placa(marco, "", 3, 220)
 
 	return bioma
+end
+
+local function ficarBravo(guardiao: Guardiao, bravo: boolean)
+	if guardiao.bravo ~= bravo then
+		guardiao.bravo = bravo
+		Guardioes.bravo(guardiao.visual, bravo)
+	end
 end
 
 local function moverGuardiao(bioma: Bioma, dt: number)
@@ -202,26 +250,38 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 				guardiao.posicao.Z
 			)).Magnitude
 			if distancia <= DISTANCIA_PEGAR then
-				Carregar.derrubar(alvo, "O guardião te pegou! Você perdeu o ovo.")
+				Carregar.derrubar(alvo, `{info.config.guardiao} te pegou! Você perdeu o ovo.`)
 				guardiao.alvo = nil
 			end
 		else
+			ficarBravo(guardiao, true)
 			return -- ainda acordando
 		end
 	end
+	ficarBravo(guardiao, guardiao.alvo ~= nil)
 
 	local delta = destino - guardiao.posicao
 	local passo = guardiao.velocidade * dt
 	if delta.Magnitude < 0.1 then
 		return
 	end
-	if delta.Magnitude <= passo then
+	local chegou = delta.Magnitude <= passo
+	if chegou and not guardiao.alvo then
+		-- voltou para casa: vira de novo para a entrada
+		guardiao.posicao = destino
+		guardiao.modelo:PivotTo(guardiao.casa)
+		return
+	elseif chegou then
 		guardiao.posicao = destino
 	else
 		guardiao.posicao += delta.Unit * passo
 	end
 	local olhar = if delta.Magnitude > 0.1 then guardiao.posicao + delta.Unit else guardiao.posicao + Vector3.xAxis
-	guardiao.modelo:PivotTo(CFrame.lookAt(guardiao.posicao, Vector3.new(olhar.X, guardiao.posicao.Y, olhar.Z)))
+	-- pulinhos enquanto anda, mais rápidos quanto mais rápido ele é
+	local pulo = if chegou then 0 else math.abs(math.sin(os.clock() * guardiao.velocidade / 2)) * 0.8
+	guardiao.modelo:PivotTo(
+		CFrame.lookAt(guardiao.posicao, Vector3.new(olhar.X, guardiao.posicao.Y, olhar.Z)) + Vector3.new(0, pulo, 0)
+	)
 end
 
 -- Quem não tem Velocidade suficiente é empurrado de volta para a entrada.
@@ -242,7 +302,7 @@ local function verificarPortoes()
 						ultimoAvisoPortao[player] = os.clock()
 						Avisos.enviar(
 							player,
-							`Você precisa de {Config.formatar(minimo)} de Velocidade para entrar no {bioma.info.config.nome}!`,
+							`Você precisa de {Config.formatar(minimo)} de Velocidade para entrar em {bioma.info.config.nome}!`,
 							VERMELHO
 						)
 					end
