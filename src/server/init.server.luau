@@ -49,7 +49,7 @@ local function aoEntrar(player: Player)
 		task.spawn(nascerNaBase, player.Character)
 	end
 
-	Avisos.enviar(player, "Pegue ovos nos ninhos e leve para a sua base! Cuidado com o guardião!")
+	Avisos.enviar(player, "Pegue ovos brainrot nos ninhos e leve para a sua base! Cuidado com o Tung Tung Tung Sahur!")
 end
 
 Players.PlayerAdded:Connect(aoEntrar)

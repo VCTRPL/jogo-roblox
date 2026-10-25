@@ -1,4 +1,4 @@
--- Carregar: o jogador leva um ovo ou Verity em cima da cabeça até a própria base.
+-- Carregar: o jogador leva um ovo ou Brainrot em cima da cabeça até a própria base.
 -- Serve tanto para ovos pegos nos ninhos quanto para roubos de outras bases.
 -- Se for pego pelo guardião, morrer ou sair do jogo, perde o que carregava.
 local Players = game:GetService("Players")
@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Bases = require(script.Parent.Bases)
+local Dados = require(script.Parent.Dados)
 local Modelos = require(script.Parent.Modelos)
 local Velocidade = require(script.Parent.Velocidade)
 
@@ -17,6 +18,7 @@ type Carga = {
 	modelo: Model,
 	aoPerder: () -> (), -- devolve o item para onde ele estava
 	avisouCheia: boolean,
+	roubo: boolean, -- veio da base de outro jogador
 }
 
 local carregando: { [Player]: Carga } = {}
@@ -30,7 +32,7 @@ local function raizDe(player: Player): BasePart?
 end
 
 local function nomeDo(item: Modelos.Item): string
-	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.verity(item.id)
+	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
 	return def.nome
 end
 
@@ -56,8 +58,12 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 	modelo.Parent = personagem
 	Modelos.grudar(modelo, raiz)
 
-	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, avisouCheia = false }
+	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, avisouCheia = false, roubo = false }
 	Velocidade.definirPeso(player, Config.tamanho(item.tamanho).peso)
+	-- o cliente mostra a faixa "Carregando" e a seta até a base
+	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
+	player:SetAttribute("Carregando", nomeDo(item))
+	player:SetAttribute("CorCarregando", Config.CORES_RARIDADE[def.raridade])
 	return true
 end
 
@@ -69,6 +75,8 @@ local function soltar(player: Player): Carga?
 	carregando[player] = nil
 	carga.modelo:Destroy()
 	Velocidade.definirPeso(player, 1)
+	player:SetAttribute("Carregando", nil)
+	player:SetAttribute("CorCarregando", nil)
 	return carga
 end
 
@@ -117,6 +125,7 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 		devolver()
 		return
 	end
+	carregando[ladrao].roubo = true
 	Avisos.enviar(ladrao, `Você pegou {nomeDo(item)}! Leve para a sua base!`, VERDE)
 	Avisos.enviar(dono, `{ladrao.DisplayName} está roubando seu {nomeDo(item)}!`, VERMELHO)
 end
@@ -130,6 +139,9 @@ local function verificarEntregas()
 				soltar(player)
 				Bases.colocar(minhaBase, carga.item)
 				Avisos.enviar(player, `{nomeDo(carga.item)} guardado na sua base!`, VERDE)
+				if carga.roubo then
+					Dados.adicionar(player, "Roubos", 1)
+				end
 			elseif not carga.avisouCheia then
 				carga.avisouCheia = true
 				Avisos.enviar(player, "Sua base está cheia!", VERMELHO)
