@@ -1,0 +1,11 @@
+# Arquivos gerados pelo `rojo build`
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
