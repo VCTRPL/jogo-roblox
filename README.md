@@ -31,9 +31,17 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Brainrots |
 | `src/server/Decoracao.luau` | Céu, árvores, praia, arco de entrada, estátuas e portais |
 | `src/server/Avisos.luau` | Mensagens na tela, anúncios e pedidos de efeitos para os clientes |
+| `src/server/Blocos.luau` | Estilo Lego: pinos em cima das peças, bolas e cilindros viram blocos |
+| `src/server/Montanhas.luau` | Montanhas quadradas em volta das bases e dos lados das fases |
+| `src/server/Biblioteca.luau` | Prepara chefões e árvores da biblioteca do Roblox (sem scripts, no tamanho certo) |
+| `src/server/Esteiras.luau` | Modelos e efeitos das 5 esteiras de corrida |
 | `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
 | `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
 | `src/client/Efeitos.luau` | Explosão de partículas quando um ovo choca |
+| `src/client/Interface.luau` | Barra do próximo bioma, faixa "Carregando" com trilha até a base, Índice e Ajuda |
+| `src/client/Corrida.luau` | Efeitos de quem corre na esteira e luzes das esteiras pulsando |
+| `src/client/Ui.luau` | Peças de interface usadas por todas as telas |
+| `src/client/Prompts.luau` | Botões "Pegar", "Roubar" etc. no estilo do jogo (tocar funciona no celular) |
 
 ## Trocar os bonecos pelos modelos de verdade
 
@@ -42,6 +50,13 @@ Por enquanto cada Brainrot é um boneco feito de peças com as cores e um detalh
 1. No Studio, crie as pastas `ModelosBrainrot` e `ModelosOvo` dentro de `ReplicatedStorage`.
 2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `Tralalero` em `ModelosBrainrot`, `OvoTralalero` em `ModelosOvo`).
 3. Pronto: o jogo passa a usar os seus modelos. Os que não tiverem modelo continuam com o boneco.
+
+Do mesmo jeito, os chefões e as árvores podem vir da biblioteca do Roblox (Toolbox):
+
+- `ReplicatedStorage.ModelosChefao`: um Model com o nome exato do guardião (`Tung Tung Tung Sahur`, `Cappuccino Assassino`).
+- `ReplicatedStorage.ModelosArvore.Floresta` e `ReplicatedStorage.ModelosArvore.Praia`: árvores e palmeiras.
+
+O jogo tira os scripts, ancora e ajusta o tamanho sozinho. Sem essas pastas ele usa os modelos de blocos.
 
 Como essas pastas são criadas no Studio (e não no código), salve o lugar com **File > Publish to Roblox** para não perder.
 

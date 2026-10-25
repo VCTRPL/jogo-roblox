@@ -1,9 +1,19 @@
 -- Modelos dos guardiões dos biomas, montados com peças. Cada bioma diz
 -- qual guardião tem em Config.BIOMAS (campo "guardiao").
 -- O modelo é montado com os pés em (0, 0, 0) e olhando para -Z.
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Biblioteca = require(script.Parent.Biblioteca)
+local Blocos = require(script.Parent.Blocos)
 local Mapa = require(script.Parent.Mapa)
 
 local Guardioes = {}
+
+-- Altura (em studs) dos chefões que vêm da biblioteca do Roblox.
+local ALTURA_CHEFAO = {
+	["Tung Tung Tung Sahur"] = 10,
+	["Cappuccino Assassino"] = 9,
+}
 
 export type Visual = {
 	modelo: Model,
@@ -153,11 +163,40 @@ local MONTAR = {
 	["Cappuccino Assassino"] = cappuccino,
 }
 
+-- Chefão da biblioteca: um Model com o nome do guardião dentro de
+-- ReplicatedStorage.ModelosChefao (veja o README). Fica do tamanho certo,
+-- de pé na origem, olhando para -Z, com uma peça invisível "Corpo" no meio.
+local function daBiblioteca(nome: string?): (Model?, number)
+	local pasta = ReplicatedStorage:FindFirstChild("ModelosChefao")
+	local molde = nome and pasta and pasta:FindFirstChild(nome)
+	if not (molde and molde:IsA("Model")) then
+		return nil, 0
+	end
+	local modelo = Biblioteca.preparar(molde, ALTURA_CHEFAO[nome :: string] or 10)
+	if not modelo then
+		return nil, 0
+	end
+	modelo.Name = "Guardiao"
+	local caixa, tamanho = modelo:GetBoundingBox()
+	local corpo = peca(modelo, "CorpoChefao", Vector3.new(1, 1, 1), CFrame.new(caixa.Position), BRANCO)
+	corpo.Transparency = 1
+	modelo.PrimaryPart = corpo
+	corpo.PivotOffset = corpo.CFrame:Inverse() -- pivot nos pés
+	return modelo, tamanho.Y / 2
+end
+
 local function montar(nome: string?): (Model, { BasePart }, number)
+	local biblioteca, meio = daBiblioteca(nome)
+	if biblioteca then
+		return biblioteca, {}, meio
+	end
+
 	local modelo = Instance.new("Model")
 	modelo.Name = "Guardiao"
 	local montador = MONTAR[nome or ""] or padrao
 	local pupilas, alturaCorpo = montador(modelo)
+	-- estilo Lego antes de pôr o pivot (o corpo cilíndrico vira bloco)
+	Blocos.aplicar(modelo)
 	local corpo = modelo:FindFirstChild("Corpo") :: BasePart
 	modelo.PrimaryPart = corpo
 	-- pivot nos pés (a origem). Com PrimaryPart o Roblox usa o pivot da peça
@@ -238,7 +277,7 @@ function Guardioes.bravo(visual: Visual, bravo: boolean)
 			olho:SetAttribute("CorNormal", olho.Color)
 		end
 		olho.Color = if bravo then VERMELHO else olho:GetAttribute("CorNormal")
-		olho.Material = if bravo then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		olho.Material = if bravo then Enum.Material.Neon else Enum.Material.Plastic
 	end
 end
 

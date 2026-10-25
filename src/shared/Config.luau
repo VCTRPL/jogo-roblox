@@ -17,11 +17,12 @@ Config.TEMPO_ATORDOADO = 2 -- segundos parado depois que o guardião te pega
 -- Esteira de corrida da base: quanto de Velocidade ganha a cada meio segundo em cima dela.
 -- Cada nível tem um modelo de esteira diferente (veja src/server/Esteiras.luau).
 Config.NIVEIS_ESTEIRA = {
-	{ nome = "Esteira Básica", ganho = 1, preco = 0 },
-	{ nome = "Esteira Intermediária", ganho = 2, preco = 500 },
-	{ nome = "Esteira Avançada", ganho = 5, preco = 15000 },
-	{ nome = "Esteira Épica", ganho = 12, preco = 250000 },
-	{ nome = "Esteira Lendária", ganho = 30, preco = 5000000 },
+	-- "cor" é a cor do rastro e dos efeitos de quem corre nela.
+	{ nome = "Esteira Básica", ganho = 1, preco = 0, cor = Color3.fromRGB(235, 235, 240) },
+	{ nome = "Esteira Intermediária", ganho = 2, preco = 500, cor = Color3.fromRGB(0, 170, 255) },
+	{ nome = "Esteira Avançada", ganho = 5, preco = 15000, cor = Color3.fromRGB(115, 60, 255) },
+	{ nome = "Esteira Épica", ganho = 12, preco = 250000, cor = Color3.fromRGB(255, 165, 20) },
+	{ nome = "Esteira Lendária", ganho = 30, preco = 5000000, cor = Color3.fromRGB(255, 35, 45) },
 }
 
 Config.CORES_RARIDADE = {
