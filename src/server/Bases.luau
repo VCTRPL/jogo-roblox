@@ -295,9 +295,14 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 				local personagem = player.Character
 				local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
 				local minha = porJogador[player]
-				if raiz and minha and emCimaDaEsteira(minha, raiz.Position) then
+				local correndo = raiz ~= nil and minha ~= nil and emCimaDaEsteira(minha, raiz.Position)
+				if correndo then
 					local nivel = player:GetAttribute("NivelEsteira") or 1
 					Velocidade.adicionar(player, Config.NIVEIS_ESTEIRA[nivel].ganho)
+				end
+				-- o cliente mostra o rastro e os efeitos de corrida
+				if (player:GetAttribute("NaEsteira") == true) ~= correndo then
+					player:SetAttribute("NaEsteira", correndo)
 				end
 			end
 		end
@@ -338,6 +343,8 @@ function Bases.atribuir(player: Player): Base?
 			base.dono = player
 			base.trancadaAte = 0
 			porJogador[player] = base
+			-- o cliente usa para a seta que leva de volta para a base
+			player:SetAttribute("BaseCentro", base.info.centro)
 			atualizarPlaca(base)
 			atualizarEsteira(base)
 			return base
