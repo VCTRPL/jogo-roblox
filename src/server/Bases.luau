@@ -1,53 +1,52 @@
--- Bases dos jogadores: vagas, renda por segundo e a tranca.
+-- Bases dos jogadores: vagas, ovos chocando, renda por segundo,
+-- esteira de corrida e a tranca.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Dados = require(script.Parent.Dados)
 local Mapa = require(script.Parent.Mapa)
-local Verities = require(script.Parent.Verities)
+local Modelos = require(script.Parent.Modelos)
+local Velocidade = require(script.Parent.Velocidade)
 
 local Bases = {}
+
+type ItemNaBase = {
+	item: Modelos.Item,
+	modelo: Model,
+	chocaEm: number?, -- só ovos (os.clock)
+}
 
 export type Base = {
 	info: Mapa.InfoBase,
 	dono: Player?,
 	vagas: { CFrame },
-	itens: { [number]: { id: string, modelo: Model } },
+	itens: { [number]: ItemNaBase },
 	trancadaAte: number,
 	spawn: CFrame,
 	escudo: Part,
+	esteira: Part,
 	textoBotao: TextLabel,
 	textoPlaca: TextLabel,
+	textoEsteira: TextLabel,
 }
 
 local bases: { Base } = {}
 local porJogador: { [Player]: Base } = {}
 
--- Chamado quando alguém tenta roubar um Verity (o módulo Roubo preenche isso).
-Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
+local VERMELHO = Color3.fromRGB(255, 90, 90)
+local VERDE = Color3.fromRGB(90, 255, 120)
 
-local function criarTextoFlutuante(parent: Instance, tamanho: UDim2, altura: number): TextLabel
-	local gui = Instance.new("BillboardGui")
-	gui.Size = tamanho
-	gui.StudsOffsetWorldSpace = Vector3.new(0, altura, 0)
-	gui.MaxDistance = 150
-	gui.Parent = parent
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.TextScaled = true
-	label.Font = Enum.Font.FredokaOne
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0
-	label.Parent = gui
-	return label
-end
+-- Chamado quando alguém tenta roubar algo de uma base (o módulo Carregar preenche isso).
+Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
 
 function Bases.renda(base: Base): number
 	local total = 0
-	for _, item in base.itens do
-		total += Config.buscar(item.id).renda
+	for _, dados in base.itens do
+		if dados.item.tipo == "verity" then
+			total += Config.renda(dados.item)
+		end
 	end
 	return total
 end
@@ -60,13 +59,28 @@ local function atualizarPlaca(base: Base)
 	end
 end
 
+local function atualizarEsteira(base: Base)
+	if not base.dono then
+		base.textoEsteira.Text = "Esteira"
+		return
+	end
+	local nivel = base.dono:GetAttribute("NivelEsteira") or 1
+	local atual = Config.NIVEIS_ESTEIRA[nivel]
+	local proximo = Config.NIVEIS_ESTEIRA[nivel + 1]
+	local texto = `Esteira nível {nivel}\n+{atual.ganho} Velocidade`
+	if proximo then
+		texto ..= `\nMelhorar: ${Config.formatar(proximo.preco)}`
+	end
+	base.textoEsteira.Text = texto
+end
+
 function Bases.estaTrancada(base: Base): boolean
 	return os.clock() < base.trancadaAte
 end
 
 local function trancar(player: Player, base: Base)
 	if base.dono ~= player then
-		Avisos.enviar(player, "Essa não é a sua base!", Color3.fromRGB(255, 90, 90))
+		Avisos.enviar(player, "Essa não é a sua base!", VERMELHO)
 	elseif Bases.estaTrancada(base) then
 		Avisos.enviar(player, "Sua base já está trancada.")
 	else
@@ -75,65 +89,146 @@ local function trancar(player: Player, base: Base)
 	end
 end
 
-function Bases.iniciar()
+local function melhorarEsteira(player: Player, base: Base)
+	if base.dono ~= player then
+		Avisos.enviar(player, "Essa não é a sua esteira!", VERMELHO)
+		return
+	end
+	local nivel = player:GetAttribute("NivelEsteira") or 1
+	local proximo = Config.NIVEIS_ESTEIRA[nivel + 1]
+	if not proximo then
+		Avisos.enviar(player, "Sua esteira já está no nível máximo!")
+	elseif Dados.valor(player, "Dinheiro") < proximo.preco then
+		Avisos.enviar(player, "Dinheiro insuficiente!", VERMELHO)
+	else
+		Dados.adicionar(player, "Dinheiro", -proximo.preco)
+		player:SetAttribute("NivelEsteira", nivel + 1)
+		atualizarEsteira(base)
+		Avisos.enviar(player, `Esteira melhorada: +{proximo.ganho} Velocidade!`, VERDE)
+	end
+end
+
+local function chocar(base: Base, vaga: number)
+	local dados = base.itens[vaga]
+	local dono = base.dono
+	if not dados or not dono then
+		return
+	end
+	local ovo = Config.ovo(dados.item.id)
+	local verity = Config.verity(ovo.verity)
+	local nascido: Modelos.Item = {
+		tipo = "verity",
+		id = verity.id,
+		tamanho = dados.item.tamanho,
+		mutacao = Config.sortearMutacao().nome,
+	}
+	Bases.remover(base, vaga)
+	Bases.colocar(base, nascido, vaga)
+
+	local renda = Config.renda(nascido)
+	local bonus = Config.BONUS_VELOCIDADE[verity.raridade] or 0
+	Dados.adicionar(dono, "Dinheiro", renda * 30)
+	Velocidade.adicionar(dono, bonus)
+	local nome = if nascido.mutacao == "Normal" then verity.nome else `{verity.nome} {nascido.mutacao}`
+	Avisos.enviar(
+		dono,
+		`Nasceu um {nome}! +${Config.formatar(renda * 30)} e +{bonus} Velocidade`,
+		Config.CORES_RARIDADE[verity.raridade]
+	)
+end
+
+local function criarBase(info: Mapa.InfoBase): Base
 	local tamanho = Mapa.TAMANHO_BASE
-	for _, info in Mapa.construir() do
-		local lado = info.lado
-		local topo = info.centro + Vector3.new(0, 0.5, 0)
-		-- olhando para a esteira (z = 0)
-		local olhar = Vector3.new(0, 0, -lado)
+	local lado = info.lado
+	local topo = info.centro
+	-- de frente para a estrada (z = 0)
+	local olhar = Vector3.new(0, 0, -lado)
 
-		local vagas = {}
-		for linha = 0, 1 do
-			for coluna = 0, Config.VAGAS_POR_BASE / 2 - 1 do
-				local x = -14 + coluna * 7
-				local z = lado * (8 + linha * 6)
-				local pos = topo + Vector3.new(x, 0, z)
-				table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
-			end
-		end
+	local vagas = {}
+	local colunas = math.ceil(Config.VAGAS_POR_BASE / 2)
+	for i = 0, Config.VAGAS_POR_BASE - 1 do
+		local coluna = i % colunas
+		local linha = i // colunas
+		local x = (coluna - (colunas - 1) / 2) * 6.5
+		local pos = topo + Vector3.new(x, 0, lado * (6 + linha * 7))
+		table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
+	end
 
-		local escudo = Instance.new("Part")
-		escudo.Name = "Escudo"
-		escudo.Anchored = true
-		escudo.CanCollide = false
-		escudo.CanQuery = false
-		escudo.Size = Vector3.new(tamanho, 14, 1)
-		escudo.Position = topo + Vector3.new(0, 7, -lado * tamanho / 2)
-		escudo.Color = Color3.fromRGB(80, 170, 255)
-		escudo.Material = Enum.Material.ForceField
-		escudo.Transparency = 1
-		escudo.Parent = info.pasta
+	local escudo = Instance.new("Part")
+	escudo.Name = "Escudo"
+	escudo.Anchored = true
+	escudo.CanCollide = false
+	escudo.CanQuery = false
+	escudo.Size = Vector3.new(tamanho, 14, 1)
+	escudo.Position = topo + Vector3.new(0, 7, -lado * tamanho / 2)
+	escudo.Color = Color3.fromRGB(80, 170, 255)
+	escudo.Material = Enum.Material.ForceField
+	escudo.Transparency = 1
+	escudo.Parent = info.pasta
 
-		local botao = Instance.new("Part")
-		botao.Name = "BotaoTrancar"
-		botao.Anchored = true
-		botao.Size = Vector3.new(4, 1, 4)
-		botao.Position = topo + Vector3.new(tamanho / 2 - 4, 0.5, -lado * (tamanho / 2 - 4))
-		botao.Color = Color3.fromRGB(255, 80, 80)
-		botao.Material = Enum.Material.Neon
-		botao.Parent = info.pasta
+	local botao = Instance.new("Part")
+	botao.Name = "BotaoTrancar"
+	botao.Anchored = true
+	botao.Size = Vector3.new(4, 1, 4)
+	botao.Position = topo + Vector3.new(tamanho / 2 - 4, 0, -lado * (tamanho / 2 - 4))
+	botao.Color = Color3.fromRGB(255, 80, 80)
+	botao.Material = Enum.Material.Neon
+	botao.Parent = info.pasta
+	local promptTrancar = Instance.new("ProximityPrompt")
+	promptTrancar.ActionText = "Trancar base"
+	promptTrancar.ObjectText = "Tranca"
+	promptTrancar.RequiresLineOfSight = false
+	promptTrancar.Parent = botao
 
-		local promptTrancar = Instance.new("ProximityPrompt")
-		promptTrancar.ActionText = "Trancar base"
-		promptTrancar.ObjectText = "Tranca"
-		promptTrancar.RequiresLineOfSight = false
-		promptTrancar.Parent = botao
+	-- Esteira de corrida: empurra o jogador para trás, então ele corre parado.
+	local esteira = Instance.new("Part")
+	esteira.Name = "Esteira"
+	esteira.Anchored = true
+	esteira.Size = Vector3.new(6, 0.4, 12)
+	esteira.Position = topo + Vector3.new(-(tamanho / 2 - 5), 0.2, -lado * (tamanho / 2 - 8))
+	esteira.Color = Color3.fromRGB(30, 30, 35)
+	esteira.Material = Enum.Material.DiamondPlate
+	esteira.AssemblyLinearVelocity = Vector3.new(0, 0, lado * 18)
+	esteira.Parent = info.pasta
+	local promptEsteira = Instance.new("ProximityPrompt")
+	promptEsteira.ActionText = "Melhorar esteira"
+	promptEsteira.ObjectText = "Esteira"
+	promptEsteira.RequiresLineOfSight = false
+	promptEsteira.HoldDuration = 0.5
+	promptEsteira.Parent = esteira
 
-		local base: Base = {
-			info = info,
-			dono = nil,
-			vagas = vagas,
-			itens = {},
-			trancadaAte = 0,
-			spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
-			escudo = escudo,
-			textoBotao = criarTextoFlutuante(botao, UDim2.fromOffset(160, 40), 3),
-			textoPlaca = criarTextoFlutuante(info.piso, UDim2.fromOffset(260, 80), 14),
-		}
-		promptTrancar.Triggered:Connect(function(player)
-			trancar(player, base)
-		end)
+	local base: Base = {
+		info = info,
+		dono = nil,
+		vagas = vagas,
+		itens = {},
+		trancadaAte = 0,
+		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
+		escudo = escudo,
+		esteira = esteira,
+		textoBotao = Mapa.placa(botao, "Trancar", 3, 160),
+		textoPlaca = Mapa.placa(info.piso, "Base livre", 14),
+		textoEsteira = Mapa.placa(esteira, "Esteira", 5, 200),
+	}
+	promptTrancar.Triggered:Connect(function(player)
+		trancar(player, base)
+	end)
+	promptEsteira.Triggered:Connect(function(player)
+		melhorarEsteira(player, base)
+	end)
+	return base
+end
+
+local function emCimaDaEsteira(base: Base, posicao: Vector3): boolean
+	local esteira = base.esteira
+	local local_ = esteira.CFrame:PointToObjectSpace(posicao)
+	local meio = esteira.Size / 2
+	return math.abs(local_.X) <= meio.X and math.abs(local_.Z) <= meio.Z and local_.Y < 6
+end
+
+function Bases.iniciar(infos: { Mapa.InfoBase })
+	for _, info in infos do
+		local base = criarBase(info)
 		atualizarPlaca(base)
 		table.insert(bases, base)
 	end
@@ -144,24 +239,51 @@ function Bases.iniciar()
 			task.wait(1)
 			for _, base in bases do
 				if base.dono then
-					Dados.adicionar(base.dono, Bases.renda(base))
+					Dados.adicionar(base.dono, "Dinheiro", Bases.renda(base))
 				end
 			end
 		end
 	end)
 
-	-- Tranca: mostra o tempo e liga/desliga o escudo e os botões de roubar
+	-- Esteiras de corrida: quem está em cima ganha Velocidade
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			for _, player in Players:GetPlayers() do
+				local personagem = player.Character
+				local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+				local minha = porJogador[player]
+				if raiz and minha and emCimaDaEsteira(minha, raiz.Position) then
+					local nivel = player:GetAttribute("NivelEsteira") or 1
+					Velocidade.adicionar(player, Config.NIVEIS_ESTEIRA[nivel].ganho)
+				end
+			end
+		end
+	end)
+
+	-- Tranca e ovos chocando
 	task.spawn(function()
 		while true do
 			task.wait(0.25)
+			local agora = os.clock()
 			for _, base in bases do
 				local trancada = Bases.estaTrancada(base)
 				base.escudo.Transparency = if trancada then 0.3 else 1
-				base.textoBotao.Text = if trancada
-					then `Trancada: {math.ceil(base.trancadaAte - os.clock())}s`
-					else "Trancar"
-				for _, item in base.itens do
-					Verities.prompt(item.modelo).Enabled = not trancada
+				base.textoBotao.Text = if trancada then `Trancada: {math.ceil(base.trancadaAte - agora)}s` else "Trancar"
+				local prontos = {}
+				for vaga, dados in base.itens do
+					Modelos.prompt(dados.modelo).Enabled = not trancada
+					if dados.chocaEm then
+						local falta = dados.chocaEm - agora
+						if falta <= 0 then
+							table.insert(prontos, vaga)
+						else
+							Modelos.textoPlaca(dados.modelo, "Tempo", `Choca em {math.ceil(falta)}s`)
+						end
+					end
+				end
+				for _, vaga in prontos do
+					chocar(base, vaga)
 				end
 			end
 		end
@@ -175,6 +297,7 @@ function Bases.atribuir(player: Player): Base?
 			base.trancadaAte = 0
 			porJogador[player] = base
 			atualizarPlaca(base)
+			atualizarEsteira(base)
 			return base
 		end
 	end
@@ -193,6 +316,7 @@ function Bases.liberar(player: Player)
 	base.trancadaAte = 0
 	porJogador[player] = nil
 	atualizarPlaca(base)
+	atualizarEsteira(base)
 end
 
 function Bases.doJogador(player: Player): Base?
@@ -208,61 +332,76 @@ function Bases.vagaLivre(base: Base): number?
 	return nil
 end
 
--- Coloca um Verity numa vaga livre da base. Retorna false se a base estiver cheia.
-function Bases.colocar(base: Base, id: string): boolean
-	local vaga = Bases.vagaLivre(base)
-	local def = Config.buscar(id)
-	if not vaga or not def or not base.dono then
+-- Coloca um ovo ou Verity numa vaga livre (ou na vaga pedida, se estiver livre).
+-- Retorna false se a base estiver cheia.
+function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): boolean
+	local vaga = if vagaPreferida and not base.itens[vagaPreferida] then vagaPreferida else Bases.vagaLivre(base)
+	local dono = base.dono
+	if not vaga or not dono then
+		return false
+	end
+	if item.tipo == "ovo" and not Config.ovo(item.id) then
+		return false
+	end
+	if item.tipo == "verity" and not Config.verity(item.id) then
 		return false
 	end
 
-	local modelo = Verities.criar(def)
-	local placa = (modelo.PrimaryPart :: BasePart):FindFirstChild("Placa")
-	if placa then
-		(placa :: any).Preco.Visible = false
-	end
-	local prompt = Verities.prompt(modelo)
+	local modelo = Modelos.criar(item)
+	local prompt = Modelos.prompt(modelo)
 	prompt.ActionText = "Roubar"
 	prompt.HoldDuration = 1.5
-	-- O cliente usa isto para esconder o botão "Roubar" dos seus próprios Verities.
-	prompt:SetAttribute("DonoId", base.dono.UserId)
+	-- O cliente usa isto para esconder o botão "Roubar" das suas próprias coisas.
+	prompt:SetAttribute("DonoId", dono.UserId)
 	prompt.Triggered:Connect(function(ladrao)
 		if Bases.aoTentarRoubar then
 			Bases.aoTentarRoubar(ladrao, base, vaga)
 		end
 	end)
 
+	local chocaEm = nil
+	if item.tipo == "ovo" then
+		chocaEm = os.clock() + (item.restante or Config.ovo(item.id).chocar)
+	end
+
 	modelo:PivotTo(base.vagas[vaga])
 	modelo.Parent = base.info.pasta
-	base.itens[vaga] = { id = id, modelo = modelo }
+	base.itens[vaga] = { item = item, modelo = modelo, chocaEm = chocaEm }
 	atualizarPlaca(base)
 	return true
 end
 
--- Tira o Verity da vaga e devolve o id dele.
-function Bases.remover(base: Base, vaga: number): string?
-	local item = base.itens[vaga]
-	if not item then
+-- Tira o item da vaga e devolve ele (ovos guardam quanto falta para chocar).
+function Bases.remover(base: Base, vaga: number): Modelos.Item?
+	local dados = base.itens[vaga]
+	if not dados then
 		return nil
 	end
 	base.itens[vaga] = nil
-	item.modelo:Destroy()
+	dados.modelo:Destroy()
+	local item = table.clone(dados.item)
+	if dados.chocaEm then
+		item.restante = math.max(0, math.ceil(dados.chocaEm - os.clock()))
+	end
 	atualizarPlaca(base)
-	return item.id
+	return item
 end
 
-function Bases.ids(base: Base): { string }
+-- Lista de itens para salvar.
+function Bases.itens(base: Base): { Modelos.Item }
 	local lista = {}
-	for _, item in base.itens do
-		table.insert(lista, item.id)
+	for _, dados in base.itens do
+		local item = table.clone(dados.item)
+		if dados.chocaEm then
+			item.restante = math.max(0, math.ceil(dados.chocaEm - os.clock()))
+		end
+		table.insert(lista, item)
 	end
 	return lista
 end
 
 function Bases.dentro(base: Base, posicao: Vector3): boolean
-	local meio = Mapa.TAMANHO_BASE / 2
-	local centro = base.info.centro
-	return math.abs(posicao.X - centro.X) <= meio and math.abs(posicao.Z - centro.Z) <= meio
+	return Mapa.dentroQuadrado(base.info.centro, Mapa.TAMANHO_BASE, posicao)
 end
 
 return Bases

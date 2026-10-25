@@ -1,42 +1,45 @@
 # Roube um Verity
 
-Simulador para Roblox no estilo "roube um ...": Verities passam numa esteira, você compra com dinheiro, eles geram renda na sua base, e os outros jogadores podem roubar.
+Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ninhos dos biomas, fuja do guardião, leve para a sua base, espere chocar e ganhe dinheiro com os Verities que nascem.
 
 ## Como o jogo funciona
 
-- Cada jogador recebe uma das 8 bases ao entrar (o mapa é criado por código quando o jogo começa).
-- Verities passam pela esteira no meio do mapa. Chegue perto e aperte **E** para comprar. Ele vai direto para uma vaga da sua base.
-- Cada Verity na base gera dinheiro por segundo (aparece no placar e na placa da base).
-- Na base de outro jogador, segure **E** em um Verity para roubar. Ele fica em cima da sua cabeça, você anda mais devagar, e precisa chegar até a sua base. Se morrer no caminho, o Verity volta para o dono.
-- O botão vermelho na entrada da base tranca a base por 60 segundos: ninguém consegue roubar enquanto o escudo azul estiver ligado.
-- Dinheiro e Verities ficam salvos (DataStore).
+- **Base**: cada jogador recebe uma das 8 bases ao entrar. Ela tem 10 vagas, uma esteira de corrida e um botão de tranca. O mapa é criado por código quando o jogo começa.
+- **Biomas**: seguindo a estrada, chega a Floresta e depois o Lago. Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. O Lago só deixa entrar quem tem 150 de Velocidade.
+- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
+- **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Depois de um tempo ele choca e vira um Verity, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Verity pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x).
+- **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Segure **E** nela para melhorar (5 níveis). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
+- **Roubar**: segure **E** num ovo ou Verity da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono.
+- **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
+- Dinheiro, Velocidade, nível da esteira e o que está na base ficam salvos (DataStore).
 
-Os preços, rendas, chances e tempos ficam todos em `src/shared/Config.luau`.
+Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.luau`. Para criar um bioma novo, basta adicionar mais um item em `Config.BIOMAS`.
 
 ## Código
 
 | Arquivo | O que faz |
 | --- | --- |
-| `src/shared/Config.luau` | Lista de Verities e números do jogo |
+| `src/shared/Config.luau` | Verities, ovos, biomas e números do jogo |
 | `src/server/init.server.luau` | Liga tudo e cuida de quem entra e sai |
-| `src/server/Mapa.luau` | Cria a esteira e as bases |
-| `src/server/Esteira.luau` | Verities andando na esteira e a compra |
-| `src/server/Bases.luau` | Vagas, renda por segundo e tranca |
-| `src/server/Roubo.luau` | Roubar, carregar e entregar |
-| `src/server/Dados.luau` | Dinheiro e salvamento |
-| `src/server/Verities.luau` | Cria o modelo 3D de cada Verity |
+| `src/server/Mapa.luau` | Cria as bases, a estrada e os biomas |
+| `src/server/Ninhos.luau` | Ninhos de ovos, guardião e bloqueio por Velocidade |
+| `src/server/Carregar.luau` | Carregar ovos/Verities, entregar na base e roubar |
+| `src/server/Bases.luau` | Vagas, chocar ovos, renda, esteira de corrida e tranca |
+| `src/server/Velocidade.luau` | Velocidade de andar (atributo, peso do ovo, atordoado) |
+| `src/server/Dados.luau` | Placar e salvamento |
+| `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Verities |
 | `src/server/Avisos.luau` | Mensagens na tela do jogador |
-| `src/client/init.client.luau` | Mostra os avisos e esconde "Roubar" nos seus próprios Verities |
+| `src/client/init.client.luau` | Mostra os avisos e esconde "Roubar" nas suas próprias coisas |
 
-## Trocar o boneco pelo modelo do Verity
+## Trocar os bonecos pelos modelos de verdade
 
-Por enquanto cada Verity é um boneco simples colorido pela raridade. Para usar um modelo de verdade:
+Por enquanto cada Verity é um boneco simples colorido pela raridade, e cada ovo é uma esfera. Para usar modelos de verdade:
 
-1. No Studio, crie uma pasta chamada `ModelosVerity` dentro de `ReplicatedStorage`.
-2. Coloque dentro dela um **Model** com o mesmo nome do `id` do Verity no `Config.luau` (por exemplo `VerityComum`, `VerityNinja`).
-3. Pronto: o jogo passa a usar o seu modelo. Os que não tiverem modelo continuam com o boneco.
+1. No Studio, crie as pastas `ModelosVerity` e `ModelosOvo` dentro de `ReplicatedStorage`.
+2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `VerityNinja` em `ModelosVerity`, `OvoNinja` em `ModelosOvo`).
+3. Pronto: o jogo passa a usar os seus modelos. Os que não tiverem modelo continuam com o boneco.
 
-Como essa pasta é criada no Studio (e não no código), salve o lugar com **File > Publish to Roblox** para não perder.
+Como essas pastas são criadas no Studio (e não no código), salve o lugar com **File > Publish to Roblox** para não perder.
 
 ## Salvamento no Studio
 
