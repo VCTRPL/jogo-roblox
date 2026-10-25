@@ -60,6 +60,10 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 
 	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, avisouCheia = false, roubo = false }
 	Velocidade.definirPeso(player, Config.tamanho(item.tamanho).peso)
+	-- o cliente mostra a faixa "Carregando" e a seta até a base
+	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
+	player:SetAttribute("Carregando", nomeDo(item))
+	player:SetAttribute("CorCarregando", Config.CORES_RARIDADE[def.raridade])
 	return true
 end
 
@@ -71,6 +75,8 @@ local function soltar(player: Player): Carga?
 	carregando[player] = nil
 	carga.modelo:Destroy()
 	Velocidade.definirPeso(player, 1)
+	player:SetAttribute("Carregando", nil)
+	player:SetAttribute("CorCarregando", nil)
 	return carga
 end
 

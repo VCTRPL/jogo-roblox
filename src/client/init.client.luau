@@ -2,21 +2,27 @@
 -- "Roubar" dos seus próprios Verities e anima as esteiras.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local jogador = Players.LocalPlayer
 
--- Tela (dinheiro, avisos e anúncios) e efeitos visuais -------------------
+-- Tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice e Ajuda)
+-- e efeitos visuais (ovo chocando e corrida na esteira) ---------------------
 
 require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
+require(script.Interface).iniciar()
+require(script.Corrida).iniciar()
+local Prompts = require(script.Prompts)
+Prompts.iniciar()
 
 -- Esconde "Roubar" nos Brainrots da sua própria base ----------------------
 
 local function verificarPrompt(objeto: Instance)
+	if objeto:IsA("ProximityPrompt") then
+		Prompts.estilizar(objeto)
+	end
 	if objeto:IsA("ProximityPrompt") and objeto:GetAttribute("DonoId") == jogador.UserId then
 		-- Mudança só no seu computador: os outros jogadores continuam vendo o botão.
 		objeto.MaxActivationDistance = 0

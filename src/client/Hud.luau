@@ -4,95 +4,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 local Hud = {}
 
 local jogador = Players.LocalPlayer
-local FONTE = Enum.Font.FredokaOne
-local CONTORNO = Color3.fromRGB(25, 20, 45)
-local BRANCO = Color3.new(1, 1, 1)
+local Ui = require(script.Parent.Ui)
+local criar, cantos, borda, gradiente, texto, pular = Ui.criar, Ui.cantos, Ui.borda, Ui.gradiente, Ui.texto, Ui.pular
+local CONTORNO = Ui.CONTORNO
+local BRANCO = Ui.BRANCO
 
-local function criar(classe: string, props: { [string]: any }, filhos: { Instance }?): any
-	local objeto = Instance.new(classe)
-	for chave, valor in props do
-		if chave ~= "Parent" then
-			(objeto :: any)[chave] = valor
-		end
-	end
-	if filhos then
-		for _, filho in filhos do
-			filho.Parent = objeto
-		end
-	end
-	objeto.Parent = props.Parent
-	return objeto
-end
-
-local function cantos(raio: number): UICorner
-	return criar("UICorner", { CornerRadius = UDim.new(0, raio) })
-end
-
-local function borda(cor: Color3, grossura: number): UIStroke
-	return criar("UIStroke", {
-		Color = cor,
-		Thickness = grossura,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	})
-end
-
-local function gradiente(cima: Color3, baixo: Color3): UIGradient
-	return criar("UIGradient", {
-		Color = ColorSequence.new(cima, baixo),
-		Rotation = 90,
-	})
-end
-
--- Texto grande com contorno escuro, o estilo de todos os textos da tela.
-local function texto(props: { [string]: any }): TextLabel
-	local label = criar("TextLabel", {
-		BackgroundTransparency = 1,
-		Font = FONTE,
-		TextColor3 = BRANCO,
-		TextScaled = true,
-		TextStrokeColor3 = CONTORNO,
-		TextStrokeTransparency = 0,
-	})
-	for chave, valor in props do
-		if chave ~= "Parent" then
-			(label :: any)[chave] = valor
-		end
-	end
-	label.Parent = props.Parent
-	return label
-end
-
-local function pular(escala: UIScale, ate: number)
-	escala.Scale = ate
-	TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-end
-
-local tela: ScreenGui = criar("ScreenGui", {
-	Name = "Hud",
-	ResetOnSpawn = false,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	Parent = jogador:WaitForChild("PlayerGui"),
-})
-
--- Em telas pequenas (celular) tudo fica um pouco menor.
-local escalaTela: UIScale = criar("UIScale", { Parent = tela })
-local function ajustarEscala()
-	local camera = Workspace.CurrentCamera
-	if camera then
-		escalaTela.Scale = math.clamp(camera.ViewportSize.Y / 820, 0.6, 1.15)
-	end
-end
-ajustarEscala()
-if Workspace.CurrentCamera then
-	Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(ajustarEscala)
-end
+local tela = Ui.tela("Hud")
 
 -- Painel de status -----------------------------------------------------------
 
@@ -251,7 +174,7 @@ atualizarRenda()
 local listaAvisos = criar("Frame", {
 	Name = "Avisos",
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 96),
+	Position = UDim2.new(0.5, 0, 0, 150),
 	Size = UDim2.new(0.8, 0, 0, 200),
 	BackgroundTransparency = 1,
 	Parent = tela,
@@ -375,7 +298,7 @@ local function mostrarAnuncio(mensagem: string, cor: Color3)
 	faixa.Visible = true
 	fimAnuncio = os.clock() + 5
 	TweenService:Create(faixa, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 0, 12),
+		Position = UDim2.new(0.5, 0, 0, 72),
 	}):Play()
 end
 
