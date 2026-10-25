@@ -38,6 +38,16 @@ local function cilindro(modelo: Model, nome: string, altura: number, diametro: n
 	return p
 end
 
+-- Cilindro ligando dois pontos (braços, pernas, taco).
+local function barra(modelo: Model, nome: string, de: Vector3, ate: Vector3, diametro: number, cor: Color3, material: Enum.Material?): Part
+	local meio = (de + ate) / 2
+	-- o eixo do cilindro (X) passa a apontar de "de" para "ate"
+	local cf = CFrame.lookAt(meio, ate) * CFrame.Angles(0, math.rad(90), 0)
+	local p = peca(modelo, nome, Vector3.new((ate - de).Magnitude, diametro, diametro), cf, cor, material)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
 local function bola(modelo: Model, nome: string, diametro: number, cf: CFrame, cor: Color3, material: Enum.Material?): Part
 	local p = peca(modelo, nome, Vector3.one * diametro, cf, cor, material)
 	p.Shape = Enum.PartType.Ball
@@ -75,10 +85,13 @@ local function sahur(modelo: Model): ({ BasePart }, number)
 	peca(modelo, "Boca", Vector3.new(1.8, 0.9, 0.4), CFrame.new(0, 7.4, -2.05), Color3.fromRGB(70, 20, 20))
 	peca(modelo, "Lingua", Vector3.new(1, 0.35, 0.42), CFrame.new(0, 7.1, -2.06), Color3.fromRGB(230, 90, 110))
 
-	-- braços finos e o taco levantado
-	cilindro(modelo, "Braco", 3.6, 0.7, CFrame.new(-2.6, 7.4, -0.3) * CFrame.Angles(0, 0, math.rad(-25)), MADEIRA, Enum.Material.Wood)
-	cilindro(modelo, "Braco", 3.6, 0.7, CFrame.new(2.7, 8.2, -0.6) * CFrame.Angles(math.rad(-30), 0, math.rad(30)), MADEIRA, Enum.Material.Wood)
-	cilindro(modelo, "Taco", 6.5, 1.1, CFrame.new(3.6, 11.5, -0.2) * CFrame.Angles(math.rad(25), 0, math.rad(-20)), CLARA, Enum.Material.Wood)
+	-- braços finos: o esquerdo solto e o direito levantando o taco
+	barra(modelo, "Braco", Vector3.new(-2, 8.8, -0.3), Vector3.new(-3.1, 6.2, -0.7), 0.7, MADEIRA, Enum.Material.Wood)
+	local mao = Vector3.new(3.5, 10.8, -0.9)
+	barra(modelo, "Braco", Vector3.new(2, 8.8, -0.4), mao, 0.7, MADEIRA, Enum.Material.Wood)
+	local direcao = Vector3.new(0.35, 0.87, 0.35).Unit
+	barra(modelo, "Cabo", mao - direcao * 0.4, mao + direcao * 2.6, 0.6, CLARA, Enum.Material.Wood)
+	barra(modelo, "Taco", mao + direcao * 2.4, mao + direcao * 6.8, 1.3, CLARA, Enum.Material.Wood)
 
 	return pupilas, tronco.Position.Y
 end
@@ -109,12 +122,21 @@ local function cappuccino(modelo: Model): ({ BasePart }, number)
 		peca(modelo, "Faixa", Vector3.new(0.5, 2.4, 0.2), CFrame.new(x * 0.5, 5.8, 2.5) * CFrame.Angles(math.rad(20), 0, math.rad(x * 15)), PRETO)
 	end
 
-	-- braços e duas espadas cruzadas
+	-- braços e duas espadas cruzadas na frente da xícara
 	for _, x in { -1, 1 } do
-		cilindro(modelo, "Braco", 3, 0.6, CFrame.new(x * 2.9, 5.6, -0.6) * CFrame.Angles(math.rad(-35), 0, math.rad(x * 25)), PRETO)
-		local mao = CFrame.new(x * 3.4, 4.6, -1.6)
-		peca(modelo, "Cabo", Vector3.new(0.35, 0.35, 1.2), mao * CFrame.Angles(math.rad(-50), math.rad(x * -20), 0), Color3.fromRGB(150, 30, 30))
-		peca(modelo, "Lamina", Vector3.new(0.15, 0.5, 5), mao * CFrame.Angles(math.rad(-50), math.rad(x * -20), 0) * CFrame.new(0, 0, -3), Color3.fromRGB(210, 230, 255), Enum.Material.Metal)
+		local mao = Vector3.new(x * 3.3, 4.4, -1.6)
+		barra(modelo, "Braco", Vector3.new(x * 2.1, 6, -0.2), mao, 0.6, PRETO)
+		local direcao = Vector3.new(-x * 0.75, 0.75, -0.45).Unit
+		barra(modelo, "Cabo", mao - direcao * 0.5, mao + direcao * 0.7, 0.4, Color3.fromRGB(150, 30, 30))
+		local inicio, fim = mao + direcao * 0.7, mao + direcao * 5.7
+		peca(
+			modelo,
+			"Lamina",
+			Vector3.new(0.15, 0.55, (fim - inicio).Magnitude),
+			CFrame.lookAt((inicio + fim) / 2, fim),
+			Color3.fromRGB(210, 230, 255),
+			Enum.Material.Metal
+		)
 	end
 
 	return pupilas, xicara.Position.Y
@@ -174,7 +196,8 @@ function Guardioes.criar(config): Visual
 	local pes = Instance.new("Attachment")
 	pes.Name = "Pes"
 	pes.Parent = corpo
-	pes.WorldPosition = Vector3.new(0, 0.5, 0)
+	-- sem girar junto com o corpo (que é um cilindro deitado), para a poeira subir
+	pes.WorldCFrame = CFrame.new(0, 0.5, 0)
 	local rastro = Instance.new("ParticleEmitter")
 	rastro.Name = "Poeira"
 	rastro.Texture = "rbxasset://textures/particles/smoke_main.dds"

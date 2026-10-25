@@ -145,7 +145,7 @@ local function criarModeloNinho(info: Mapa.InfoBioma, pos: Vector3)
 		Name = "Luz",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.15, 7.5, 7.5),
-		CFrame = CFrame.new(pos + Vector3.new(0, 0.08, 0)) * deitado,
+		CFrame = CFrame.new(pos + Vector3.new(0, 0.2, 0)) * deitado,
 		Color = info.config.cor:Lerp(Color3.new(1, 1, 1), 0.35),
 		Material = Enum.Material.Neon,
 		Transparency = 0.35,
