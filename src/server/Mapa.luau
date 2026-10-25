@@ -25,12 +25,13 @@ local function parte(props): Part
 	p.Parent = parent
 	return p
 end
+Mapa.parte = parte
 
 function Mapa.placa(parent: BasePart, texto: string, altura: number, largura: number?): TextLabel
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(largura or 260, 80)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, altura, 0)
-	gui.MaxDistance = 200
+	gui.MaxDistance = 120
 	gui.Parent = parent
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
