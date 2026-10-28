@@ -1,8 +1,10 @@
 -- Modelos dos guardiões dos biomas, montados com peças. Cada bioma diz
 -- qual guardião tem em Config.BIOMAS (campo "guardiao").
 -- O modelo é montado com os pés em (0, 0, 0) e olhando para -Z.
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Biblioteca = require(script.Parent.Biblioteca)
 local Blocos = require(script.Parent.Blocos)
 local Mapa = require(script.Parent.Mapa)
@@ -20,6 +22,8 @@ local ALTURA_CHEFAO = {
 
 export type Visual = {
 	modelo: Model,
+	raio: number, -- metade da largura (para saber quando ele alcançou alguém)
+	aura: ParticleEmitter, -- fumaça escura em volta, mais forte quando bravo
 	olhos: { BasePart }, -- ficam vermelhos quando ele está bravo
 	alerta: BillboardGui, -- o "!" em cima da cabeça
 	rastro: ParticleEmitter, -- poeira enquanto corre
@@ -282,13 +286,13 @@ local MONTAR = {
 -- Chefão da biblioteca: um Model com o nome do guardião dentro de
 -- ReplicatedStorage.ModelosChefao (veja o README). Fica do tamanho certo,
 -- de pé na origem, olhando para -Z, com uma peça invisível "Corpo" no meio.
-local function daBiblioteca(nome: string?): (Model?, number)
+local function daBiblioteca(nome: string?, escala: number): (Model?, number)
 	local pasta = ReplicatedStorage:FindFirstChild("ModelosChefao")
 	local molde = nome and pasta and pasta:FindFirstChild(nome)
 	if not (molde and molde:IsA("Model")) then
 		return nil, 0
 	end
-	local modelo = Biblioteca.preparar(molde, ALTURA_CHEFAO[nome :: string] or 10)
+	local modelo = Biblioteca.preparar(molde, (ALTURA_CHEFAO[nome :: string] or 10) * escala)
 	if not modelo then
 		return nil, 0
 	end
@@ -301,8 +305,8 @@ local function daBiblioteca(nome: string?): (Model?, number)
 	return modelo, tamanho.Y / 2
 end
 
-local function montar(nome: string?): (Model, { BasePart }, number)
-	local biblioteca, meio = daBiblioteca(nome)
+local function montar(nome: string?, escala: number): (Model, { BasePart }, number)
+	local biblioteca, meio = daBiblioteca(nome, escala)
 	if biblioteca then
 		return biblioteca, {}, meio
 	end
@@ -318,27 +322,35 @@ local function montar(nome: string?): (Model, { BasePart }, number)
 	-- pivot nos pés (a origem). Com PrimaryPart o Roblox usa o pivot da peça
 	-- e ignora o WorldPivot, por isso o ajuste vai no PivotOffset.
 	corpo.PivotOffset = corpo.CFrame:Inverse()
-	return modelo, pupilas, alturaCorpo
+	-- cresce a partir dos pés (o pivot)
+	if escala ~= 1 then
+		modelo:ScaleTo(escala)
+	end
+	return modelo, pupilas, alturaCorpo * escala
 end
 
--- Só as peças, sem placa nem efeitos: para estátuas na decoração.
+-- Só as peças, sem placa nem efeitos e no tamanho normal: para estátuas na decoração.
 function Guardioes.estatua(nome: string): Model
-	return (montar(nome))
+	return (montar(nome, 1))
 end
 
 function Guardioes.criar(config): Visual
-	local modelo, pupilas, alturaCorpo = montar(config.guardiao)
+	local escala = Config.ESCALA_CHEFE
+	local modelo, pupilas, alturaCorpo = montar(config.guardiao, escala)
+	modelo.Name = config.guardiao or "Guardiao"
+	-- o cliente treme a câmera e mostra o aviso quando ele está bravo e perto
+	CollectionService:AddTag(modelo, "Guardiao")
 	local corpo = modelo.PrimaryPart :: BasePart
 	local _, tamanho = modelo:GetBoundingBox()
 	-- As placas vão numa peça invisível sem rotação: o corpo é um cilindro
 	-- girado, e o deslocamento da placa gira junto com a peça.
 	local marcador = peca(modelo, "Marcador", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, alturaCorpo, 0), BRANCO)
 	marcador.Transparency = 1
-	Mapa.placa(marcador, config.guardiao or "Guardião", tamanho.Y - alturaCorpo + 2, 260)
+	Mapa.placa(marcador, config.guardiao or "Guardião", tamanho.Y - alturaCorpo + 2, 360)
 
 	local alerta = Instance.new("BillboardGui")
 	alerta.Name = "Alerta"
-	alerta.Size = UDim2.fromOffset(90, 90)
+	alerta.Size = UDim2.fromOffset(130, 130)
 	alerta.StudsOffsetWorldSpace = Vector3.new(0, tamanho.Y - alturaCorpo + 5.5, 0)
 	-- sem AlwaysOnTop: com ele ligado o "!" não aparecia
 	alerta.MaxDistance = 200
@@ -365,7 +377,7 @@ function Guardioes.criar(config): Visual
 	rastro.Texture = "rbxasset://textures/particles/smoke_main.dds"
 	rastro.Color = ColorSequence.new(Color3.fromRGB(210, 190, 160))
 	rastro.Transparency = NumberSequence.new(0.4, 1)
-	rastro.Size = NumberSequence.new(1.5, 4)
+	rastro.Size = NumberSequence.new(1.5 * escala, 4 * escala)
 	rastro.Lifetime = NumberRange.new(0.6, 1)
 	rastro.Speed = NumberRange.new(2, 4)
 	rastro.SpreadAngle = Vector2.new(60, 60)
@@ -375,12 +387,40 @@ function Guardioes.criar(config): Visual
 
 	local luz = Instance.new("PointLight")
 	luz.Color = VERMELHO
-	luz.Range = 16
-	luz.Brightness = 3
+	luz.Range = 30
+	luz.Brightness = 4
 	luz.Enabled = false
 	luz.Parent = corpo
 
-	return { modelo = modelo, olhos = pupilas, alerta = alerta, rastro = rastro, luz = luz }
+	-- fumaça escura e avermelhada em volta do corpo, sempre (mais forte quando bravo)
+	local nuvem = peca(modelo, "Aura", Vector3.new(tamanho.X * 0.7, tamanho.Y * 0.8, tamanho.Z * 0.7), CFrame.new(0, tamanho.Y * 0.45, 0), PRETO)
+	nuvem.Transparency = 1
+	local aura = Instance.new("ParticleEmitter")
+	aura.Name = "Aura"
+	aura.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	aura.Color = ColorSequence.new(Color3.fromRGB(40, 0, 0), Color3.fromRGB(120, 20, 20))
+	aura.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.3, 0.6),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	aura.Size = NumberSequence.new(3, 7)
+	aura.Lifetime = NumberRange.new(1.5, 2.5)
+	aura.Speed = NumberRange.new(0.5, 1.5)
+	aura.Rate = 4
+	aura.Shape = Enum.ParticleEmitterShape.Box
+	aura.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	aura.Parent = nuvem
+
+	return {
+		modelo = modelo,
+		raio = math.max(tamanho.X, tamanho.Z) / 2,
+		aura = aura,
+		olhos = pupilas,
+		alerta = alerta,
+		rastro = rastro,
+		luz = luz,
+	}
 end
 
 -- Liga ou desliga o modo bravo: "!" na cabeça, olhos vermelhos e luz.
@@ -388,6 +428,8 @@ function Guardioes.bravo(visual: Visual, bravo: boolean)
 	visual.alerta.Enabled = bravo
 	visual.luz.Enabled = bravo
 	visual.rastro.Enabled = bravo
+	visual.aura.Rate = if bravo then 25 else 4
+	visual.modelo:SetAttribute("Bravo", bravo)
 	for _, olho in visual.olhos do
 		if olho:GetAttribute("CorNormal") == nil then
 			olho:SetAttribute("CorNormal", olho.Color)

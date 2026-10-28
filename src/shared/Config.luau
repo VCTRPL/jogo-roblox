@@ -7,12 +7,18 @@ Config.TEMPO_TRANCA = 60 -- segundos que a base fica trancada
 Config.TEMPO_NINHOS = 180 -- segundos para os ninhos ganharem ovos novos
 Config.SALVAR_DADOS = true
 
--- Velocidade: o atributo principal. A velocidade de andar é
--- VELOCIDADE_BASE + Velocidade / PONTOS_POR_VELOCIDADE (até VELOCIDADE_MAXIMA).
+-- Velocidade: o atributo principal. A velocidade de andar cresce cada vez
+-- mais devagar: VELOCIDADE_BASE + VELOCIDADE_FATOR * ln(1 + Velocidade / VELOCIDADE_ESCALA),
+-- até VELOCIDADE_MAXIMA. Exemplos: 0 → 16, 150 → 35, 600 → 52, 2K → 68, 6K → 83.
 Config.VELOCIDADE_BASE = 16
-Config.PONTOS_POR_VELOCIDADE = 5
-Config.VELOCIDADE_MAXIMA = 120
+Config.VELOCIDADE_FATOR = 14
+Config.VELOCIDADE_ESCALA = 50
+Config.VELOCIDADE_MAXIMA = 130
 Config.TEMPO_ATORDOADO = 2 -- segundos parado depois que o guardião te pega
+
+-- Guardiões (chefes): o tamanho deles e até onde perseguem. Eles correm
+-- atrás de quem pegou um ovo até a pessoa chegar na área das bases.
+Config.ESCALA_CHEFE = 1.8
 
 -- Vender: um Brainrot vale "VENDA_SEGUNDOS" segundos da renda dele.
 Config.VENDA_SEGUNDOS = 60
@@ -163,7 +169,7 @@ Config.BIOMAS = {
 		guardiao = "Cappuccino Assassino",
 		corGuardiao = Color3.fromRGB(70, 40, 30),
 		velocidadeMinima = 150,
-		velocidadeGuardiao = 30,
+		velocidadeGuardiao = 31,
 		cor = Color3.fromRGB(70, 150, 210),
 		ovos = { OvoBananini = 30, OvoTrippi = 25, OvoCappuccina = 25, OvoTralalero = 15, OvoBombardiro = 5 },
 	},
@@ -173,7 +179,7 @@ Config.BIOMAS = {
 		guardiao = "Il Cacto Hipopotamo",
 		corGuardiao = Color3.fromRGB(90, 160, 80),
 		velocidadeMinima = 600,
-		velocidadeGuardiao = 36,
+		velocidadeGuardiao = 46,
 		cor = Color3.fromRGB(230, 190, 110),
 		ovos = { OvoTrippi = 30, OvoFrigo = 30, OvoTralalero = 18, OvoGlorbo = 14, OvoBombardiro = 6, OvoGusini = 2 },
 	},
@@ -183,7 +189,7 @@ Config.BIOMAS = {
 		guardiao = "Rhino Toasterino",
 		corGuardiao = Color3.fromRGB(150, 150, 160),
 		velocidadeMinima = 2000,
-		velocidadeGuardiao = 44,
+		velocidadeGuardiao = 60,
 		cor = Color3.fromRGB(110, 45, 35),
 		ovos = { OvoFrigo = 25, OvoGlorbo = 25, OvoCocofanto = 22, OvoBombardiro = 15, OvoGusini = 9, OvoSvinino = 4 },
 	},
@@ -193,7 +199,7 @@ Config.BIOMAS = {
 		guardiao = "La Vaca Saturno Saturnita",
 		corGuardiao = Color3.fromRGB(245, 245, 245),
 		velocidadeMinima = 6000,
-		velocidadeGuardiao = 52,
+		velocidadeGuardiao = 73,
 		cor = Color3.fromRGB(70, 50, 130),
 		ovos = { OvoCocofanto = 30, OvoGusini = 28, OvoSvinino = 22, OvoBombardiro = 15, OvoUdin = 5 },
 	},
@@ -217,6 +223,21 @@ Config.SONS = {
 	Trancou = { id = "rbxasset://sounds/button.wav", volume = 0.7, tom = 0.8 },
 	Anuncio = { id = "rbxasset://sounds/victory.wav", volume = 0.35, tom = 0.9 },
 	Renasceu = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 0.6 },
+	Rugido = { id = "rbxasset://sounds/swordlunge.wav", volume = 1, tom = 0.35 },
+	Passo = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.9, tom = 0.45 },
+	Comprou = { id = "rbxasset://sounds/victory.wav", volume = 0.6, tom = 1.25 },
+}
+
+-- Gamepasses. Crie cada um no Creator Dashboard (Monetização > Passes),
+-- copie o número do passe e ponha em "id". Com id = 0 ele aparece na loja
+-- como "Em breve". O preço em Robux é o que estiver no Dashboard.
+Config.GAMEPASSES = {
+	{ chave = "Dinheiro2x", id = 0, nome = "2x Dinheiro", icone = "💰", descricao = "Seus Brainrots rendem o dobro." },
+	{ chave = "Velocidade2x", id = 0, nome = "2x Velocidade", icone = "⚡", descricao = "Ganha o dobro de Velocidade na esteira." },
+	{ chave = "Turbo", id = 0, nome = "Tênis Turbo", icone = "👟", descricao = "Anda 25% mais rápido. Fuja dos chefes!" },
+	{ chave = "Sorte", id = 0, nome = "Sorte", icone = "🍀", descricao = "Mais chance de mutação Prata, Dourado e Arco-íris." },
+	{ chave = "TrancaLonga", id = 0, nome = "Tranca Longa", icone = "🔒", descricao = "Sua base fica trancada por 2x mais tempo." },
+	{ chave = "VIP", id = 0, nome = "VIP", icone = "👑", descricao = "+50% de dinheiro e etiqueta VIP em cima da cabeça." },
 }
 
 -- Músicas de fundo (tocam em sequência). Ponha ids de músicas da Creator
@@ -280,8 +301,16 @@ function Config.sortearTamanho()
 	return sortearLista(Config.TAMANHOS)
 end
 
-function Config.sortearMutacao()
-	return sortearLista(Config.MUTACOES)
+-- Com "sorte", sorteia duas vezes e fica com a melhor.
+function Config.sortearMutacao(sorte: boolean?)
+	local mutacao = sortearLista(Config.MUTACOES)
+	if sorte then
+		local outra = sortearLista(Config.MUTACOES)
+		if outra.renda > mutacao.renda then
+			mutacao = outra
+		end
+	end
+	return mutacao
 end
 
 function Config.sortearOvo(bioma)
@@ -325,6 +354,53 @@ end
 -- Posição da raridade na lista (1 = Comum). Serve para comparar raridades.
 function Config.nivelRaridade(raridade: string): number
 	return table.find(Config.RARIDADES, raridade) or 1
+end
+
+-- Velocidade de andar (studs por segundo) para quem tem "pontos" de Velocidade.
+function Config.velocidadeAndar(pontos: number): number
+	local andar = Config.VELOCIDADE_BASE + Config.VELOCIDADE_FATOR * math.log(1 + math.max(pontos, 0) / Config.VELOCIDADE_ESCALA)
+	return math.min(andar, Config.VELOCIDADE_MAXIMA)
+end
+
+function Config.gamepass(chave: string)
+	for _, passe in Config.GAMEPASSES do
+		if passe.chave == chave then
+			return passe
+		end
+	end
+	return nil
+end
+
+-- string.upper do Roblox não mexe nas letras com acento ("vulcão" vira
+-- "VULCãO"). Esta deixa tudo maiúsculo, com acento.
+local MAIUSCULAS = {
+	["á"] = "Á", ["à"] = "À", ["â"] = "Â", ["ã"] = "Ã", ["ä"] = "Ä",
+	["é"] = "É", ["ê"] = "Ê", ["è"] = "È", ["í"] = "Í", ["ì"] = "Ì",
+	["ó"] = "Ó", ["ô"] = "Ô", ["õ"] = "Õ", ["ò"] = "Ò", ["ú"] = "Ú",
+	["ù"] = "Ù", ["ü"] = "Ü", ["ç"] = "Ç", ["ñ"] = "Ñ",
+}
+function Config.maiusculas(texto: string): string
+	local resultado = string.upper(texto)
+	for minuscula, maiuscula in MAIUSCULAS do
+		resultado = string.gsub(resultado, minuscula, maiuscula)
+	end
+	return resultado
+end
+
+-- Tira os acentos ("Vulcão" → "Vulcao"), para fontes que não têm essas letras.
+local SEM_ACENTO = {
+	["á"] = "a", ["à"] = "a", ["â"] = "a", ["ã"] = "a", ["ä"] = "a",
+	["é"] = "e", ["ê"] = "e", ["è"] = "e", ["í"] = "i", ["ì"] = "i",
+	["ó"] = "o", ["ô"] = "o", ["õ"] = "o", ["ò"] = "o", ["ú"] = "u",
+	["ù"] = "u", ["ü"] = "u", ["ç"] = "c", ["ñ"] = "n",
+}
+function Config.semAcento(texto: string): string
+	local resultado = texto
+	for comAcento, letra in SEM_ACENTO do
+		resultado = string.gsub(resultado, comAcento, letra)
+		resultado = string.gsub(resultado, Config.maiusculas(comAcento), string.upper(letra))
+	end
+	return resultado
 end
 
 -- 1500 -> "1.5K", 2000000 -> "2M"

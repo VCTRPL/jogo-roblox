@@ -11,6 +11,7 @@ local Dados = require(script.Parent.Dados)
 local Esteiras = require(script.Parent.Esteiras)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
+local Passes = require(script.Parent.Passes)
 local Velocidade = require(script.Parent.Velocidade)
 
 local Bases = {}
@@ -53,12 +54,19 @@ local VERDE = Color3.fromRGB(90, 255, 120)
 -- Chamado quando alguém tenta roubar algo de uma base (o módulo Carregar preenche isso).
 Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
 
--- Multiplicador de dinheiro de quem já renasceu.
+-- Multiplicador de dinheiro: renascimentos e os passes 2x Dinheiro e VIP.
 local function multiplicador(player: Player?): number
 	if not player then
 		return 1
 	end
-	return Config.multiplicadorRenda(Dados.valor(player, "Renascimentos"))
+	local total = Config.multiplicadorRenda(Dados.valor(player, "Renascimentos"))
+	if Passes.tem(player, "Dinheiro2x") then
+		total *= 2
+	end
+	if Passes.tem(player, "VIP") then
+		total *= 1.5
+	end
+	return total
 end
 
 -- Renda por segundo da base, já contando o renascimento do dono.
@@ -121,8 +129,9 @@ local function trancar(player: Player, base: Base)
 	elseif Bases.estaTrancada(base) then
 		Avisos.enviar(player, "Sua base já está trancada.")
 	else
-		base.trancadaAte = os.clock() + Config.TEMPO_TRANCA
-		Avisos.enviar(player, `Base trancada por {Config.TEMPO_TRANCA} segundos!`, Color3.fromRGB(90, 200, 255))
+		local tempo = Config.TEMPO_TRANCA * (if Passes.tem(player, "TrancaLonga") then 2 else 1)
+		base.trancadaAte = os.clock() + tempo
+		Avisos.enviar(player, `Base trancada por {tempo} segundos!`, Color3.fromRGB(90, 200, 255))
 		Avisos.som(nil, "Trancou", base.escudo.Position)
 	end
 end
@@ -164,7 +173,7 @@ local function chocar(base: Base, vaga: number)
 		tipo = "brainrot",
 		id = brainrot.id,
 		tamanho = dados.item.tamanho,
-		mutacao = Config.sortearMutacao().nome,
+		mutacao = Config.sortearMutacao(Passes.tem(dono, "Sorte")).nome,
 	}
 	Bases.remover(base, vaga)
 	Bases.colocar(base, nascido, vaga)
@@ -206,8 +215,8 @@ local function criarBase(info: Mapa.InfoBase): Base
 	for i = 0, Config.VAGAS_POR_BASE - 1 do
 		local coluna = i % colunas
 		local linha = i // colunas
-		local x = (coluna - (colunas - 1) / 2) * 9
-		local pos = topo + Vector3.new(x, 0, lado * (8 + linha * 10))
+		local x = (coluna - (colunas - 1) / 2) * 12
+		local pos = topo + Vector3.new(x, 0, lado * (4 + linha * 15))
 		table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
 	end
 
@@ -237,10 +246,22 @@ local function criarBase(info: Mapa.InfoBase): Base
 	promptTrancar.RequiresLineOfSight = false
 	promptTrancar.Parent = botao
 
-	-- Esteira de corrida: o modelo muda a cada nível (veja Esteiras.luau).
+	-- Esteira de corrida: do lado de fora da base, à direita da entrada (de
+	-- quem chega pela estrada), em cima de uma plataforma, com quem corre
+	-- olhando para a estrada. O modelo muda a cada nível (veja Esteiras.luau).
 	-- O botão de melhorar e a placa ficam numa peça invisível que não muda.
-	-- longe o bastante do muro para os anéis e o brilho do chão não atravessarem
-	local centroEsteira = topo + Vector3.new(-(tamanho / 2 - 7), 0.2, -lado * (tamanho / 2 - 8))
+	local direita = -lado -- olhando da estrada para a base, a direita fica em -lado no eixo X
+	local frente = topo.Z - lado * tamanho / 2 -- z da frente da base (lado da estrada)
+	local meioFora = (frente + lado * 7.4) / 2 -- entre a frente da base e o meio-fio
+	local plataforma = Instance.new("Part")
+	plataforma.Name = "PlataformaEsteira"
+	plataforma.Anchored = true
+	plataforma.Size = Vector3.new(14, 1, 21)
+	plataforma.Position = Vector3.new(topo.X + direita * 20, 0.5, meioFora)
+	plataforma.Color = Color3.fromRGB(120, 120, 130)
+	plataforma.Material = Enum.Material.SmoothPlastic
+	plataforma.Parent = info.pasta
+	local centroEsteira = Vector3.new(plataforma.Position.X, 1.2, meioFora)
 	local cframeEsteira = CFrame.lookAt(centroEsteira, centroEsteira + olhar)
 	local modeloEsteira = Esteiras.criar(1, cframeEsteira)
 	modeloEsteira.Parent = info.pasta
@@ -404,6 +425,9 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 					local folego = 1 + (Config.FOLEGO_MAXIMO - 1) * math.min(tempo / Config.FOLEGO_TEMPO, 1)
 					local renascimentos = Dados.valor(player, "Renascimentos")
 					local ganho = Config.NIVEIS_ESTEIRA[nivel].ganho * folego * Config.multiplicadorEsteira(renascimentos)
+					if Passes.tem(player, "Velocidade2x") then
+						ganho *= 2
+					end
 					Velocidade.adicionar(player, math.floor(ganho))
 					player:SetAttribute("Folego", math.floor(folego * 10) / 10)
 				end

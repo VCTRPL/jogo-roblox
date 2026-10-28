@@ -221,7 +221,7 @@ local function chocou(dados)
 
 	local linhas = { { "NASCEU!", corRaridade } }
 	if mutacao.cor then
-		table.insert(linhas, { string.upper(mutacao.nome) .. "!", mutacao.cor })
+		table.insert(linhas, { Config.maiusculas(mutacao.nome) .. "!", mutacao.cor })
 	end
 	if dados.ganho and dados.ganho > 0 then
 		table.insert(linhas, { `+${Config.formatar(dados.ganho)}`, Color3.fromRGB(120, 255, 120) })
@@ -300,7 +300,7 @@ local function esteiraNova(dados)
 	onda(posicao, cor, 22)
 	task.delay(0.15, onda, posicao, Color3.new(1, 1, 1), 30)
 	coluna(posicao, cor)
-	letreiro(centro, { { `NÍVEL {dados.nivel}!`, cor }, { if nivel then string.upper(nivel.nome) else "", Color3.new(1, 1, 1) } })
+	letreiro(centro, { { `NÍVEL {dados.nivel}!`, cor }, { if nivel then Config.maiusculas(nivel.nome) else "", Color3.new(1, 1, 1) } })
 end
 
 -- Renasceu: arco-íris subindo e ondas em sequência.

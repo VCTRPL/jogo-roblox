@@ -2,6 +2,7 @@
 -- "Carregando" com uma trilha de luz até a sua base, e os botões do Índice
 -- (todos os Brainrots), da Ajuda (como jogar), do Renascer e do som.
 local Lighting = game:GetService("Lighting")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -92,7 +93,7 @@ local function atualizarBarra(velocidade: number)
 		anterior = bioma.velocidadeMinima
 	end
 	if proximo then
-		tituloBarra.Text = `PRÓXIMO BIOMA: {string.upper(proximo.nome)}`
+		tituloBarra.Text = `PRÓXIMO BIOMA: {Config.maiusculas(proximo.nome)}`
 		local fracao = math.clamp((velocidade - anterior) / (proximo.velocidadeMinima - anterior), 0, 1)
 		TweenService:Create(preenchimento, TweenInfo.new(0.3), { Size = UDim2.fromScale(fracao, 1) }):Play()
 		textoBarra.Text = `⚡ {Config.formatar(velocidade)} / {Config.formatar(proximo.velocidadeMinima)}`
@@ -105,7 +106,7 @@ local function atualizarBarra(velocidade: number)
 	-- o "próximo" mudou: o anterior acabou de ser liberado
 	local nome = if proximo then proximo.nome else "fim"
 	if proximoAnterior and proximoAnterior ~= nome and proximoAnterior ~= "fim" then
-		liberado.Text = `🔓 {string.upper(proximoAnterior)} LIBERADA!`
+		liberado.Text = `🔓 {Config.maiusculas(proximoAnterior)} LIBERADA!`
 		liberado.Visible = true
 		pular(escalaLiberado, 0.3)
 		task.delay(2.5, function()
@@ -406,13 +407,14 @@ local painelAjuda, conteudoAjuda = criarPainel("Ajuda", "❓ COMO JOGAR", Color3
 criar("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = conteudoAjuda })
 local PASSOS = {
 	{ "🏃", "Corra na esteira da sua base para ganhar Velocidade." },
-	{ "🥚", "Vá aos biomas e pegue ovos nos ninhos. Cuidado com o guardião!" },
+	{ "🥚", "Vá aos biomas e pegue ovos nos ninhos. O chefe do bioma corre atrás de você até as bases!" },
 	{ "🏠", "Leve o ovo para a sua base: ele choca e vira um Brainrot que dá dinheiro." },
 	{ "⬆️", "Use o dinheiro para melhorar a esteira e liberar biomas novos." },
 	{ "🔥", "Correndo sem parar na esteira, o fôlego sobe e você ganha até 2x de Velocidade." },
 	{ "😈", "Roube ovos e Brainrots das outras bases, e tranque a sua!" },
 	{ "💰", "Base cheia? Segure E num Brainrot seu para vender." },
 	{ "🔄", "Com bastante dinheiro, renasça: começa de novo, mas ganha mais para sempre." },
+	{ "🛒", "Na Loja tem passes como 2x Dinheiro, 2x Velocidade e Tênis Turbo." },
 }
 for ordem, passo in PASSOS do
 	local linha = criar("Frame", {
@@ -554,7 +556,6 @@ botaoRenascer.Activated:Connect(function()
 		Sons.tocar("Erro")
 		return
 	end
-	Sons.tocar("Clique")
 	local evento = ReplicatedStorage:WaitForChild("Remotes"):FindFirstChild("Renascer")
 	if evento then
 		(evento :: RemoteEvent):FireServer()
@@ -562,13 +563,99 @@ botaoRenascer.Activated:Connect(function()
 	fecharPainel()
 end)
 
+-- Loja de gamepasses ---------------------------------------------------------
+
+local painelLoja, conteudoLoja = criarPainel("Loja", "🛒 LOJA", Color3.fromRGB(120, 230, 140), Color3.fromRGB(20, 150, 110))
+criar("UIGridLayout", {
+	CellSize = UDim2.fromOffset(196, 210),
+	CellPadding = UDim2.fromOffset(10, 10),
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Parent = conteudoLoja,
+})
+
+type CartaoLoja = { passe: any, botao: TextButton, texto: TextLabel, gradiente: UIGradient, preco: string? }
+local cartoesLoja: { CartaoLoja } = {}
+
+local function atualizarCartaoLoja(cartao: CartaoLoja)
+	local passe = cartao.passe
+	local tem = jogador:GetAttribute(`Pass_{passe.chave}`) == true
+	if tem then
+		cartao.texto.Text = "✅ VOCÊ TEM"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(130, 125, 150), Color3.fromRGB(80, 75, 100))
+	elseif passe.id == 0 then
+		cartao.texto.Text = "EM BREVE"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(130, 125, 150), Color3.fromRGB(80, 75, 100))
+	else
+		cartao.texto.Text = if cartao.preco then `R$ {cartao.preco}` else "COMPRAR"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(120, 255, 130), Color3.fromRGB(30, 170, 70))
+	end
+end
+
+for ordem, passe in Config.GAMEPASSES do
+	local quadro = criar("Frame", {
+		LayoutOrder = ordem,
+		BackgroundColor3 = BRANCO,
+		ZIndex = 5,
+		Parent = conteudoLoja,
+	}, { cantos(16), borda(Color3.fromRGB(255, 215, 80), 3.5), gradiente(Color3.fromRGB(62, 56, 108), Color3.fromRGB(32, 28, 60)) })
+	texto({ Text = passe.icone, Position = UDim2.new(0.5, -30, 0, 8), Size = UDim2.fromOffset(60, 56), ZIndex = 6, Parent = quadro })
+	texto({ Text = passe.nome, TextColor3 = Color3.fromRGB(255, 225, 120), Position = UDim2.fromOffset(8, 66), Size = UDim2.new(1, -16, 0, 26), ZIndex = 6, Parent = quadro })
+	texto({
+		Text = passe.descricao,
+		TextScaled = false,
+		TextSize = 16,
+		TextWrapped = true,
+		Position = UDim2.fromOffset(10, 94),
+		Size = UDim2.new(1, -20, 0, 58),
+		ZIndex = 6,
+		Parent = quadro,
+	})
+	local botaoCompra = criar("TextButton", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.new(1, -24, 0, 42),
+		BackgroundColor3 = BRANCO,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 6,
+		Parent = quadro,
+	}, { cantos(12), borda(CONTORNO, 3) })
+	local gradienteCompra = gradiente(Color3.fromRGB(120, 255, 130), Color3.fromRGB(30, 170, 70))
+	gradienteCompra.Parent = botaoCompra
+	local textoCompra = texto({ Text = "", Size = UDim2.new(1, -12, 1, -10), Position = UDim2.fromOffset(6, 5), ZIndex = 7, Parent = botaoCompra })
+	local cartao: CartaoLoja = { passe = passe, botao = botaoCompra, texto = textoCompra, gradiente = gradienteCompra, preco = nil }
+	table.insert(cartoesLoja, cartao)
+	atualizarCartaoLoja(cartao)
+	jogador:GetAttributeChangedSignal(`Pass_{passe.chave}`):Connect(function()
+		atualizarCartaoLoja(cartao)
+	end)
+	botaoCompra.Activated:Connect(function()
+		if passe.id ~= 0 and not jogador:GetAttribute(`Pass_{passe.chave}`) then
+			MarketplaceService:PromptGamePassPurchase(jogador, passe.id)
+		end
+	end)
+	-- preço em Robux, do Creator Dashboard
+	if passe.id ~= 0 then
+		task.spawn(function()
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfo(passe.id, Enum.InfoType.GamePass)
+			end)
+			if ok and info and info.PriceInRobux then
+				cartao.preco = tostring(info.PriceInRobux)
+				atualizarCartaoLoja(cartao)
+			end
+		end)
+	end
+end
+
 -- Botões do lado direito ----------------------------------------------------
 
 local menu = criar("Frame", {
 	Name = "Menu",
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -14, 0.45, 0),
-	Size = UDim2.fromOffset(84, 372),
+	Size = UDim2.fromOffset(84, 468),
 	BackgroundTransparency = 1,
 	Parent = tela,
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
@@ -602,7 +689,6 @@ local function botao(ordem: number, icone: string, legenda: string, cima: Color3
 	end)
 	b.Activated:Connect(function()
 		pular(escala, 0.85)
-		Sons.tocar("Clique")
 		if typeof(acao) == "function" then
 			acao()
 		else
@@ -618,8 +704,9 @@ botao(3, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 
 	atualizarRenascer()
 	abrirPainel(painelRenascer)
 end)
+botao(4, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
 local iconeSom: TextLabel
-iconeSom = botao(4, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
+iconeSom = botao(5, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
 	iconeSom.Text = if Sons.alternar() then "🔇" else "🔊"
 end)
 

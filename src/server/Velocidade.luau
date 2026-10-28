@@ -12,9 +12,11 @@ local peso: { [Player]: number } = {}
 local atordoadoAte: { [Player]: number } = {}
 
 function Velocidade.andar(player: Player): number
-	local pontos = Dados.valor(player, "Velocidade")
-	local base = math.min(Config.VELOCIDADE_BASE + pontos / Config.PONTOS_POR_VELOCIDADE, Config.VELOCIDADE_MAXIMA)
-	return base * (peso[player] or 1)
+	local andar = Config.velocidadeAndar(Dados.valor(player, "Velocidade"))
+	if player:GetAttribute("Pass_Turbo") then
+		andar *= 1.25
+	end
+	return andar * (peso[player] or 1)
 end
 
 function Velocidade.atualizar(player: Player)
@@ -48,6 +50,10 @@ function Velocidade.iniciar()
 	local function aoEntrar(player: Player)
 		player.CharacterAdded:Connect(function(personagem)
 			personagem:WaitForChild("Humanoid")
+			Velocidade.atualizar(player)
+		end)
+		-- comprou o Tênis Turbo
+		player:GetAttributeChangedSignal("Pass_Turbo"):Connect(function()
 			Velocidade.atualizar(player)
 		end)
 	end

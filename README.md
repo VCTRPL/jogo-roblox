@@ -4,15 +4,16 @@ Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ni
 
 ## Como o jogo funciona
 
-- **Base**: cada jogador recebe uma das 6 bases ao entrar. Ela tem 10 vagas, uma esteira de corrida e um botão de tranca. O mapa é criado por código quando o jogo começa.
-- **Biomas**: seguindo a estrada, chega à Selva Sahur, Praia Tralalá (150 de Velocidade), Deserto Frigo (600), Vulcão Toasterino (2K) e Espaço Saturnita (6K). Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos.
-- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur, Cappuccino Assassino, Il Cacto Hipopotamo, Rhino Toasterino e La Vaca Saturno Saturnita) e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
+- **Base**: cada jogador recebe uma das 6 bases ao entrar: um cercado de madeira com 10 vagas, um botão de tranca e, do lado de fora, à direita da entrada, a esteira de corrida. O mapa é criado por código quando o jogo começa.
+- **Biomas**: seguindo a estrada, chega à Selva Sahur, Praia Tralalá (150 de Velocidade), Deserto Frigo (600), Vulcão Toasterino (2K) e Espaço Saturnita (6K). Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. Uma parede só, com a cara de cada bioma, corre pelos dois lados da estrada até o fim, e quem não tem Velocidade suficiente volta para a entrada do bioma (não dá para passar pelo lado).
+- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur, Cappuccino Assassino, Il Cacto Hipopotamo, Rhino Toasterino e La Vaca Saturno Saturnita) e corre atrás de você até a área das bases. Os chefes são enormes: a tela treme quando eles chegam perto. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
 - **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Perto de chocar ele treme e racha. Depois ele vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, Mítico, Secreto ou Arco-íris, o servidor inteiro fica sabendo.
 - **Vender**: segure **E** num Brainrot da sua base para vender (vale 60 segundos da renda dele). Bom para abrir vaga para um melhor.
 - **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Correndo sem parar, o **fôlego** sobe e o ganho chega a 2x. Segure **E** nela para melhorar (7 níveis, até a Esteira Divina). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
 - **Roubar**: segure **E** num ovo ou Brainrot da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono. Cada roubo entregue conta no placar de **Roubos**.
 - **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
 - **Renascer**: com bastante dinheiro (2M no primeiro), o botão 🔄 zera dinheiro, Velocidade, esteira e a base, e dá para sempre +50% de dinheiro e +25% de Velocidade na esteira por renascimento.
+- **Loja (gamepasses)**: 2x Dinheiro, 2x Velocidade, Tênis Turbo (+25% de velocidade), Sorte (mais mutações), Tranca Longa e VIP (+50% de dinheiro e etiqueta). Para ativar, crie os passes no Creator Dashboard (**Monetização > Passes**) e ponha o número de cada um em `Config.GAMEPASSES`. Sem número, o passe aparece como "Em breve".
 - **Sons**: tudo tem som (pegar, chocar, vender, roubar...). O botão 🔊 liga e desliga. Música de fundo: ponha ids em `Config.MUSICA` (ou `musica` num bioma).
 - Dinheiro, Velocidade, nível da esteira, renascimentos e o que está na base ficam salvos (DataStore).
 
@@ -39,6 +40,8 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/Biblioteca.luau` | Prepara chefões e árvores da biblioteca do Roblox (sem scripts, no tamanho certo) |
 | `src/server/Esteiras.luau` | Modelos e efeitos das 7 esteiras de corrida |
 | `src/server/Renascer.luau` | Renascimento: zera o progresso e dá multiplicadores |
+| `src/server/Passes.luau` | Gamepasses: quem tem cada um e compras durante o jogo |
+| `src/server/Paredes.luau` | Paredes dos lados dos biomas, com o tema de cada um |
 | `src/ferramentas/Legoizar.luau` | Ferramenta do Studio: transforma modelos da biblioteca em blocos (veja abaixo) |
 | `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
 | `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
@@ -49,6 +52,8 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/client/Prompts.luau` | Botões "Pegar", "Roubar" etc. no estilo do jogo (tocar funciona no celular) |
 | `src/client/Sons.luau` | Toca os sons pedidos pelo servidor e a música de fundo |
 | `src/client/OvosVfx.luau` | Efeitos dos ovos: flutuar, aura, órbitas, raios, rachar e barra de tempo |
+| `src/client/Chefes.luau` | Tela tremendo, passos dos chefes e o aviso vermelho de perseguição |
+| `src/client/Ambiente.luau` | Clima de cada bioma: cor da tela, partículas e o nome aparecendo |
 
 ## Trocar os bonecos pelos modelos de verdade
 
