@@ -8,11 +8,13 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Biblioteca = require(script.Parent.Biblioteca)
 local Blocos = require(script.Parent.Blocos)
 local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
 local Montanhas = require(script.Parent.Montanhas)
+local Paredes = require(script.Parent.Paredes)
 
 local Decoracao = {}
 
@@ -326,7 +328,7 @@ local function distanciaPlana(a: Vector3, b: Vector3): number
 	return Vector2.new(a.X - b.X, a.Z - b.Z).Magnitude
 end
 
-local function texto(parent: BasePart, face: Enum.NormalId, conteudo: string, cor: Color3)
+local function texto(parent: BasePart, face: Enum.NormalId, conteudo: string, cor: Color3, fonte: Enum.Font?)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
@@ -337,7 +339,7 @@ local function texto(parent: BasePart, face: Enum.NormalId, conteudo: string, co
 	label.Position = UDim2.fromScale(0.05, 0.1)
 	label.BackgroundTransparency = 1
 	label.TextScaled = true
-	label.Font = Enum.Font.FredokaOne
+	label.Font = fonte or Enum.Font.FredokaOne
 	label.TextColor3 = cor
 	label.Text = conteudo
 	local contorno = Instance.new("UIStroke")
@@ -347,88 +349,95 @@ local function texto(parent: BasePart, face: Enum.NormalId, conteudo: string, co
 	label.Parent = gui
 end
 
+-- Cerca de madeira de "de" até "ate" (no chão da base): postes a cada
+-- ~8 studs, três tábuas compridas e um chapéu em cada poste.
+local MADEIRA_ESCURA = Color3.fromRGB(105, 70, 42)
+local MADEIRA_CLARA = { Color3.fromRGB(170, 120, 72), Color3.fromRGB(155, 108, 64), Color3.fromRGB(182, 132, 80) }
+local function cercaMadeira(pasta: Instance, de: Vector3, ate: Vector3)
+	local direcao = ate - de
+	local comprimento = direcao.Magnitude
+	local meio = CFrame.lookAt((de + ate) / 2, ate)
+	for i, altura in { 1.3, 2.7, 4.1 } do
+		parte({
+			Name = "Tabua",
+			Size = Vector3.new(0.5, 0.9, comprimento),
+			CFrame = meio + Vector3.new(0, altura, 0),
+			Color = MADEIRA_CLARA[i],
+			Material = Enum.Material.WoodPlanks,
+			Parent = pasta,
+		})
+	end
+	local postes = math.max(1, math.round(comprimento / 8))
+	for i = 0, postes do
+		local ponto = de + direcao * (i / postes)
+		parte({
+			Name = "Poste",
+			Size = Vector3.new(1.2, 5.2, 1.2),
+			Position = ponto + Vector3.new(0, 2.6, 0),
+			Color = MADEIRA_ESCURA,
+			Material = Enum.Material.Wood,
+			Parent = pasta,
+		})
+		parte({
+			Name = "Chapeu",
+			Size = Vector3.new(1.6, 0.4, 1.6),
+			Position = ponto + Vector3.new(0, 5.4, 0),
+			Color = MADEIRA_ESCURA:Lerp(Color3.new(0, 0, 0), 0.2),
+			Material = Enum.Material.Wood,
+			Parent = pasta,
+		})
+	end
+end
+
+-- Base: cercado de madeira com a entrada virada para a estrada, postes de
+-- canto com lanternas na cor da base e um portão com a placa do número.
+local ENTRADA = 9 -- metade da largura da entrada
 local function decorarBase(info: Mapa.InfoBase)
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Decoracao"
 	pasta.Parent = info.pasta
 
-	local meio = Mapa.TAMANHO_BASE / 2
+	local meio = Mapa.TAMANHO_BASE / 2 - 0.6
 	local topo = info.centro
 	local lado = info.lado
 	local cor = info.piso.Color
-	local BRANCO = Color3.fromRGB(240, 240, 245)
+	local function ponto(x: number, z: number): Vector3
+		-- z positivo = fundos da base (longe da estrada)
+		return topo + Vector3.new(x, 0, lado * z)
+	end
 
-	-- muros nos fundos e dos lados; o lado da estrada fica aberto
-	parte({
-		Name = "Muro",
-		Size = Vector3.new(Mapa.TAMANHO_BASE, 3, 1),
-		Position = topo + Vector3.new(0, 1.5, lado * (meio - 0.5)),
-		Color = BRANCO,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = pasta,
-	})
-	for _, x in { -1, 1 } do
-		parte({
-			Name = "Muro",
-			Size = Vector3.new(1, 3, Mapa.TAMANHO_BASE),
-			Position = topo + Vector3.new(x * (meio - 0.5), 1.5, 0),
-			Color = BRANCO,
-			Material = Enum.Material.SmoothPlastic,
-			Parent = pasta,
-		})
-		for _, z in { -1, 1 } do
-			local canto = topo + Vector3.new(x * (meio - 0.5), 0, z * (meio - 0.5))
-			parte({
-				Name = "Pilar",
-				Size = Vector3.new(2, 4.5, 2),
-				Position = canto + Vector3.new(0, 2.25, 0),
-				Color = escurecer(cor, 0.2),
-				Material = Enum.Material.SmoothPlastic,
-				Parent = pasta,
-			})
-			parte({
-				Name = "Luz",
-				Size = Vector3.new(2.3, 0.5, 2.3),
-				Position = canto + Vector3.new(0, 4.7, 0),
-				Color = cor,
-				Material = Enum.Material.Neon,
-				Parent = pasta,
-			})
+	cercaMadeira(pasta, ponto(-meio, meio), ponto(meio, meio))
+	cercaMadeira(pasta, ponto(-meio, -meio), ponto(-meio, meio))
+	cercaMadeira(pasta, ponto(meio, -meio), ponto(meio, meio))
+	cercaMadeira(pasta, ponto(-meio, -meio), ponto(-ENTRADA - 1.5, -meio))
+	cercaMadeira(pasta, ponto(ENTRADA + 1.5, -meio), ponto(meio, -meio))
+
+	-- postes grossos nos cantos, com uma lanterna na cor da base
+	for _, x in { -meio, meio } do
+		for _, z in { -meio, meio } do
+			local canto = ponto(x, z)
+			parte({ Name = "PilarCanto", Size = Vector3.new(2.4, 6.4, 2.4), Position = canto + Vector3.new(0, 3.2, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
+			parte({ Name = "Lanterna", Size = Vector3.new(1.6, 1.6, 1.6), Position = canto + Vector3.new(0, 7.2, 0), Color = cor:Lerp(Color3.new(1, 1, 1), 0.3), Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
+			parte({ Name = "TetoLanterna", Size = Vector3.new(2.4, 0.6, 2.4), Position = canto + Vector3.new(0, 8.3, 0), Color = Color3.fromRGB(45, 40, 40), Parent = pasta })
 		end
 	end
 
-	-- faixa de neon em cima dos muros, na cor da base
-	parte({
-		Name = "Neon",
-		Size = Vector3.new(Mapa.TAMANHO_BASE, 0.4, 1.2),
-		Position = topo + Vector3.new(0, 3.2, lado * (meio - 0.5)),
-		Color = cor:Lerp(Color3.new(1, 1, 1), 0.2),
-		Material = Enum.Material.Neon,
-		CanCollide = false,
-		Parent = pasta,
-	})
+	-- portão da entrada: dois troncos, a viga e a placa com o número
 	for _, x in { -1, 1 } do
-		parte({
-			Name = "Neon",
-			Size = Vector3.new(1.2, 0.4, Mapa.TAMANHO_BASE),
-			Position = topo + Vector3.new(x * (meio - 0.5), 3.2, 0),
-			Color = cor:Lerp(Color3.new(1, 1, 1), 0.2),
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-			Parent = pasta,
-		})
+		parte({ Name = "Portao", Size = Vector3.new(2.6, 11, 2.6), Position = ponto(x * (ENTRADA + 1.3), -meio) + Vector3.new(0, 5.5, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
+		parte({ Name = "Tocha", Size = Vector3.new(1, 1, 1), Position = ponto(x * (ENTRADA + 1.3), -meio - 1.8) + Vector3.new(0, 7, 0), Color = cor:Lerp(Color3.new(1, 1, 1), 0.3), Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
 	end
-
-	-- placa com o número da base, em cima do muro dos fundos, virada para a estrada
+	parte({ Name = "Viga", Size = Vector3.new(ENTRADA * 2 + 6, 1.4, 1.8), Position = ponto(0, -meio) + Vector3.new(0, 10.4, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
 	local placa = parte({
 		Name = "Placa",
-		Size = Vector3.new(14, 4, 0.6),
-		Position = topo + Vector3.new(0, 6, lado * (meio - 0.5)),
-		Color = escurecer(cor, 0.15),
-		Material = Enum.Material.SmoothPlastic,
+		Size = Vector3.new(14, 4, 0.8),
+		CFrame = CFrame.lookAt(ponto(0, -meio) + Vector3.new(0, 13, 0), ponto(0, -meio - 10) + Vector3.new(0, 13, 0)),
+		Color = MADEIRA_CLARA[1],
+		Material = Enum.Material.WoodPlanks,
 		Parent = pasta,
 	})
-	texto(placa, if lado == 1 then Enum.NormalId.Front else Enum.NormalId.Back, info.pasta.Name:gsub("Base", "BASE "), Color3.new(1, 1, 1))
+	parte({ Name = "MolduraPlaca", Size = Vector3.new(15, 5, 0.6), CFrame = placa.CFrame * CFrame.new(0, 0, 0.3), Color = cor, Parent = pasta })
+	texto(placa, Enum.NormalId.Front, (info.pasta.Name:gsub("Base", "BASE ")), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy)
 end
 
 -- Põe um modelo em pé num ponto do chão, olhando para "olhar", e ancora tudo.
@@ -708,6 +717,90 @@ local function tunel(pasta: Instance)
 		Parent = pasta,
 	})
 
+	-- tijolos de pedra por cima da frente de concreto (dos lados e em cima da boca)
+	local TIJOLOS = { CONCRETO, CONCRETO_ESCURO, Color3.fromRGB(160, 150, 140), Color3.fromRGB(135, 128, 120) }
+	local function parede(zMin: number, zMax: number, yMin: number, yMax: number)
+		local linha = 0
+		for y = yMin, yMax - 1.9, 2 do
+			local z = zMin - (linha % 2) * 2
+			while z < zMax do
+				local de, ate = math.max(z, zMin), math.min(z + 4, zMax)
+				if ate - de > 0.5 then
+					enfeite({
+						Name = "Tijolo",
+						Size = Vector3.new(0.6, 1.9, ate - de - 0.1),
+						Position = Vector3.new(x + 1.3 + aleatorio:NextNumber(0, 0.25), y + 0.95, (de + ate) / 2),
+						Color = escolher(TIJOLOS),
+						Material = Enum.Material.Slate,
+					})
+				end
+				z += 4
+			end
+			linha += 1
+		end
+	end
+	for _, lado in { -1, 1 } do
+		local perto, longe = meia + 2.9, largura
+		if lado == 1 then
+			parede(perto, longe, 0, topo)
+		else
+			parede(-longe, -perto, 0, topo)
+		end
+	end
+	parede(-meia - 2.9, meia + 2.9, altura + 4.2, topo)
+
+	-- placa com o nome do jogo em cima da boca
+	local placaJogo = parte({
+		Name = "PlacaJogo",
+		Size = Vector3.new(1.2, 8, 36),
+		Position = Vector3.new(x + 2.4, topo + 5.4, 0),
+		Color = Color3.fromRGB(150, 100, 60),
+		Material = Enum.Material.WoodPlanks,
+		Parent = pasta,
+	})
+	parte({
+		Name = "MolduraPlacaJogo",
+		Size = Vector3.new(1, 9, 37.4),
+		Position = Vector3.new(x + 2.1, topo + 5.4, 0),
+		Color = AMARELO,
+		Parent = pasta,
+	})
+	texto(placaJogo, Enum.NormalId.Right, "ROUBE UM OVO\nBRAINROT", Color3.fromRGB(255, 240, 120), Enum.Font.LuckiestGuy)
+
+	-- tochas dos dois lados da boca
+	for _, lado in { -1, 1 } do
+		local suporte = enfeite({
+			Name = "Tocha",
+			Size = Vector3.new(1, 1.6, 1),
+			Position = Vector3.new(x + 2.2, 9, lado * (meia + 5.5)),
+			Color = Color3.fromRGB(70, 50, 35),
+			Material = Enum.Material.Wood,
+		})
+		local fogo = Instance.new("Fire")
+		fogo.Size = 3
+		fogo.Heat = 6
+		fogo.Parent = suporte
+		local luz = Instance.new("PointLight")
+		luz.Color = Color3.fromRGB(255, 160, 80)
+		luz.Range = 16
+		luz.Brightness = 1.5
+		luz.Parent = suporte
+	end
+
+	-- trepadeiras caindo da cornija
+	for _ = 1, 12 do
+		local comprimento = aleatorio:NextNumber(2, 7)
+		local z = aleatorio:NextNumber(-largura, largura)
+		if math.abs(z) > meia + 1 or comprimento < 5 then
+			enfeite({
+				Name = "Trepadeira",
+				Size = Vector3.new(0.3, comprimento, 0.9),
+				Position = Vector3.new(x + 1.9, topo - comprimento / 2, z),
+				Color = escolher(FOLHAS),
+			})
+		end
+	end
+
 	-- fumaça saindo devagar da boca
 	local saida = enfeite({
 		Name = "FumacaTunel",
@@ -734,57 +827,210 @@ local function tunel(pasta: Instance)
 	fumaca.Parent = saida
 end
 
--- Portal de cada bioma: arco com neon, o nome em cima, brilhos e duas
--- estátuas do guardião do bioma, uma de cada lado.
+-- (criado mais abaixo, junto com a decoração do deserto)
+local cacto: (pasta: Instance, chao: Vector3, escala: number) -> ()
+
+-- Portal de cada bioma: um arco com a cara do bioma (troncos na Selva,
+-- bambu na Praia, arenito no Deserto, basalto com lava no Vulcão e metal
+-- com neon no Espaço), uma placa com o nome e a Velocidade necessária,
+-- brilhos na passagem e duas estátuas do guardião.
+type TemaArco = {
+	pilar: Color3,
+	material: Enum.Material,
+	faixa: Color3, -- listras dos pilares
+	faixaNeon: boolean,
+	placa: Color3,
+	borda: Color3,
+	bordaNeon: boolean,
+	texto: Color3,
+	enfeite: ((pasta: Instance, topoPilar: Vector3) -> ())?,
+}
+
+local TEMAS_ARCO: { [string]: TemaArco } = {
+	floresta = {
+		pilar = Color3.fromRGB(115, 78, 46),
+		material = Enum.Material.Wood,
+		faixa = Color3.fromRGB(80, 150, 60),
+		faixaNeon = false,
+		placa = Color3.fromRGB(150, 102, 60),
+		borda = Color3.fromRGB(90, 60, 35),
+		bordaNeon = false,
+		texto = Color3.fromRGB(255, 245, 210),
+		enfeite = function(pasta, topoPilar)
+			-- copa de folhas em cima do tronco
+			for i = 0, 2 do
+				parte({
+					Name = "Folhas",
+					Size = Vector3.new(6 - i * 1.5, 2.2, 6 - i * 1.5),
+					CFrame = CFrame.new(topoPilar + Vector3.new(0, 1.1 + i * 2, 0)) * CFrame.Angles(0, i * 0.5, 0),
+					Color = FOLHAS[i + 1],
+					CanCollide = false,
+					Parent = pasta,
+				})
+			end
+		end,
+	},
+	praia = {
+		pilar = Color3.fromRGB(225, 200, 130),
+		material = Enum.Material.Wood,
+		faixa = Color3.fromRGB(120, 160, 80),
+		faixaNeon = false,
+		placa = Color3.fromRGB(60, 150, 210),
+		borda = Color3.fromRGB(245, 245, 245),
+		bordaNeon = false,
+		texto = Color3.fromRGB(255, 255, 255),
+		enfeite = function(pasta, topoPilar)
+			-- folhas de palmeira caindo para os lados
+			for i = 1, 5 do
+				parte({
+					Name = "Folha",
+					Size = Vector3.new(1.2, 0.3, 5),
+					CFrame = CFrame.new(topoPilar + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, math.rad(i * 72), 0) * CFrame.Angles(math.rad(-30), 0, 0) * CFrame.new(0, 0, -2.4),
+					Color = FOLHAS_LAGO[i % #FOLHAS_LAGO + 1],
+					CanCollide = false,
+					Parent = pasta,
+				})
+			end
+		end,
+	},
+	deserto = {
+		pilar = Color3.fromRGB(215, 170, 110),
+		material = Enum.Material.Sandstone,
+		faixa = Color3.fromRGB(185, 115, 65),
+		faixaNeon = false,
+		placa = Color3.fromRGB(175, 115, 62),
+		borda = Color3.fromRGB(120, 75, 40),
+		bordaNeon = false,
+		texto = Color3.fromRGB(255, 238, 190),
+		enfeite = function(pasta, topoPilar)
+			cacto(pasta, topoPilar, 0.45)
+		end,
+	},
+	vulcao = {
+		pilar = Color3.fromRGB(50, 40, 40),
+		material = Enum.Material.Basalt,
+		faixa = Color3.fromRGB(255, 110, 30),
+		faixaNeon = true,
+		placa = Color3.fromRGB(38, 30, 30),
+		borda = Color3.fromRGB(255, 110, 30),
+		bordaNeon = true,
+		texto = Color3.fromRGB(255, 185, 90),
+		enfeite = function(pasta, topoPilar)
+			local braseiro = parte({ Name = "Braseiro", Size = Vector3.new(3, 1, 3), Position = topoPilar + Vector3.new(0, 0.5, 0), Color = Color3.fromRGB(255, 110, 30), Material = Enum.Material.Neon, Parent = pasta })
+			local fogo = Instance.new("Fire")
+			fogo.Size = 6
+			fogo.Heat = 10
+			fogo.Color = Color3.fromRGB(255, 110, 30)
+			fogo.SecondaryColor = Color3.fromRGB(255, 200, 80)
+			fogo.Parent = braseiro
+		end,
+	},
+	espaco = {
+		pilar = Color3.fromRGB(70, 72, 95),
+		material = Enum.Material.Metal,
+		faixa = Color3.fromRGB(80, 220, 255),
+		faixaNeon = true,
+		placa = Color3.fromRGB(22, 22, 48),
+		borda = Color3.fromRGB(80, 220, 255),
+		bordaNeon = true,
+		texto = Color3.fromRGB(170, 240, 255),
+		enfeite = function(pasta, topoPilar)
+			-- antena com uma luz piscando
+			parte({ Name = "Antena", Size = Vector3.new(0.4, 4, 0.4), Position = topoPilar + Vector3.new(0, 2, 0), Color = Color3.fromRGB(180, 180, 195), Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+			local luz = parte({ Name = "LuzAntena", Size = Vector3.new(1, 1, 1), Position = topoPilar + Vector3.new(0, 4.4, 0), Color = Color3.fromRGB(255, 70, 90), Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
+			CollectionService:AddTag(luz, "PulsarEsteira")
+		end,
+	},
+}
+
+-- Texto da placa do arco: o nome grande e, embaixo, a Velocidade necessária.
+-- Fonte grossa de letreiro, só com letras sem acento (a fonte não tem acentos).
+local function textoArco(placa: BasePart, face: Enum.NormalId, nome: string, aviso: string?, tema: TemaArco)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 25
+	gui.LightInfluence = if tema.bordaNeon then 0 else 1
+	gui.Parent = placa
+	local function linha(conteudo: string, y: number, altura: number, cor: Color3)
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0.04, y)
+		label.Size = UDim2.fromScale(0.92, altura)
+		label.Font = Enum.Font.LuckiestGuy
+		label.TextScaled = true
+		label.TextColor3 = cor
+		label.Text = conteudo
+		local contorno = Instance.new("UIStroke")
+		contorno.Thickness = 5
+		contorno.Color = tema.placa:Lerp(Color3.new(0, 0, 0), 0.6)
+		contorno.Parent = label
+		label.Parent = gui
+	end
+	if aviso then
+		linha(nome, 0.08, 0.56, tema.texto)
+		linha(aviso, 0.66, 0.26, Color3.fromRGB(255, 225, 90))
+	else
+		linha(nome, 0.14, 0.72, tema.texto)
+	end
+end
+
 local function decorarPortal(info: Mapa.InfoBioma)
 	local pasta = Instance.new("Folder")
 	pasta.Name = "DecoracaoPortal"
 	pasta.Parent = info.pasta
 	local x = info.centro.X - Mapa.TAMANHO_BIOMA / 2
-	local cor = info.config.cor
-	local escura = escurecer(cor, 0.35)
+	local tema = TEMAS_ARCO[info.config.estilo] or TEMAS_ARCO.floresta
 
-	for _, z in { -11.5, 11.5 } do
-		parte({
-			Name = "Pilar",
-			Size = Vector3.new(3, 20, 3),
-			Position = Vector3.new(x, 10.5, z),
-			Color = escura,
-			Material = Enum.Material.SmoothPlastic,
-			Parent = pasta,
-		})
-		for y = 4, 16, 4 do
-			parte({
+	-- pilares de blocos, mais largos embaixo, com listras
+	for _, z in { -12.5, 12.5 } do
+		parte({ Name = "PePilar", Size = Vector3.new(5, 3, 5), Position = Vector3.new(x, 1.5, z), Color = tema.pilar:Lerp(Color3.new(0, 0, 0), 0.2), Material = tema.material, Parent = pasta })
+		parte({ Name = "Pilar", Size = Vector3.new(3.6, 20, 3.6), Position = Vector3.new(x, 13, z), Color = tema.pilar, Material = tema.material, Parent = pasta })
+		for y = 6, 20, 5 do
+			local listra = parte({
 				Name = "Listra",
-				Size = Vector3.new(3.3, 0.5, 3.3),
+				Size = Vector3.new(3.9, 0.6, 3.9),
 				Position = Vector3.new(x, y, z),
-				Color = cor:Lerp(Color3.new(1, 1, 1), 0.3),
-				Material = Enum.Material.Neon,
+				Color = tema.faixa,
+				Material = if tema.faixaNeon then Enum.Material.Neon else tema.material,
 				Parent = pasta,
 			})
+			if tema.faixaNeon then
+				CollectionService:AddTag(listra, "PulsarEsteira")
+			end
+		end
+		if tema.enfeite then
+			tema.enfeite(pasta, Vector3.new(x, 23, z))
 		end
 	end
-	local viga = parte({
-		Name = "Viga",
-		Size = Vector3.new(3.4, 4, 27),
-		Position = Vector3.new(x, 22, 0),
-		Color = escura,
-		Material = Enum.Material.SmoothPlastic,
+
+	-- placa grande em cima, com moldura
+	local placa = parte({
+		Name = "PlacaBioma",
+		Size = Vector3.new(1.6, 7.5, 24),
+		Position = Vector3.new(x, 26.5, 0),
+		Color = tema.placa,
+		Material = if tema.material == Enum.Material.Wood then Enum.Material.WoodPlanks else tema.material,
 		Parent = pasta,
 	})
 	parte({
-		Name = "VigaNeon",
-		Size = Vector3.new(3.6, 0.5, 27.4),
-		Position = Vector3.new(x, 19.9, 0),
-		Color = cor:Lerp(Color3.new(1, 1, 1), 0.3),
-		Material = Enum.Material.Neon,
+		Name = "MolduraBioma",
+		Size = Vector3.new(1.3, 8.7, 25.2),
+		Position = Vector3.new(x, 26.5, 0),
+		Color = tema.borda,
+		Material = if tema.bordaNeon then Enum.Material.Neon else Enum.Material.Wood,
 		Parent = pasta,
 	})
-	texto(viga, Enum.NormalId.Left, string.upper(info.config.nome), Color3.new(1, 1, 1))
-	texto(viga, Enum.NormalId.Right, string.upper(info.config.nome), Color3.new(1, 1, 1))
+	parte({ Name = "Viga", Size = Vector3.new(2.4, 1.6, 30), Position = Vector3.new(x, 22.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
+	local nome = Config.maiusculas(Config.semAcento(info.config.nome))
+	local minimo = info.config.velocidadeMinima
+	local aviso = if minimo > 0 then `PRECISA DE {Config.formatar(minimo)} DE VELOCIDADE` else nil
+	textoArco(placa, Enum.NormalId.Left, nome, aviso, tema)
+	textoArco(placa, Enum.NormalId.Right, nome, aviso, tema)
 
 	local portal = info.pasta:FindFirstChild("Portal")
 	if portal then
+		local cor = info.config.cor
 		local brilho = Instance.new("ParticleEmitter")
 		brilho.Name = "Brilho"
 		brilho.Texture = "rbxasset://textures/particles/sparkles_main.dds"
@@ -799,11 +1045,66 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	end
 
 	-- estátuas do guardião, olhando para quem chega pela estrada
-	for _, z in { -18, 18 } do
+	for _, z in { -20, 20 } do
 		local estatua = Guardioes.estatua(info.config.guardiao)
 		estatua.Name = "EstatuaGuardiao"
-		plantar(estatua, pasta, Vector3.new(x - 5, 0.05, z), -Vector3.xAxis, 0.8)
+		plantar(estatua, pasta, Vector3.new(x - 6, 0.05, z), -Vector3.xAxis, 0.8)
 	end
+end
+
+-- Poste de luz de blocos: pé de pedra, haste verde-escura com anéis
+-- dourados, bandeirinha e um braço com uma lanterna de vidro pendurada.
+-- "paraEstrada" é 1 ou -1: para que lado (Z) fica a estrada.
+local CORES_BANDEIRA = { Color3.fromRGB(255, 90, 90), Color3.fromRGB(255, 210, 60), Color3.fromRGB(80, 170, 255), Color3.fromRGB(120, 220, 100) }
+local function poste(pasta: Instance, chao: Vector3, paraEstrada: number)
+	local HASTE = Color3.fromRGB(40, 70, 55)
+	local DOURADO = Color3.fromRGB(215, 175, 85)
+	parte({ Name = "PePoste", Size = Vector3.new(2.4, 1.4, 2.4), Position = chao + Vector3.new(0, 0.7, 0), Color = Color3.fromRGB(120, 120, 128), Parent = pasta })
+	parte({ Name = "Poste", Size = Vector3.new(0.9, 10.4, 0.9), Position = chao + Vector3.new(0, 6.6, 0), Color = HASTE, Material = Enum.Material.Metal, Parent = pasta })
+	for _, y in { 2.4, 8.5 } do
+		parte({ Name = "Anel", Size = Vector3.new(1.3, 0.4, 1.3), Position = chao + Vector3.new(0, y, 0), Color = DOURADO, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	end
+	parte({
+		Name = "Bandeira",
+		Size = Vector3.new(0.15, 2.2, 1.6),
+		Position = chao + Vector3.new(0, 6.4, -paraEstrada * 1.25),
+		Color = escolher(CORES_BANDEIRA),
+		CanCollide = false,
+		Parent = pasta,
+	})
+	-- braço indo para cima da estrada, com a lanterna pendurada na ponta
+	parte({ Name = "Braco", Size = Vector3.new(0.5, 0.5, 3.6), Position = chao + Vector3.new(0, 11.6, paraEstrada * 1.6), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	local ponta = chao + Vector3.new(0, 11.6, paraEstrada * 3.2)
+	parte({ Name = "Corrente", Size = Vector3.new(0.2, 0.8, 0.2), Position = ponta - Vector3.new(0, 0.6, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
+	parte({ Name = "TampaLanterna", Size = Vector3.new(1.8, 0.4, 1.8), Position = ponta - Vector3.new(0, 1.2, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
+	parte({
+		Name = "VidroLanterna",
+		Size = Vector3.new(1.4, 1.6, 1.4),
+		Position = ponta - Vector3.new(0, 2.2, 0),
+		Color = Color3.fromRGB(255, 235, 180),
+		Material = Enum.Material.Glass,
+		Transparency = 0.45,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = pasta,
+	})
+	local lampada = parte({
+		Name = "Lampada",
+		Size = Vector3.new(0.7, 0.9, 0.7),
+		Position = ponta - Vector3.new(0, 2.2, 0),
+		Color = Color3.fromRGB(255, 225, 150),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = pasta,
+	})
+	parte({ Name = "FundoLanterna", Size = Vector3.new(1.2, 0.3, 1.2), Position = ponta - Vector3.new(0, 3.15, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
+	local luz = Instance.new("PointLight")
+	luz.Range = 20
+	luz.Brightness = 1.3
+	luz.Color = Color3.fromRGB(255, 220, 160)
+	luz.Shadows = false
+	luz.Parent = lampada
 end
 
 local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
@@ -845,40 +1146,14 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 		end
 		-- sem poste colado nos portais dos biomas nem dentro do túnel
 		for x = math.max(a + 10, TUNEL_BOCA + 8), b - 16, 26 do
-			local z = ladoPoste * 9.5
-			ladoPoste = -ladoPoste
-			parte({
-				Name = "Poste",
-				Shape = Enum.PartType.Cylinder,
-				Size = Vector3.new(11, 0.7, 0.7),
-				CFrame = CFrame.new(x, 5.5, z) * CFrame.Angles(0, 0, math.rad(90)),
-				Color = Color3.fromRGB(50, 50, 60),
-				Material = Enum.Material.Metal,
-				Parent = pasta,
-			})
-			parte({
-				Name = "Braco",
-				Size = Vector3.new(0.5, 0.5, 3),
-				Position = Vector3.new(x, 10.8, z - math.sign(z) * 1.3),
-				Color = Color3.fromRGB(50, 50, 60),
-				Material = Enum.Material.Metal,
-				Parent = pasta,
-			})
-			local lampada = parte({
-				Name = "Lampada",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.one * 1.4,
-				Position = Vector3.new(x, 10.3, z - math.sign(z) * 2.6),
-				Color = Color3.fromRGB(255, 235, 180),
-				Material = Enum.Material.Neon,
-				CanCollide = false,
-				Parent = pasta,
-			})
-			local luz = Instance.new("PointLight")
-			luz.Range = 18
-			luz.Brightness = 1.2
-			luz.Color = Color3.fromRGB(255, 225, 170)
-			luz.Parent = lampada
+			-- na área das bases, nada de poste na frente dos caminhos e das esteiras
+			local baseMaisPerto = math.round(x / Mapa.ESPACO_BASES) * Mapa.ESPACO_BASES
+			local naFrenteDeBase = x < Mapa.FIM_BASES and math.abs(baseMaisPerto) <= Mapa.ESPACO_BASES and math.abs(x - baseMaisPerto) < 30
+			if not naFrenteDeBase then
+				local z = ladoPoste * 9.5
+				ladoPoste = -ladoPoste
+				poste(pasta, Vector3.new(x, 0.05, z), -math.sign(z))
+			end
 		end
 	end
 
@@ -1056,6 +1331,330 @@ local function decorarLago(info: Mapa.InfoBioma)
 	end)
 end
 
+-- Partes comuns dos biomas novos ---------------------------------------------
+
+-- Troca a cor e o material do piso do bioma.
+local function pintarPiso(info: Mapa.InfoBioma, cor: Color3, material: Enum.Material)
+	local piso = info.pasta:FindFirstChild("Piso") :: BasePart
+	piso.Color = cor
+	piso.Material = material
+end
+
+-- Ponto livre para enfeite grande: fora do anel de ninhos e longe da estrada.
+local function foraDoAnel(centro: Vector3)
+	return function(p: Vector3): boolean
+		return distanciaPlana(p, centro) > 41 and math.abs(p.Z - centro.Z) > 11
+	end
+end
+
+-- Faz a peça girar e flutuar (o cliente anima tudo com a tag "GirarEsteira").
+local function girarNoCliente(p: BasePart, graus: number, flutua: number)
+	p:SetAttribute("Giro", graus)
+	p:SetAttribute("Flutua", flutua)
+	CollectionService:AddTag(p, "GirarEsteira")
+end
+
+local function emissor(parent: Instance, props): ParticleEmitter
+	local e = Instance.new("ParticleEmitter")
+	for chave, valor in props do
+		(e :: any)[chave] = valor
+	end
+	e.Parent = parent
+	return e
+end
+
+-- Cacto de blocos: tronco com dois braços dobrados para cima.
+function cacto(pasta: Instance, chao: Vector3, escala: number)
+	local verde = Color3.fromRGB(70, 150, 70):Lerp(Color3.fromRGB(100, 170, 80), aleatorio:NextNumber())
+	local altura = aleatorio:NextNumber(6, 9) * escala
+	local giro = CFrame.new(chao) * CFrame.Angles(0, aleatorio:NextNumber(0, math.pi), 0)
+	parte({ Name = "Cacto", Size = Vector3.new(1.6, altura, 1.6) * Vector3.new(escala, 1, escala), CFrame = giro * CFrame.new(0, altura / 2, 0), Color = verde, Parent = pasta })
+	for _, x in { -1, 1 } do
+		local y = altura * aleatorio:NextNumber(0.35, 0.6)
+		local braco = aleatorio:NextNumber(1.6, 2.4) * escala
+		parte({ Name = "Cacto", Size = Vector3.new(braco, escala, escala), CFrame = giro * CFrame.new(x * (0.8 * escala + braco / 2), y, 0), Color = verde, Parent = pasta })
+		parte({ Name = "Cacto", Size = Vector3.new(1, 2.6, 1) * escala, CFrame = giro * CFrame.new(x * (0.8 * escala + braco), y + 1.3 * escala, 0), Color = verde, Parent = pasta })
+	end
+	if aleatorio:NextNumber() < 0.4 then
+		parte({ Name = "Flor", Size = Vector3.new(0.9, 0.5, 0.9) * escala, CFrame = giro * CFrame.new(0, altura + 0.25, 0), Color = escolher(FLORES), CanCollide = false, Parent = pasta })
+	end
+end
+
+-- Morro de pedra em degraus (mesa do deserto, cratera do vulcão).
+local function morro(pasta: Instance, chao: Vector3, largura: number, altura: number, cores: { Color3 })
+	local andares = 3
+	for andar = 0, andares - 1 do
+		local w = largura * (1 - andar * 0.25)
+		local h = altura / andares
+		parte({
+			Name = "Morro",
+			Size = Vector3.new(w, h, w * aleatorio:NextNumber(0.8, 1)),
+			CFrame = CFrame.new(chao + Vector3.new(0, h * andar + h / 2, 0)) * CFrame.Angles(0, aleatorio:NextNumber(0, 0.4), 0),
+			Color = cores[andar % #cores + 1],
+			Parent = pasta,
+		})
+	end
+end
+
+-- Deserto Frigo: areia, dunas, cactos, mesas de pedra e um oásis -----------
+
+local function decorarDeserto(info: Mapa.InfoBioma)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "Decoracao"
+	pasta.Parent = info.pasta
+	local centro = info.centro + Vector3.new(0, 0.05, 0)
+	local meio = Mapa.TAMANHO_BIOMA / 2 - 3
+	local canto = Vector3.new(meio, 0, meio)
+	local livre = foraDoAnel(centro)
+
+	pintarPiso(info, Color3.fromRGB(235, 200, 130), Enum.Material.Sand)
+	disco(pasta, centro, "Trilha", 37, 0.08, 0.5, { Color = Color3.fromRGB(210, 170, 100), Material = Enum.Material.Sand })
+	disco(pasta, centro, "Clareira", 27, 0.12, 0.5, { Color = Color3.fromRGB(240, 210, 145), Material = Enum.Material.Sand })
+
+	-- oásis no meio, onde fica o guardião
+	disco(pasta, centro, "Oasis", 7, 0.3, 0.3, {
+		Color = Color3.fromRGB(70, 180, 220),
+		Material = Enum.Material.Glass,
+		Transparency = 0.3,
+		CanCollide = false,
+		CastShadow = false,
+	})
+
+	espalhar(centro - canto, centro + canto, 10, livre, function(p)
+		-- duna: blocos baixos e largos
+		parte({
+			Name = "Duna",
+			Size = Vector3.new(aleatorio:NextNumber(10, 16), aleatorio:NextNumber(1.5, 3), aleatorio:NextNumber(6, 9)),
+			CFrame = CFrame.new(p) * CFrame.Angles(0, aleatorio:NextNumber(0, math.pi), 0),
+			Color = Color3.fromRGB(230, 195, 125):Lerp(Color3.fromRGB(245, 215, 150), aleatorio:NextNumber()),
+			Parent = pasta,
+		})
+	end)
+	espalhar(centro - canto, centro + canto, 16, livre, function(p)
+		cacto(pasta, p, aleatorio:NextNumber(0.8, 1.2))
+	end)
+	espalhar(centro - canto, centro + canto, 4, livre, function(p)
+		morro(pasta, p, aleatorio:NextNumber(9, 13), aleatorio:NextNumber(8, 12), {
+			Color3.fromRGB(200, 110, 70),
+			Color3.fromRGB(220, 140, 90),
+			Color3.fromRGB(185, 95, 60),
+		})
+	end)
+	-- cactinhos baixos e ossos entre os ninhos
+	espalhar(centro - canto, centro + canto, 30, function(p)
+		local d = distanciaPlana(p, centro)
+		return d > 9 and math.abs(d - 32) > 4
+	end, function(p)
+		if aleatorio:NextNumber() < 0.5 then
+			cacto(pasta, p, 0.4)
+		else
+			parte({ Name = "Osso", Size = Vector3.new(2, 0.4, 0.4), CFrame = CFrame.new(p + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, aleatorio:NextNumber(0, math.pi), 0), Color = Color3.fromRGB(245, 240, 225), CanCollide = false, Parent = pasta })
+		end
+	end)
+end
+
+-- Vulcão Toasterino: chão de pedra escura, rios de lava, vulcão soltando
+-- fumaça e árvores queimadas ------------------------------------------------
+
+local function decorarVulcao(info: Mapa.InfoBioma)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "Decoracao"
+	pasta.Parent = info.pasta
+	local centro = info.centro + Vector3.new(0, 0.05, 0)
+	local meio = Mapa.TAMANHO_BIOMA / 2 - 3
+	local canto = Vector3.new(meio, 0, meio)
+	local livre = foraDoAnel(centro)
+	local LAVA = Color3.fromRGB(255, 110, 30)
+
+	pintarPiso(info, Color3.fromRGB(60, 45, 45), Enum.Material.Basalt)
+	disco(pasta, centro, "Trilha", 37, 0.08, 0.5, { Color = Color3.fromRGB(85, 65, 60), Material = Enum.Material.Slate })
+	disco(pasta, centro, "Clareira", 27, 0.12, 0.5, { Color = Color3.fromRGB(70, 52, 50), Material = Enum.Material.Basalt })
+
+	-- rios de lava saindo dos cantos (só enfeite: não machucam)
+	for _, canto2 in { Vector3.new(1, 0, 1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, -1) } do
+		local de = centro + canto2 * (Mapa.TAMANHO_BIOMA / 2 - 4)
+		local ate = centro + canto2 * 26
+		local acima = Vector3.new(0, 0.12, 0)
+		local rio = parte({
+			Name = "Lava",
+			Size = Vector3.new(3, 0.2, (ate - de).Magnitude),
+			CFrame = CFrame.lookAt((de + ate) / 2 + acima, ate + acima),
+			Color = LAVA,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = pasta,
+		})
+		CollectionService:AddTag(rio, "PulsarEsteira")
+		emissor(rio, {
+			Texture = "rbxasset://textures/particles/fire_main.dds",
+			Color = ColorSequence.new(Color3.fromRGB(255, 200, 80), LAVA),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) }),
+			Lifetime = NumberRange.new(0.6, 1.2),
+			Rate = 6,
+			Speed = NumberRange.new(2, 5),
+			LightEmission = 1,
+		})
+	end
+
+	-- o vulcão no canto de trás, com lava no topo e fumaça
+	local pe = centro + Vector3.new(Mapa.TAMANHO_BIOMA / 2 - 14, 0, -(Mapa.TAMANHO_BIOMA / 2 - 14))
+	morro(pasta, pe, 22, 20, { Color3.fromRGB(80, 60, 55), Color3.fromRGB(65, 50, 48), Color3.fromRGB(95, 70, 60) })
+	local cratera = parte({
+		Name = "Cratera",
+		Size = Vector3.new(6, 0.6, 6),
+		Position = pe + Vector3.new(0, 20.2, 0),
+		Color = LAVA,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = pasta,
+	})
+	CollectionService:AddTag(cratera, "PulsarEsteira")
+	emissor(cratera, {
+		Texture = "rbxasset://textures/particles/smoke_main.dds",
+		Color = ColorSequence.new(Color3.fromRGB(70, 60, 60)),
+		Transparency = NumberSequence.new(0.3, 1),
+		Size = NumberSequence.new(4, 12),
+		Lifetime = NumberRange.new(4, 6),
+		Rate = 5,
+		Speed = NumberRange.new(4, 7),
+		SpreadAngle = Vector2.new(15, 15),
+	})
+	emissor(cratera, {
+		Texture = "rbxasset://textures/particles/fire_main.dds",
+		Color = ColorSequence.new(Color3.fromRGB(255, 220, 90), LAVA),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(1, 2),
+		Rate = 14,
+		Speed = NumberRange.new(10, 18),
+		SpreadAngle = Vector2.new(25, 25),
+		Acceleration = Vector3.new(0, -20, 0),
+		LightEmission = 1,
+	})
+	local luz = Instance.new("PointLight")
+	luz.Color = LAVA
+	luz.Range = 30
+	luz.Brightness = 2
+	luz.Parent = cratera
+
+	espalhar(centro - canto, centro + canto, 14, livre, function(p)
+		-- árvore queimada: tronco preto torto com galhos
+		local altura = aleatorio:NextNumber(5, 8)
+		local giro = CFrame.new(p) * CFrame.Angles(aleatorio:NextNumber(-0.15, 0.15), aleatorio:NextNumber(0, math.pi), 0)
+		parte({ Name = "Queimada", Size = Vector3.new(1.2, altura, 1.2), CFrame = giro * CFrame.new(0, altura / 2, 0), Color = Color3.fromRGB(35, 30, 30), Parent = pasta })
+		for _, x in { -1, 1 } do
+			parte({ Name = "Galho", Size = Vector3.new(2.4, 0.5, 0.5), CFrame = giro * CFrame.new(x * 1.2, altura * 0.75, 0) * CFrame.Angles(0, 0, math.rad(x * 30)), Color = Color3.fromRGB(45, 38, 36), CanCollide = false, Parent = pasta })
+		end
+	end)
+	espalhar(centro - canto, centro + canto, 12, livre, function(p)
+		pedra(pasta, p, aleatorio:NextNumber(2, 4.5), true)
+	end)
+	-- brasas brilhando no chão entre os ninhos
+	espalhar(centro - canto, centro + canto, 24, function(p)
+		local d = distanciaPlana(p, centro)
+		return d > 9 and math.abs(d - 32) > 4
+	end, function(p)
+		parte({ Name = "Brasa", Size = Vector3.new(0.8, 0.3, 0.8), Position = p + Vector3.new(0, 0.15, 0), Color = LAVA, Material = Enum.Material.Neon, CanCollide = false, CastShadow = false, Parent = pasta })
+	end)
+end
+
+-- Espaço Saturnita: chão roxo de lua, crateras, cristais de neon, pedras e
+-- planetinhas flutuando e estrelas ------------------------------------------
+
+local function decorarEspaco(info: Mapa.InfoBioma)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "Decoracao"
+	pasta.Parent = info.pasta
+	local centro = info.centro + Vector3.new(0, 0.05, 0)
+	local meio = Mapa.TAMANHO_BIOMA / 2 - 3
+	local canto = Vector3.new(meio, 0, meio)
+	local livre = foraDoAnel(centro)
+	local CRISTAIS = { Color3.fromRGB(80, 220, 255), Color3.fromRGB(200, 90, 255), Color3.fromRGB(255, 90, 200) }
+
+	pintarPiso(info, Color3.fromRGB(55, 45, 90), Enum.Material.Slate)
+	disco(pasta, centro, "Trilha", 37, 0.08, 0.5, { Color = Color3.fromRGB(85, 75, 130), Material = Enum.Material.Slate })
+	disco(pasta, centro, "Clareira", 27, 0.12, 0.5, { Color = Color3.fromRGB(65, 55, 105), Material = Enum.Material.Slate })
+
+	-- crateras: anel de pedra com o fundo escuro
+	espalhar(centro - canto, centro + canto, 8, livre, function(p)
+		local raio = aleatorio:NextNumber(3, 6)
+		disco(pasta, p, "Cratera", raio + 1, 0.6, 0.6, { Color = Color3.fromRGB(110, 100, 150) })
+		disco(pasta, p, "FundoCratera", raio, 0.65, 0.2, { Color = Color3.fromRGB(35, 28, 60) })
+	end)
+	-- cristais de neon saindo do chão
+	espalhar(centro - canto, centro + canto, 18, livre, function(p)
+		local cor = escolher(CRISTAIS)
+		local cristal: BasePart? = nil
+		for i = 1, aleatorio:NextInteger(2, 4) do
+			local altura = aleatorio:NextNumber(2, 6)
+			cristal = parte({
+				Name = "Cristal",
+				Size = Vector3.new(1, altura, 1),
+				CFrame = CFrame.new(p + Vector3.new(aleatorio:NextNumber(-1, 1), altura / 2 - 0.3, aleatorio:NextNumber(-1, 1)))
+					* CFrame.Angles(aleatorio:NextNumber(-0.4, 0.4), i, aleatorio:NextNumber(-0.4, 0.4)),
+				Color = cor,
+				Material = Enum.Material.Neon,
+				Transparency = 0.15,
+				CastShadow = false,
+				Parent = pasta,
+			})
+		end
+		local luz = Instance.new("PointLight")
+		luz.Color = cor
+		luz.Range = 10
+		luz.Brightness = 1.2
+		luz.Parent = cristal
+	end)
+	-- pedras e planetinhas flutuando e girando
+	espalhar(centro - canto + Vector3.new(0, 10, 0), centro + canto + Vector3.new(0, 10, 0), 10, livre, function(p)
+		local tamanho = aleatorio:NextNumber(2, 4)
+		local pedraVoando = parte({
+			Name = "PedraVoando",
+			Size = Vector3.one * tamanho,
+			CFrame = CFrame.new(p + Vector3.new(0, aleatorio:NextNumber(0, 10), 0)) * CFrame.Angles(0.5, 0.5, 0),
+			Color = Color3.fromRGB(120, 110, 160),
+			CanCollide = false,
+			Parent = pasta,
+		})
+		girarNoCliente(pedraVoando, aleatorio:NextNumber(15, 40), aleatorio:NextNumber(0.6, 1.4))
+	end)
+	for i, cor in { Color3.fromRGB(255, 160, 90), Color3.fromRGB(110, 200, 255) } do
+		local lado = if i == 1 then 1 else -1
+		local planeta = parte({
+			Name = "Planeta",
+			Size = Vector3.one * (8 + i * 3),
+			Position = centro + Vector3.new(lado * 30, 34 + i * 6, -lado * 30),
+			Color = cor,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = pasta,
+		})
+		girarNoCliente(planeta, 10 * lado, 2)
+	end
+	-- estrelas piscando no céu do bioma
+	local ceu = parte({
+		Name = "Estrelas",
+		Size = Vector3.new(Mapa.TAMANHO_BIOMA, 1, Mapa.TAMANHO_BIOMA),
+		Position = centro + Vector3.new(0, 45, 0),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Parent = pasta,
+	})
+	emissor(ceu, {
+		Texture = "rbxasset://textures/particles/sparkles_main.dds",
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(180, 200, 255)),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.5, 0.8), NumberSequenceKeypoint.new(1, 0) }),
+		Lifetime = NumberRange.new(2, 4),
+		Rate = 25,
+		Speed = NumberRange.new(0, 0.5),
+		LightEmission = 1,
+		Shape = Enum.ParticleEmitterShape.Box,
+		ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+	})
+end
+
 -- Árvores, arbustos e pedras nos cantos livres entre as montanhas, fora
 -- das áreas de jogo.
 local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
@@ -1074,10 +1673,11 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 		if p.X >= Montanhas.TRANSICAO - 6 and math.abs(p.Z) > Montanhas.Z_FASES - 4 then
 			return false
 		end
-		if math.abs(p.X) < 100 and math.abs(p.Z) < 84 then
-			return false -- bases
+		local limiteBases = Mapa.ESPACO_BASES + Mapa.TAMANHO_BASE / 2 + 6
+		if math.abs(p.X) < limiteBases and math.abs(p.Z) < Mapa.Z_BASES + Mapa.TAMANHO_BASE / 2 + 6 then
+			return false -- bases, esteiras e caminhos
 		end
-		if p.X > -140 and p.X < -100 and math.abs(p.Z) < 48 then
+		if p.X < Mapa.TUNEL_BOCA + 30 and math.abs(p.Z) < 48 then
 			return false -- túnel da entrada
 		end
 		for _, bioma in biomas do
@@ -1126,13 +1726,21 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 
 	decorarEstrada(pasta, biomas)
 	Montanhas.construir()
+	Paredes.construir(biomas)
 	decorarArredores(pasta, biomas)
 	for _, info in bases do
 		decorarBase(info)
 	end
 	for _, info in biomas do
-		if info.config.estilo == "praia" then
+		local estilo = info.config.estilo
+		if estilo == "praia" then
 			decorarLago(info)
+		elseif estilo == "deserto" then
+			decorarDeserto(info)
+		elseif estilo == "vulcao" then
+			decorarVulcao(info)
+		elseif estilo == "espaco" then
+			decorarEspaco(info)
 		else
 			decorarFloresta(info)
 		end
@@ -1142,7 +1750,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	pasta.Parent = Workspace
 
 	-- tudo no estilo Lego (o que for criado depois nessas pastas também)
-	for _, nome in { "Mapa", "Decoracao", "Montanhas" } do
+	for _, nome in { "Mapa", "Decoracao", "Montanhas", "Paredes" } do
 		local raiz = Workspace:FindFirstChild(nome)
 		if raiz then
 			Blocos.vigiar(raiz)

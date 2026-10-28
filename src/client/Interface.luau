@@ -1,7 +1,8 @@
 -- Telas que ajudam a jogar: barra da Velocidade até o próximo bioma, faixa
 -- "Carregando" com uma trilha de luz até a sua base, e os botões do Índice
--- (todos os Brainrots) e da Ajuda (como jogar).
+-- (todos os Brainrots), da Ajuda (como jogar), do Renascer e do som.
 local Lighting = game:GetService("Lighting")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Sons = require(script.Parent.Sons)
 local Ui = require(script.Parent.Ui)
 
 local criar, cantos, borda, gradiente, texto, pular = Ui.criar, Ui.cantos, Ui.borda, Ui.gradiente, Ui.texto, Ui.pular
@@ -18,7 +20,7 @@ local ROXO_CLARO = Color3.fromRGB(70, 62, 120)
 local ROXO_ESCURO = Color3.fromRGB(36, 30, 66)
 local AMARELO = Color3.fromRGB(255, 230, 120)
 
-local NOME_RARIDADE = { Comum = "Comum", Raro = "Raro", Epico = "Épico", Lendario = "Lendário", Mitico = "Mítico" }
+local NOME_RARIDADE = Config.NOME_RARIDADE
 
 local Interface = {}
 
@@ -91,7 +93,7 @@ local function atualizarBarra(velocidade: number)
 		anterior = bioma.velocidadeMinima
 	end
 	if proximo then
-		tituloBarra.Text = `PRÓXIMO BIOMA: {string.upper(proximo.nome)}`
+		tituloBarra.Text = `PRÓXIMO BIOMA: {Config.maiusculas(proximo.nome)}`
 		local fracao = math.clamp((velocidade - anterior) / (proximo.velocidadeMinima - anterior), 0, 1)
 		TweenService:Create(preenchimento, TweenInfo.new(0.3), { Size = UDim2.fromScale(fracao, 1) }):Play()
 		textoBarra.Text = `⚡ {Config.formatar(velocidade)} / {Config.formatar(proximo.velocidadeMinima)}`
@@ -104,7 +106,7 @@ local function atualizarBarra(velocidade: number)
 	-- o "próximo" mudou: o anterior acabou de ser liberado
 	local nome = if proximo then proximo.nome else "fim"
 	if proximoAnterior and proximoAnterior ~= nome and proximoAnterior ~= "fim" then
-		liberado.Text = `🔓 {string.upper(proximoAnterior)} LIBERADA!`
+		liberado.Text = `🔓 {Config.maiusculas(proximoAnterior)} LIBERADA!`
 		liberado.Visible = true
 		pular(escalaLiberado, 0.3)
 		task.delay(2.5, function()
@@ -355,7 +357,16 @@ criar("UIGridLayout", {
 	SortOrder = Enum.SortOrder.LayoutOrder,
 	Parent = conteudoIndice,
 })
-for ordem, def in Config.BRAINROTS do
+-- do mais comum para o mais raro (e, na mesma raridade, do que rende menos)
+local ordemIndice = table.clone(Config.BRAINROTS)
+table.sort(ordemIndice, function(a, b)
+	local ra, rb = Config.nivelRaridade(a.raridade), Config.nivelRaridade(b.raridade)
+	if ra ~= rb then
+		return ra < rb
+	end
+	return a.renda < b.renda
+end)
+for ordem, def in ordemIndice do
 	local corRaridade = Config.CORES_RARIDADE[def.raridade]
 	local cartao = criar("Frame", {
 		LayoutOrder = ordem,
@@ -396,10 +407,14 @@ local painelAjuda, conteudoAjuda = criarPainel("Ajuda", "❓ COMO JOGAR", Color3
 criar("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = conteudoAjuda })
 local PASSOS = {
 	{ "🏃", "Corra na esteira da sua base para ganhar Velocidade." },
-	{ "🥚", "Vá aos biomas e pegue ovos nos ninhos. Cuidado com o guardião!" },
+	{ "🥚", "Vá aos biomas e pegue ovos nos ninhos. O chefe do bioma corre atrás de você até as bases!" },
 	{ "🏠", "Leve o ovo para a sua base: ele choca e vira um Brainrot que dá dinheiro." },
 	{ "⬆️", "Use o dinheiro para melhorar a esteira e liberar biomas novos." },
+	{ "🔥", "Correndo sem parar na esteira, o fôlego sobe e você ganha até 2x de Velocidade." },
 	{ "😈", "Roube ovos e Brainrots das outras bases, e tranque a sua!" },
+	{ "💰", "Base cheia? Segure E num Brainrot seu para vender." },
+	{ "🔄", "Com bastante dinheiro, renasça: começa de novo, mas ganha mais para sempre." },
+	{ "🛒", "Na Loja tem passes como 2x Dinheiro, 2x Velocidade e Tênis Turbo." },
 }
 for ordem, passo in PASSOS do
 	local linha = criar("Frame", {
@@ -423,18 +438,230 @@ for ordem, passo in PASSOS do
 	})
 end
 
+-- Painel do Renascer ----------------------------------------------------------
+
+local painelRenascer, conteudoRenascer = criarPainel("Renascer", "🔄 RENASCER", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230))
+criar("UIListLayout", {
+	Padding = UDim.new(0, 10),
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Parent = conteudoRenascer,
+})
+
+local function linhaRenascer(ordem: number, altura: number): Frame
+	return criar("Frame", {
+		LayoutOrder = ordem,
+		Size = UDim2.new(1, -12, 0, altura),
+		BackgroundColor3 = BRANCO,
+		ZIndex = 5,
+		Parent = conteudoRenascer,
+	}, { cantos(14), borda(CONTORNO, 2.5), gradiente(Color3.fromRGB(62, 56, 108), Color3.fromRGB(40, 35, 75)) })
+end
+
+local textoVezes = texto({ Text = "", Size = UDim2.new(1, -16, 1, -8), Position = UDim2.fromOffset(8, 4), ZIndex = 6, Parent = linhaRenascer(1, 46) })
+local quadroGanhos = linhaRenascer(2, 92)
+local textoRenda = texto({
+	Text = "",
+	TextColor3 = Color3.fromRGB(130, 255, 130),
+	Size = UDim2.new(1, -16, 0, 38),
+	Position = UDim2.fromOffset(8, 6),
+	ZIndex = 6,
+	Parent = quadroGanhos,
+})
+local textoEsteira = texto({
+	Text = "",
+	TextColor3 = Color3.fromRGB(130, 220, 255),
+	Size = UDim2.new(1, -16, 0, 38),
+	Position = UDim2.fromOffset(8, 48),
+	ZIndex = 6,
+	Parent = quadroGanhos,
+})
+texto({
+	Text = "⚠️ Você perde o dinheiro, a Velocidade, a esteira e tudo da base.",
+	TextColor3 = Color3.fromRGB(255, 170, 170),
+	TextScaled = false,
+	TextSize = 20,
+	TextWrapped = true,
+	Size = UDim2.new(1, -16, 1, -8),
+	Position = UDim2.fromOffset(8, 4),
+	ZIndex = 6,
+	Parent = linhaRenascer(3, 54),
+})
+-- barra do dinheiro até o preço
+local quadroPreco = linhaRenascer(4, 50)
+local trilhoPreco = criar("Frame", {
+	Position = UDim2.fromOffset(10, 10),
+	Size = UDim2.new(1, -20, 1, -20),
+	BackgroundColor3 = Color3.fromRGB(15, 12, 30),
+	ClipsDescendants = true,
+	ZIndex = 6,
+	Parent = quadroPreco,
+}, { cantos(12) })
+local enchimentoPreco = criar("Frame", {
+	Size = UDim2.fromScale(0, 1),
+	BackgroundColor3 = BRANCO,
+	ZIndex = 6,
+	Parent = trilhoPreco,
+}, { cantos(12), gradiente(Color3.fromRGB(255, 230, 120), Color3.fromRGB(240, 150, 30)) })
+local textoPreco = texto({ Text = "", Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = trilhoPreco })
+
+local botaoRenascer = criar("TextButton", {
+	LayoutOrder = 5,
+	Size = UDim2.fromOffset(280, 60),
+	BackgroundColor3 = BRANCO,
+	Text = "",
+	AutoButtonColor = false,
+	ZIndex = 6,
+	Parent = conteudoRenascer,
+}, { cantos(18), borda(CONTORNO, 3.5) })
+local gradienteBotao = gradiente(Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230))
+gradienteBotao.Parent = botaoRenascer
+local escalaBotao = criar("UIScale", { Parent = botaoRenascer })
+local textoBotao = texto({ Text = "RENASCER", Size = UDim2.new(1, -20, 1, -16), Position = UDim2.fromOffset(10, 8), ZIndex = 7, Parent = botaoRenascer })
+
+local podeRenascer = false
+local function atualizarRenascer()
+	local stats = jogador:FindFirstChild("leaderstats")
+	local vezesValor = stats and stats:FindFirstChild("Renascimentos")
+	local dinheiroValor = stats and stats:FindFirstChild("Dinheiro")
+	if not (vezesValor and dinheiroValor) then
+		return
+	end
+	local vezes = (vezesValor :: IntValue).Value
+	local dinheiro = (dinheiroValor :: IntValue).Value
+	textoVezes.Text = `Renascimentos: {vezes} / {Config.RENASCER.maximo}`
+	if vezes >= Config.RENASCER.maximo then
+		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x`
+		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x`
+		textoPreco.Text = "MÁXIMO!"
+		enchimentoPreco.Size = UDim2.fromScale(1, 1)
+		podeRenascer = false
+	else
+		local preco = Config.precoRenascer(vezes)
+		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x → {Config.multiplicadorRenda(vezes + 1)}x`
+		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x → {Config.multiplicadorEsteira(vezes + 1)}x`
+		textoPreco.Text = `${Config.formatar(dinheiro)} / ${Config.formatar(preco)}`
+		enchimentoPreco.Size = UDim2.fromScale(math.clamp(dinheiro / preco, 0, 1), 1)
+		podeRenascer = dinheiro >= preco
+	end
+	textoBotao.Text = if podeRenascer then "RENASCER!" else "FALTA DINHEIRO"
+	gradienteBotao.Color = if podeRenascer
+		then ColorSequence.new(Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230))
+		else ColorSequence.new(Color3.fromRGB(130, 125, 150), Color3.fromRGB(80, 75, 100))
+end
+
+botaoRenascer.Activated:Connect(function()
+	pular(escalaBotao, 0.85)
+	if not podeRenascer then
+		Sons.tocar("Erro")
+		return
+	end
+	local evento = ReplicatedStorage:WaitForChild("Remotes"):FindFirstChild("Renascer")
+	if evento then
+		(evento :: RemoteEvent):FireServer()
+	end
+	fecharPainel()
+end)
+
+-- Loja de gamepasses ---------------------------------------------------------
+
+local painelLoja, conteudoLoja = criarPainel("Loja", "🛒 LOJA", Color3.fromRGB(120, 230, 140), Color3.fromRGB(20, 150, 110))
+criar("UIGridLayout", {
+	CellSize = UDim2.fromOffset(196, 210),
+	CellPadding = UDim2.fromOffset(10, 10),
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Parent = conteudoLoja,
+})
+
+type CartaoLoja = { passe: any, botao: TextButton, texto: TextLabel, gradiente: UIGradient, preco: string? }
+local cartoesLoja: { CartaoLoja } = {}
+
+local function atualizarCartaoLoja(cartao: CartaoLoja)
+	local passe = cartao.passe
+	local tem = jogador:GetAttribute(`Pass_{passe.chave}`) == true
+	if tem then
+		cartao.texto.Text = "✅ VOCÊ TEM"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(130, 125, 150), Color3.fromRGB(80, 75, 100))
+	elseif passe.id == 0 then
+		cartao.texto.Text = "EM BREVE"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(130, 125, 150), Color3.fromRGB(80, 75, 100))
+	else
+		cartao.texto.Text = if cartao.preco then `R$ {cartao.preco}` else "COMPRAR"
+		cartao.gradiente.Color = ColorSequence.new(Color3.fromRGB(120, 255, 130), Color3.fromRGB(30, 170, 70))
+	end
+end
+
+for ordem, passe in Config.GAMEPASSES do
+	local quadro = criar("Frame", {
+		LayoutOrder = ordem,
+		BackgroundColor3 = BRANCO,
+		ZIndex = 5,
+		Parent = conteudoLoja,
+	}, { cantos(16), borda(Color3.fromRGB(255, 215, 80), 3.5), gradiente(Color3.fromRGB(62, 56, 108), Color3.fromRGB(32, 28, 60)) })
+	texto({ Text = passe.icone, Position = UDim2.new(0.5, -30, 0, 8), Size = UDim2.fromOffset(60, 56), ZIndex = 6, Parent = quadro })
+	texto({ Text = passe.nome, TextColor3 = Color3.fromRGB(255, 225, 120), Position = UDim2.fromOffset(8, 66), Size = UDim2.new(1, -16, 0, 26), ZIndex = 6, Parent = quadro })
+	texto({
+		Text = passe.descricao,
+		TextScaled = false,
+		TextSize = 16,
+		TextWrapped = true,
+		Position = UDim2.fromOffset(10, 94),
+		Size = UDim2.new(1, -20, 0, 58),
+		ZIndex = 6,
+		Parent = quadro,
+	})
+	local botaoCompra = criar("TextButton", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -10),
+		Size = UDim2.new(1, -24, 0, 42),
+		BackgroundColor3 = BRANCO,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 6,
+		Parent = quadro,
+	}, { cantos(12), borda(CONTORNO, 3) })
+	local gradienteCompra = gradiente(Color3.fromRGB(120, 255, 130), Color3.fromRGB(30, 170, 70))
+	gradienteCompra.Parent = botaoCompra
+	local textoCompra = texto({ Text = "", Size = UDim2.new(1, -12, 1, -10), Position = UDim2.fromOffset(6, 5), ZIndex = 7, Parent = botaoCompra })
+	local cartao: CartaoLoja = { passe = passe, botao = botaoCompra, texto = textoCompra, gradiente = gradienteCompra, preco = nil }
+	table.insert(cartoesLoja, cartao)
+	atualizarCartaoLoja(cartao)
+	jogador:GetAttributeChangedSignal(`Pass_{passe.chave}`):Connect(function()
+		atualizarCartaoLoja(cartao)
+	end)
+	botaoCompra.Activated:Connect(function()
+		if passe.id ~= 0 and not jogador:GetAttribute(`Pass_{passe.chave}`) then
+			MarketplaceService:PromptGamePassPurchase(jogador, passe.id)
+		end
+	end)
+	-- preço em Robux, do Creator Dashboard
+	if passe.id ~= 0 then
+		task.spawn(function()
+			local ok, info = pcall(function()
+				return MarketplaceService:GetProductInfo(passe.id, Enum.InfoType.GamePass)
+			end)
+			if ok and info and info.PriceInRobux then
+				cartao.preco = tostring(info.PriceInRobux)
+				atualizarCartaoLoja(cartao)
+			end
+		end)
+	end
+end
+
 -- Botões do lado direito ----------------------------------------------------
 
 local menu = criar("Frame", {
 	Name = "Menu",
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -14, 0.45, 0),
-	Size = UDim2.fromOffset(84, 184),
+	Size = UDim2.fromOffset(84, 468),
 	BackgroundTransparency = 1,
 	Parent = tela,
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
-local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, painel: Frame)
+-- "acao" é um painel para abrir ou uma função para chamar.
+local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, acao: Frame | (() -> ())): TextLabel
 	local b = criar("TextButton", {
 		Name = legenda,
 		LayoutOrder = ordem,
@@ -452,7 +679,7 @@ local function botao(ordem: number, icone: string, legenda: string, cima: Color3
 		BackgroundTransparency = 0.75,
 		Parent = b,
 	}, { cantos(14) })
-	texto({ Text = icone, Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(52, 48), Parent = b })
+	local textoIcone = texto({ Text = icone, Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(52, 48), Parent = b })
 	texto({ Text = legenda, Position = UDim2.new(0, 4, 1, -28), Size = UDim2.new(1, -8, 0, 24), Parent = b })
 	b.MouseEnter:Connect(function()
 		TweenService:Create(escala, TweenInfo.new(0.15), { Scale = 1.08 }):Play()
@@ -462,12 +689,26 @@ local function botao(ordem: number, icone: string, legenda: string, cima: Color3
 	end)
 	b.Activated:Connect(function()
 		pular(escala, 0.85)
-		abrirPainel(painel)
+		if typeof(acao) == "function" then
+			acao()
+		else
+			abrirPainel(acao)
+		end
 	end)
+	return textoIcone
 end
 
 botao(1, "📖", "Índice", Color3.fromRGB(255, 210, 80), Color3.fromRGB(240, 120, 40), painelIndice)
 botao(2, "❓", "Ajuda", Color3.fromRGB(130, 235, 150), Color3.fromRGB(30, 160, 90), painelAjuda)
+botao(3, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230), function()
+	atualizarRenascer()
+	abrirPainel(painelRenascer)
+end)
+botao(4, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
+local iconeSom: TextLabel
+iconeSom = botao(5, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
+	iconeSom.Text = if Sons.alternar() then "🔇" else "🔊"
+end)
 
 function Interface.iniciar()
 	jogador:GetAttributeChangedSignal("Carregando"):Connect(atualizarCarga)
@@ -478,6 +719,17 @@ function Interface.iniciar()
 	if jogador.Character then
 		task.spawn(aoNascer, jogador.Character)
 	end
+
+	task.spawn(function()
+		local stats = jogador:WaitForChild("leaderstats")
+		for _, nome in { "Dinheiro", "Renascimentos" } do
+			(stats:WaitForChild(nome) :: IntValue).Changed:Connect(function()
+				if painelRenascer.Visible then
+					atualizarRenascer()
+				end
+			end)
+		end
+	end)
 
 	task.spawn(function()
 		local stats = jogador:WaitForChild("leaderstats")

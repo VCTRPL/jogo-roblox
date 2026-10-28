@@ -9,3 +9,6 @@
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Modelos baixados do Sketchfab (grandes; veja docs/modelos-sketchfab.md)
+ferramentas/glb/

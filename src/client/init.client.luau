@@ -1,5 +1,6 @@
--- Script do cliente: mostra os avisos na tela, esconde o botão
--- "Roubar" dos seus próprios Verities e anima as esteiras.
+-- Script do cliente: liga a tela, os sons e os efeitos, esconde o botão
+-- "Roubar" dos seus próprios Brainrots (e o "Vender" dos dos outros) e
+-- anima as esteiras.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,11 +8,15 @@ local Workspace = game:GetService("Workspace")
 
 local jogador = Players.LocalPlayer
 
--- Tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice e Ajuda)
--- e efeitos visuais (ovo chocando e corrida na esteira) ---------------------
+-- Sons, tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice,
+-- Ajuda e Renascer) e efeitos visuais (ovos, corrida na esteira) ------------
 
+require(script.Sons).iniciar()
 require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
+require(script.OvosVfx).iniciar()
+require(script.Chefes).iniciar()
+require(script.Ambiente).iniciar()
 require(script.Interface).iniciar()
 require(script.Corrida).iniciar()
 local Prompts = require(script.Prompts)
@@ -26,6 +31,11 @@ local function verificarPrompt(objeto: Instance)
 	if objeto:IsA("ProximityPrompt") and objeto:GetAttribute("DonoId") == jogador.UserId then
 		-- Mudança só no seu computador: os outros jogadores continuam vendo o botão.
 		objeto.MaxActivationDistance = 0
+	end
+	-- "Vender" é só para o dono: some para os outros jogadores.
+	local soDono = objeto:IsA("ProximityPrompt") and objeto:GetAttribute("SoDonoId")
+	if soDono and soDono ~= jogador.UserId then
+		(objeto :: ProximityPrompt).MaxActivationDistance = 0
 	end
 end
 

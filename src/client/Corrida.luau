@@ -1,7 +1,8 @@
 -- Efeitos de quem está correndo na esteira: riscos de vento passando pelo
--- corpo, faíscas saindo dos pés, uma luz na cor da esteira e, para você,
--- "+Velocidade" pulando e a câmera abrindo um pouco. Também faz as luzes
--- das esteiras pulsarem. Tudo só neste computador.
+-- corpo, faíscas saindo dos pés, rastro e uma luz na cor da esteira e, para
+-- você, "+Velocidade" pulando, linhas de velocidade na tela, a barra do
+-- fôlego e a câmera abrindo um pouco. Também faz as luzes das esteiras
+-- pulsarem. Tudo só neste computador.
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
@@ -97,7 +98,40 @@ local function ligar(player: Player)
 	luz.Brightness = 1.5
 	luz.Parent = raiz
 
-	ativos[player] = { pecas = { corpo, pes, luz } }
+	-- rastro atrás do corpo (as pernas "ficam" para trás, como em desenho)
+	local cima = Instance.new("Attachment")
+	cima.Name = "CorridaRastroCima"
+	cima.Position = Vector3.new(0, 1, 0.6)
+	cima.Parent = raiz
+	local baixo = Instance.new("Attachment")
+	baixo.Name = "CorridaRastroBaixo"
+	baixo.Position = Vector3.new(0, -2.4, 0.6)
+	baixo.Parent = raiz
+	local rastro = Instance.new("Trail")
+	rastro.Attachment0 = cima
+	rastro.Attachment1 = baixo
+	rastro.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
+	rastro.Transparency = NumberSequence.new(0.55, 1)
+	rastro.LightEmission = 0.7
+	rastro.Lifetime = 0.25
+	rastro.FaceCamera = true
+	rastro.Parent = raiz
+	-- na esteira o corpo fica parado, então o rastro é empurrado para trás pelo vento
+	local vel = Instance.new("ParticleEmitter")
+	vel.Texture = FAISCA
+	vel.Color = ColorSequence.new(cor)
+	vel.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0.1) })
+	vel.Transparency = NumberSequence.new(0.6, 1)
+	vel.Squash = NumberSequence.new(-1.5)
+	vel.EmissionDirection = Enum.NormalId.Back
+	vel.Speed = NumberRange.new(14, 18)
+	vel.SpreadAngle = Vector2.new(4, 20)
+	vel.Lifetime = NumberRange.new(0.15, 0.25)
+	vel.Rate = 12 + nivel * 4
+	vel.LightEmission = 0.8
+	vel.Parent = baixo
+
+	ativos[player] = { pecas = { corpo, pes, luz, cima, baixo, rastro } }
 end
 
 -- Na esteira o personagem fica parado no lugar, então a corrida é uma
@@ -139,6 +173,97 @@ local botaoSair = Ui.criar("TextButton", {
 }, { Ui.cantos(18), Ui.borda(Ui.CONTORNO, 3.5), Ui.gradiente(Color3.fromRGB(255, 120, 120), Color3.fromRGB(210, 40, 60)) })
 Ui.texto({ Text = "SAIR DA ESTEIRA", Position = UDim2.fromOffset(12, 10), Size = UDim2.new(1, -24, 1, -20), Parent = botaoSair })
 
+-- Barra do fôlego em cima do botão "Sair".
+local quadroFolego = Ui.criar("Frame", {
+	Name = "Folego",
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -100),
+	Size = UDim2.fromOffset(300, 46),
+	BackgroundColor3 = Ui.BRANCO,
+	Visible = false,
+	Parent = tela,
+}, { Ui.cantos(14), Ui.borda(Ui.CONTORNO, 3), Ui.gradiente(Color3.fromRGB(70, 62, 120), Color3.fromRGB(36, 30, 66)) })
+local escalaFolego = Ui.criar("UIScale", { Parent = quadroFolego })
+local trilhoFolego = Ui.criar("Frame", {
+	Position = UDim2.fromOffset(8, 8),
+	Size = UDim2.new(1, -16, 1, -16),
+	BackgroundColor3 = Color3.fromRGB(15, 12, 30),
+	ClipsDescendants = true,
+	Parent = quadroFolego,
+}, { Ui.cantos(10) })
+local enchimentoFolego = Ui.criar("Frame", {
+	Size = UDim2.fromScale(0, 1),
+	BackgroundColor3 = Ui.BRANCO,
+	Parent = trilhoFolego,
+}, { Ui.cantos(10), Ui.gradiente(Color3.fromRGB(255, 220, 90), Color3.fromRGB(255, 90, 40)) })
+local textoFolego = Ui.texto({ Text = "", Size = UDim2.fromScale(1, 1), ZIndex = 2, Parent = trilhoFolego })
+local folegoMostrado = 1
+
+local function atualizarFolego()
+	local folego = jogador:GetAttribute("Folego") or 1
+	local fracao = math.clamp((folego - 1) / (Config.FOLEGO_MAXIMO - 1), 0, 1)
+	TweenService:Create(enchimentoFolego, TweenInfo.new(0.4), { Size = UDim2.fromScale(fracao, 1) }):Play()
+	textoFolego.Text = if fracao >= 1 then `🔥 FÔLEGO MÁXIMO {folego}x!` else `🔥 FÔLEGO {folego}x`
+	if folego > folegoMostrado and math.floor(folego * 2) > math.floor(folegoMostrado * 2) then
+		Ui.pular(escalaFolego, 1.15) -- pula a cada meio "x"
+	end
+	folegoMostrado = folego
+end
+jogador:GetAttributeChangedSignal("Folego"):Connect(atualizarFolego)
+
+-- Linhas de velocidade passando pelas bordas da tela enquanto você corre.
+local telaLinhas = Ui.criar("ScreenGui", {
+	Name = "LinhasVelocidade",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = -1,
+	Parent = jogador:WaitForChild("PlayerGui"),
+})
+type Linha = { quadro: Frame, angulo: number, inicio: number, duracao: number }
+local linhas: { Linha } = {}
+for _ = 1, 26 do
+	local quadro = Ui.criar("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Ui.BRANCO,
+		BorderSizePixel = 0,
+		BackgroundTransparency = 1,
+		Parent = telaLinhas,
+	})
+	table.insert(linhas, { quadro = quadro, angulo = 0, inicio = -10, duracao = 0.3 })
+end
+
+local function animarLinhas()
+	local correndo = jogador:GetAttribute("NaEsteira") == true
+	local agora = os.clock()
+	local nivel = jogador:GetAttribute("NivelEsteira") or 1
+	local folego = jogador:GetAttribute("Folego") or 1
+	-- mais linhas e mais fortes com esteira melhor e mais fôlego
+	local ativas = if correndo then math.floor(6 + nivel * 2 + (folego - 1) * 8) else 0
+	local cor = corDa(jogador)
+	for i, linha in linhas do
+		local quadro = linha.quadro
+		if i > ativas then
+			quadro.BackgroundTransparency = 1
+			continue
+		end
+		local t = (agora - linha.inicio) / linha.duracao
+		if t >= 1 then
+			-- nova linha num ângulo qualquer, perto da borda da tela
+			linha.angulo = math.random() * math.pi * 2
+			linha.inicio = agora
+			linha.duracao = 0.18 + math.random() * 0.2
+			quadro.BackgroundColor3 = if math.random() < 0.5 then Ui.BRANCO else cor:Lerp(Ui.BRANCO, 0.5)
+			t = 0
+		end
+		-- anda de fora para dentro e some
+		local distancia = 0.75 - t * 0.25
+		quadro.Position = UDim2.fromScale(0.5 + math.cos(linha.angulo) * distancia, 0.5 + math.sin(linha.angulo) * distancia)
+		quadro.Rotation = math.deg(linha.angulo)
+		quadro.Size = UDim2.new(0, 140 + nivel * 15, 0, 3)
+		quadro.BackgroundTransparency = 0.35 + t * 0.65
+	end
+end
+
 local function pedirSaida()
 	if jogador:GetAttribute("NaEsteira") then
 		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -159,6 +284,11 @@ local function atualizar(player: Player)
 	if player == jogador then
 		local naEsteira = player:GetAttribute("NaEsteira") == true
 		botaoSair.Visible = naEsteira
+		quadroFolego.Visible = naEsteira
+		if naEsteira then
+			folegoMostrado = 1
+			atualizarFolego()
+		end
 		animarCorrida(naEsteira)
 		local camera = Workspace.CurrentCamera
 		if camera then
@@ -241,6 +371,7 @@ function Corrida.iniciar()
 	CollectionService:GetInstanceRemovedSignal("PulsarEsteira"):Connect(function(parte)
 		base[parte :: BasePart] = nil
 	end)
+	RunService.RenderStepped:Connect(animarLinhas)
 	RunService.RenderStepped:Connect(function()
 		local agora = os.clock()
 		for _, parte in CollectionService:GetTagged("PulsarEsteira") do

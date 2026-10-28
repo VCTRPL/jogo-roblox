@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Sons = require(script.Parent.Sons)
 
 local Efeitos = {}
 
@@ -22,7 +23,7 @@ local ARCO_IRIS = ColorSequence.new({
 })
 
 -- quantas faíscas cada raridade solta
-local FAISCAS = { Comum = 25, Raro = 45, Epico = 70, Lendario = 110, Mitico = 160 }
+local FAISCAS = { Comum = 25, Raro = 45, Epico = 70, Lendario = 110, Mitico = 160, Secreto = 220 }
 
 local pasta = Instance.new("Folder")
 pasta.Name = "Efeitos"
@@ -213,14 +214,14 @@ local function chocou(dados)
 	luz.Parent = centro
 	TweenService:Create(luz, TweenInfo.new(1), { Brightness = 0 }):Play()
 
-	if dados.raridade == "Lendario" or dados.raridade == "Mitico" or mutacao.cor then
+	if Config.nivelRaridade(dados.raridade) >= Config.nivelRaridade("Lendario") or mutacao.cor then
 		coluna(posicao, mutacao.cor or corRaridade)
 		task.delay(0.25, onda, posicao, corRaridade, 28)
 	end
 
 	local linhas = { { "NASCEU!", corRaridade } }
 	if mutacao.cor then
-		table.insert(linhas, { string.upper(mutacao.nome) .. "!", mutacao.cor })
+		table.insert(linhas, { Config.maiusculas(mutacao.nome) .. "!", mutacao.cor })
 	end
 	if dados.ganho and dados.ganho > 0 then
 		table.insert(linhas, { `+${Config.formatar(dados.ganho)}`, Color3.fromRGB(120, 255, 120) })
@@ -228,8 +229,105 @@ local function chocou(dados)
 	letreiro(centro, linhas)
 end
 
+-- Ponto invisível que segura partículas, luz e letreiro e some sozinho.
+local function centroEm(posicao: Vector3, duracao: number): Part
+	local centro = peca({ Name = "Efeito", Transparency = 1, Size = Vector3.one, Position = posicao })
+	Debris:AddItem(centro, duracao)
+	return centro
+end
+
+local DOURADO = Color3.fromRGB(255, 215, 70)
+local VERDE = Color3.fromRGB(120, 255, 120)
+
+-- Vendeu um Brainrot: chuva de moedas douradas e o valor subindo.
+local function vendeu(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local centro = centroEm(posicao + Vector3.new(0, 2, 0), 3)
+	explodir(centro, ColorSequence.new(DOURADO, Color3.fromRGB(255, 250, 200)), 50, {
+		Speed = NumberRange.new(10, 22),
+		Acceleration = Vector3.new(0, -35, 0),
+		Drag = 1,
+	})
+	onda(posicao, DOURADO, 14)
+	letreiro(centro, { { "VENDIDO!", DOURADO }, { `+${Config.formatar(dados.ganho or 0)}`, VERDE } })
+end
+
+-- Pegou um ovo do ninho ou de uma base.
+local function pegou(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local cor = Config.CORES_RARIDADE[dados.raridade] or Color3.new(1, 1, 1)
+	local centro = centroEm(posicao, 2)
+	explodir(centro, ColorSequence.new(cor, Color3.new(1, 1, 1)), 18 + Config.nivelRaridade(dados.raridade) * 6, {
+		Speed = NumberRange.new(8, 16),
+	})
+	onda(posicao - Vector3.new(0, 2.5, 0), cor, 10)
+end
+
+-- O guardião pegou alguém: estrelinhas tontas e uma nuvem de poeira.
+local function derrubado(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local centro = centroEm(posicao + Vector3.new(0, 2, 0), 3)
+	explodir(centro, ColorSequence.new(Color3.fromRGB(255, 240, 120)), 20, { Speed = NumberRange.new(4, 9), Acceleration = Vector3.zero })
+	explodir(centro, ColorSequence.new(Color3.fromRGB(210, 190, 160)), 10, {
+		Texture = FUMACA,
+		LightEmission = 0,
+		Speed = NumberRange.new(3, 6),
+		Transparency = NumberSequence.new(0.3, 1),
+		Size = NumberSequence.new(2, 5),
+		Acceleration = Vector3.new(0, 2, 0),
+	})
+	letreiro(centro, { { "💫 PEGO!", Color3.fromRGB(255, 120, 120) } })
+end
+
+-- Esteira subiu de nível: ondas e coluna de luz na cor do nível novo.
+local function esteiraNova(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local nivel = Config.NIVEIS_ESTEIRA[dados.nivel]
+	local cor = if nivel then nivel.cor else Color3.new(1, 1, 1)
+	local centro = centroEm(posicao + Vector3.new(0, 3, 0), 3)
+	onda(posicao, cor, 22)
+	task.delay(0.15, onda, posicao, Color3.new(1, 1, 1), 30)
+	coluna(posicao, cor)
+	letreiro(centro, { { `NÍVEL {dados.nivel}!`, cor }, { if nivel then Config.maiusculas(nivel.nome) else "", Color3.new(1, 1, 1) } })
+end
+
+-- Renasceu: arco-íris subindo e ondas em sequência.
+local function renasceu(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local centro = centroEm(posicao + Vector3.new(0, 3, 0), 4)
+	explodir(centro, ARCO_IRIS, 200, { Speed = NumberRange.new(18, 40), Lifetime = NumberRange.new(1, 2) })
+	for i = 0, 3 do
+		task.delay(i * 0.18, onda, posicao, Color3.fromHSV(i / 4, 0.7, 1), 20 + i * 10)
+	end
+	coluna(posicao, Color3.fromRGB(255, 215, 80))
+	letreiro(centro, { { "RENASCEU!", DOURADO } })
+end
+
 local efeitos: { [string]: (any) -> () } = {
 	Chocou = chocou,
+	Vendeu = vendeu,
+	Pegou = pegou,
+	Derrubado = derrubado,
+	EsteiraNova = esteiraNova,
+	Renasceu = renasceu,
+	Som = function(dados)
+		Sons.tocar(dados.nome, dados.posicao)
+	end,
 }
 
 function Efeitos.iniciar()

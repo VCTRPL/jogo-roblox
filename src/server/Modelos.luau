@@ -1,4 +1,5 @@
 -- Cria os modelos 3D de ovos e Brainrots, com placa de informações e um ProximityPrompt.
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -38,7 +39,7 @@ local function bola(modelo: Model, nome: string, diametro: number, cf: CFrame, c
 end
 
 -- Brilhos subindo em volta do item, mais fortes quanto mais raro.
-local BRILHO_RARIDADE = { Comum = 0, Raro = 3, Epico = 5, Lendario = 8, Mitico = 12 }
+local BRILHO_RARIDADE = { Comum = 0, Raro = 3, Epico = 5, Lendario = 8, Mitico = 12, Secreto = 16 }
 
 local function brilhar(parte: BasePart, cor: Color3, quantidade: number)
 	if quantidade <= 0 then
@@ -109,6 +110,95 @@ local ENFEITES = {
 			peca(modelo, "Dente", Vector3.new(0.25, 0.4, 0.25), cabeca.CFrame * CFrame.new(x, -0.9, -2.4), Color3.new(1, 1, 1))
 		end
 	end,
+	Ambalabu = function(modelo: Model, cabeca: Part)
+		-- sapo dentro de um pneu, com pernas de gente
+		for i = 0, 7 do
+			local giro = CFrame.Angles(0, math.rad(i * 45), 0)
+			peca(modelo, "Pneu", Vector3.new(1.6, 1.4, 0.9), CFrame.new(0, -0.6, 0) * giro * CFrame.new(0, 0, -2.1), Color3.fromRGB(30, 30, 34))
+		end
+		peca(modelo, "Boca", Vector3.new(2.2, 0.3, 0.4), cabeca.CFrame * CFrame.new(0, -0.6, -1.25), Color3.fromRGB(200, 60, 80))
+		for _, perna in modelo:GetChildren() do
+			if perna.Name == "Perna" then
+				(perna :: Part).Color = Color3.fromRGB(240, 200, 160)
+			end
+		end
+	end,
+	Trippi = function(modelo: Model, cabeca: Part)
+		-- camarão com cara de gato: orelhas, bigodes e o rabo em gomos
+		for _, x in { -0.8, 0.8 } do
+			peca(modelo, "Orelha", Vector3.new(0.7, 0.9, 0.4), cabeca.CFrame * CFrame.new(x, 1.5, 0), cabeca.Color)
+			peca(modelo, "Bigode", Vector3.new(1.2, 0.1, 0.1), cabeca.CFrame * CFrame.new(x * 1.3, -0.4, -1.2), Color3.new(1, 1, 1))
+			peca(modelo, "Antena", Vector3.new(0.15, 2.4, 0.15), cabeca.CFrame * CFrame.new(x * 0.4, 2.2, 0.6) * CFrame.Angles(math.rad(-25), 0, 0), Color3.fromRGB(255, 120, 90))
+		end
+		for i = 1, 4 do
+			local tamanho = 1.6 - i * 0.25
+			peca(modelo, "Rabo", Vector3.new(tamanho * 1.4, tamanho, tamanho), CFrame.new(0, -1 - i * 0.3, 1 + i * 0.9), Color3.fromRGB(255, 150 - i * 10, 120))
+		end
+	end,
+	Frigo = function(modelo: Model, cabeca: Part)
+		-- geladeira com cabeça de camelo: porta, puxador e duas corcovas
+		peca(modelo, "Porta", Vector3.new(3.05, 0.12, 2.05), CFrame.new(0, 0.5, 0), Color3.fromRGB(170, 175, 185))
+		peca(modelo, "Puxador", Vector3.new(0.25, 1.4, 0.3), CFrame.new(1, 1, -1.1), Color3.fromRGB(150, 155, 165))
+		for i, z in { 0.2, 1.1 } do
+			peca(modelo, "Corcova", Vector3.new(1.6, 1.2 - i * 0.2, 1), CFrame.new(0, 2.1, z), Color3.fromRGB(200, 160, 100))
+		end
+		peca(modelo, "Focinho", Vector3.new(1.4, 1, 1.6), cabeca.CFrame * CFrame.new(0, -0.4, -1.4), cabeca.Color)
+		for _, perna in modelo:GetChildren() do
+			if perna.Name == "Perna" then
+				(perna :: Part).Color = Color3.fromRGB(110, 70, 40) -- botas
+			end
+		end
+	end,
+	Glorbo = function(modelo: Model, cabeca: Part)
+		-- melancia com focinho de crocodilo: listras e sementes
+		for i = -1, 1 do
+			peca(modelo, "Listra", Vector3.new(0.4, 3.45, 2.05), CFrame.new(i * 0.9, 0, 0), Color3.fromRGB(30, 100, 40))
+		end
+		peca(modelo, "Focinho", Vector3.new(1.8, 0.9, 2.2), cabeca.CFrame * CFrame.new(0, -0.4, -1.8), cabeca.Color)
+		for _, x in { -0.6, 0, 0.6 } do
+			peca(modelo, "Semente", Vector3.new(0.2, 0.35, 0.15), cabeca.CFrame * CFrame.new(x, 0.9, -1.2), Color3.fromRGB(25, 25, 25))
+			peca(modelo, "Dente", Vector3.new(0.25, 0.35, 0.25), cabeca.CFrame * CFrame.new(x, -0.95, -2.7), Color3.new(1, 1, 1))
+		end
+	end,
+	Cocofanto = function(modelo: Model, cabeca: Part)
+		-- coco com cabeça de elefante: orelhas grandes e tromba
+		for _, x in { -1, 1 } do
+			peca(modelo, "Orelha", Vector3.new(0.3, 2.2, 2), cabeca.CFrame * CFrame.new(x * 1.6, 0, 0.2) * CFrame.Angles(0, math.rad(x * 20), 0), cabeca.Color:Lerp(Color3.fromRGB(255, 180, 190), 0.25))
+		end
+		for i = 1, 3 do
+			peca(modelo, "Tromba", Vector3.new(0.7, 0.7, 0.9), cabeca.CFrame * CFrame.new(0, -0.4 - i * 0.55, -1.3 - i * 0.25), cabeca.Color)
+		end
+		peca(modelo, "Pelos", Vector3.new(3.1, 0.4, 2.1), CFrame.new(0, 1.6, 0), Color3.fromRGB(80, 55, 35))
+	end,
+	Gusini = function(modelo: Model, cabeca: Part)
+		-- ganso bombardeiro: bico laranja, asas de avião e bombas
+		peca(modelo, "Bico", Vector3.new(1, 0.5, 1.6), cabeca.CFrame * CFrame.new(0, -0.3, -1.6), Color3.fromRGB(255, 150, 40))
+		peca(modelo, "Asas", Vector3.new(8.5, 0.4, 2), CFrame.new(0, 0.6, 0.2), Color3.fromRGB(110, 120, 100))
+		for _, x in { -3, 3 } do
+			peca(modelo, "Bomba", Vector3.new(0.8, 0.8, 1.8), CFrame.new(x, -0.1, 0.2), Color3.fromRGB(50, 55, 50))
+			peca(modelo, "Helice", Vector3.new(1.8, 0.2, 0.15), CFrame.new(x * 0.6, 0.6, -1.2), Color3.fromRGB(60, 60, 65))
+		end
+	end,
+	Svinino = function(modelo: Model, cabeca: Part)
+		-- porquinho com cabeça de bomba: pavio aceso, focinho e orelhas
+		peca(modelo, "Pavio", Vector3.new(0.25, 0.9, 0.25), cabeca.CFrame * CFrame.new(0, 1.8, 0), Color3.fromRGB(200, 180, 140))
+		peca(modelo, "Faisca", Vector3.new(0.5, 0.5, 0.5), cabeca.CFrame * CFrame.new(0, 2.4, 0), Color3.fromRGB(255, 200, 40), { Material = Enum.Material.Neon })
+		peca(modelo, "Focinho", Vector3.new(1.2, 0.8, 0.5), cabeca.CFrame * CFrame.new(0, -0.5, -1.4), Color3.fromRGB(255, 150, 175))
+		for _, x in { -0.9, 0.9 } do
+			peca(modelo, "Orelha", Vector3.new(0.7, 0.7, 0.3), cabeca.CFrame * CFrame.new(x, 1.3, -0.2), Color3.fromRGB(255, 170, 190))
+		end
+	end,
+	Udin = function(modelo: Model, cabeca: Part)
+		-- o dançarino laranja: cabelo espetado, sorrisão e auréola de neon
+		for i = -1, 1 do
+			peca(modelo, "Cabelo", Vector3.new(0.6, 1.2, 0.6), cabeca.CFrame * CFrame.new(i * 0.7, 1.6, 0) * CFrame.Angles(0, 0, math.rad(-i * 20)), Color3.fromRGB(255, 120, 20))
+		end
+		peca(modelo, "Sorriso", Vector3.new(1.6, 0.4, 0.3), cabeca.CFrame * CFrame.new(0, -0.6, -1.3), Color3.fromRGB(120, 30, 40))
+		for i = 0, 7 do
+			local giro = CFrame.Angles(0, math.rad(i * 45), 0)
+			peca(modelo, "Aureola", Vector3.new(0.9, 0.2, 0.25), cabeca.CFrame * CFrame.new(0, 2.6, 0) * giro * CFrame.new(0, 0, -1.1), Color3.fromRGB(255, 240, 150), { Material = Enum.Material.Neon })
+		end
+	end,
 }
 
 local function bonecoBrainrot(def, mutacao): Model
@@ -149,8 +239,8 @@ local function bonecoBrainrot(def, mutacao): Model
 	end
 	brilhar(corpo, corBrilho, quantidade)
 
-	-- Lendários e Míticos ganham um anel de luz nos pés
-	if def.raridade == "Lendario" or def.raridade == "Mitico" then
+	-- Lendários (e acima) ganham um anel de luz nos pés
+	if Config.nivelRaridade(def.raridade) >= Config.nivelRaridade("Lendario") then
 		local anel = peca(modelo, "Aura", Vector3.new(0.2, 5, 5), CFrame.new(0, -3.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Config.CORES_RARIDADE[def.raridade], {
 			Shape = Enum.PartType.Cylinder,
 			Material = Enum.Material.Neon,
@@ -224,6 +314,88 @@ local function doStudio(pastaNome: string, id: string): Model?
 		modelo:Destroy()
 		return nil
 	end
+	return modelo
+end
+
+-- Brainrots de blocos Lego feitos a partir dos modelos do Sketchfab
+-- (ferramentas/voxelizar.py gera um módulo em Lego/<id>.luau). O modelo é
+-- montado uma vez e guardado; cada Brainrot novo é uma cópia.
+local PASTA_LEGO = script.Parent:FindFirstChild("Lego")
+local ALTURA_LEGO = 7 -- mais ou menos a altura do boneco padrão
+local COMPRIMENTO_LEGO = 8.5 -- bichos compridos (avião, tubarão) não passam disto
+local moldesLego: { [string]: Model } = {}
+
+local function moldeLego(id: string): Model?
+	if moldesLego[id] then
+		return moldesLego[id]
+	end
+	local modulo = PASTA_LEGO and PASTA_LEGO:FindFirstChild(id)
+	if not (modulo and modulo:IsA("ModuleScript")) then
+		return nil
+	end
+	local dados = require(modulo) :: any
+	local grade: Vector3 = dados.grade
+	local passo = math.min(ALTURA_LEGO / grade.Y, COMPRIMENTO_LEGO / math.max(grade.X, grade.Z))
+	local meio = Vector3.new(grade.X / 2, 0, grade.Z / 2)
+	local modelo = Instance.new("Model")
+	local maior: BasePart? = nil
+	local b = dados.blocos
+	for i = 1, #b, 7 do
+		local tamanho = Vector3.new(b[i + 3], b[i + 4], b[i + 5])
+		local bloco = Instance.new("Part")
+		bloco.Name = "Bloco"
+		bloco.Size = tamanho * passo
+		bloco.Position = (Vector3.new(b[i], b[i + 1], b[i + 2]) + tamanho / 2 - meio) * passo
+		bloco.Color = dados.cores[b[i + 6]]
+		bloco.Material = Enum.Material.Plastic
+		bloco.TopSurface = Enum.SurfaceType.Studs
+		bloco.BottomSurface = Enum.SurfaceType.Inlet
+		bloco.CastShadow = false
+		bloco.Parent = modelo
+		if not maior or bloco.Size.Magnitude > maior.Size.Magnitude then
+			maior = bloco
+		end
+	end
+	if not maior then
+		return nil
+	end
+	modelo.PrimaryPart = maior
+	moldesLego[id] = modelo
+	return modelo
+end
+
+-- Cor da mutação misturada nos blocos; o Arco-íris faz faixas de cores pela altura.
+local function pintarMutacao(modelo: Model, mutacao)
+	if not mutacao.cor then
+		return
+	end
+	local arcoIris = mutacao.nome == "Arco-iris"
+	local centro, tamanho = modelo:GetBoundingBox()
+	local base = centro.Position.Y - tamanho.Y / 2
+	for _, bloco in modelo:GetChildren() do
+		if bloco:IsA("BasePart") then
+			local cor = mutacao.cor
+			if arcoIris then
+				cor = Color3.fromHSV(((bloco.Position.Y - base) / tamanho.Y * 0.85) % 1, 0.75, 1)
+			end
+			bloco.Color = bloco.Color:Lerp(cor, 0.6)
+		end
+	end
+end
+
+local function deLego(def, mutacao): Model?
+	local molde = moldeLego(def.id)
+	if not molde then
+		return nil
+	end
+	local modelo = molde:Clone()
+	pintarMutacao(modelo, mutacao)
+	local principal = modelo.PrimaryPart :: BasePart
+	local quantidade = BRILHO_RARIDADE[def.raridade] or 0
+	if mutacao.cor then
+		quantidade += 6
+	end
+	brilhar(principal, mutacao.cor or Config.CORES_RARIDADE[def.raridade], quantidade)
 	return modelo
 end
 
@@ -315,12 +487,15 @@ function Modelos.criar(item: Item): Model
 		}
 		finalizar(modelo, def.id, tamanho.escala, linhas)
 		Modelos.prompt(modelo).ObjectText = def.nome
+		-- o cliente põe os efeitos do ovo (aura, flutuar, rachar)
+		modelo:SetAttribute("Raridade", def.raridade)
+		CollectionService:AddTag(modelo, "Ovo")
 		return modelo
 	end
 
 	local def = Config.brainrot(item.id)
 	local mutacao = Config.mutacao(item.mutacao)
-	local modelo = doStudio("ModelosBrainrot", def.id) or bonecoBrainrot(def, mutacao)
+	local modelo = doStudio("ModelosBrainrot", def.id) or deLego(def, mutacao) or bonecoBrainrot(def, mutacao)
 	local nome = if mutacao.nome == "Normal" then def.nome else `{def.nome} {mutacao.nome}`
 	local linhas = {
 		{ "Raridade", def.raridade, Config.CORES_RARIDADE[def.raridade] },
@@ -338,7 +513,7 @@ function Modelos.boneco(id: string, mutacao: string?): Model?
 	if not def then
 		return nil
 	end
-	local modelo = doStudio("ModelosBrainrot", def.id)
+	local modelo = doStudio("ModelosBrainrot", def.id) or deLego(def, Config.mutacao(mutacao))
 	if not modelo then
 		modelo = bonecoBrainrot(def, Config.mutacao(mutacao))
 		Blocos.aplicar(modelo)
