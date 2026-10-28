@@ -1,5 +1,6 @@
--- Script do cliente: mostra os avisos na tela, esconde o botão
--- "Roubar" dos seus próprios Verities e anima as esteiras.
+-- Script do cliente: liga a tela, os sons e os efeitos, esconde o botão
+-- "Roubar" dos seus próprios Brainrots (e o "Vender" dos dos outros) e
+-- anima as esteiras.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,11 +8,13 @@ local Workspace = game:GetService("Workspace")
 
 local jogador = Players.LocalPlayer
 
--- Tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice e Ajuda)
--- e efeitos visuais (ovo chocando e corrida na esteira) ---------------------
+-- Sons, tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice,
+-- Ajuda e Renascer) e efeitos visuais (ovos, corrida na esteira) ------------
 
+require(script.Sons).iniciar()
 require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
+require(script.OvosVfx).iniciar()
 require(script.Interface).iniciar()
 require(script.Corrida).iniciar()
 local Prompts = require(script.Prompts)

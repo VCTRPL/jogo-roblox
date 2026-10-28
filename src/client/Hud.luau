@@ -10,6 +10,7 @@ local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Co
 local Hud = {}
 
 local jogador = Players.LocalPlayer
+local Sons = require(script.Parent.Sons)
 local Ui = require(script.Parent.Ui)
 local criar, cantos, borda, gradiente, texto, pular = Ui.criar, Ui.cantos, Ui.borda, Ui.gradiente, Ui.texto, Ui.pular
 local CONTORNO = Ui.CONTORNO
@@ -294,6 +295,7 @@ local fimAnuncio = 0
 
 local function mostrarAnuncio(mensagem: string, cor: Color3)
 	textoFaixa.Text = `🌟 {mensagem} 🌟`
+	Sons.tocar("Anuncio")
 	bordaFaixa.Color = cor
 	faixa.Visible = true
 	fimAnuncio = os.clock() + 5

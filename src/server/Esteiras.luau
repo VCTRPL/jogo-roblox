@@ -361,13 +361,118 @@ local ESTILOS: { Estilo } = {
 			flutuantes(modelo, cf, cor, 14, Vector3.new(0.4, 1.2, 0.4))
 		end,
 	},
+	-- 6: Cósmica, azul-marinho com neon ciano, planetinhas em órbita e galáxia girando
+	{
+		estrutura = Color3.fromRGB(16, 18, 40),
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(12, 14, 34),
+		materialPista = Enum.Material.Fabric,
+		faixa = Color3.fromRGB(40, 70, 130),
+		neon = Color3.fromRGB(80, 220, 255),
+		grosso = true,
+		tela = icone("🌌"),
+		extra = function(modelo, cf, cor)
+			local roxo = Color3.fromRGB(190, 90, 255)
+			anel(modelo, cf, cor, 5.4, 8.4, 2.5, 0.8, 40)
+			anel(modelo, cf, roxo, 4.6, 7.4, 5.5, -1.2, -55)
+			-- planetinhas girando em volta da esteira
+			local centro = (cf * CFrame.new(0, 4, 0)).Position
+			for i, planeta in { { Color3.fromRGB(255, 150, 80), 1.4 }, { Color3.fromRGB(120, 255, 200), 1 }, { roxo, 1.2 } } do
+				local angulo = i / 3 * math.pi * 2
+				local p = enfeite(
+					modelo,
+					cf * CFrame.new(math.cos(angulo) * 6, 3 + i * 1.5, math.sin(angulo) * 8),
+					Vector3.one * planeta[2],
+					planeta[1],
+					Enum.Material.Neon,
+					{ CastShadow = false, Name = "Planeta" }
+				)
+				girar(p, 30 + i * 12, 0.3, centro)
+			end
+			halo(modelo, cf, cor, 0.4)
+			-- poeira de galáxia girando
+			local aura = area(modelo, cf * CFrame.new(0, 4, 0), Vector3.new(10, 7, 16))
+			particulas(aura, {
+				Texture = FAISCA,
+				Color = ColorSequence.new(cor, roxo),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.4, 0.5), NumberSequenceKeypoint.new(1, 0) }),
+				Lifetime = NumberRange.new(1.5, 3),
+				Rate = 20,
+				Speed = NumberRange.new(0.2, 0.8),
+				RotSpeed = NumberRange.new(-60, 60),
+				LightEmission = 1,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+			fumaca(modelo, cf, roxo, 10)
+			brilhosSubindo(modelo, cf, cor, 16)
+			flutuantes(modelo, cf, Color3.new(1, 1, 1), 18, Vector3.new(0.25, 0.25, 0.25))
+		end,
+	},
+	-- 7: Divina, branca e dourada, com asas, auréola girando e raios de luz
+	{
+		estrutura = Color3.fromRGB(245, 245, 250),
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(235, 230, 215),
+		materialPista = Enum.Material.Fabric,
+		faixa = Color3.fromRGB(255, 220, 120),
+		neon = Color3.fromRGB(255, 225, 120),
+		grosso = true,
+		tela = icone("👼"),
+		extra = function(modelo, cf, cor)
+			-- asas de penas dos dois lados
+			for _, x in { -1, 1 } do
+				for i = 0, 4 do
+					local comprimento = 6 - i * 0.9
+					local pena = cf
+						* CFrame.new(x * 4.2, 3 + i * 0.9, 1.5 + i * 0.4)
+						* CFrame.Angles(0, 0, math.rad(x * (20 + i * 12)))
+						* CFrame.new(x * comprimento / 2, 0, 0)
+					enfeite(modelo, pena, Vector3.new(comprimento, 0.7, 1.4), Color3.fromRGB(250, 250, 255), Enum.Material.SmoothPlastic, { Name = "Pena" })
+					enfeite(modelo, pena * CFrame.new(0, -0.37, 0), Vector3.new(comprimento, 0.06, 1.42), cor, Enum.Material.Neon, { Name = "PenaNeon", CastShadow = false })
+				end
+			end
+			-- auréola girando em cima do painel
+			anel(modelo, cf * CFrame.new(0, 0, -5.3), cor, 2.2, 2.2, 11.5, 0, 90)
+			-- raios de luz subindo dos cantos
+			for _, x in { -1, 1 } do
+				for _, z in { -6, 6.5 } do
+					enfeite(modelo, cf * CFrame.new(x * 3.6, 12, z), Vector3.new(0.8, 24, 0.8), cor, Enum.Material.Neon, {
+						Transparency = 0.75,
+						CastShadow = false,
+						Name = "Raio",
+					})
+				end
+			end
+			anel(modelo, cf, cor, 5.2, 8.2, 3, 0.6, 35)
+			halo(modelo, cf, cor, 0.35)
+			-- penas douradas caindo devagar
+			local ceu = area(modelo, cf * CFrame.new(0, 12, 0), Vector3.new(10, 1, 16))
+			particulas(ceu, {
+				Texture = FAISCA,
+				Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0.2) }),
+				Lifetime = NumberRange.new(3, 5),
+				Rate = 10,
+				Speed = NumberRange.new(1, 2),
+				EmissionDirection = Enum.NormalId.Bottom,
+				RotSpeed = NumberRange.new(-90, 90),
+				LightEmission = 1,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+			brilhosSubindo(modelo, cf, cor, 18)
+			flutuantes(modelo, cf, cor, 16, Vector3.new(0.35, 0.35, 0.35))
+		end,
+	},
 }
 
 -- Efeitos que toda esteira tem, mais fortes a cada nível: riscos de vento
 -- correndo pela pista, faíscas (ou poeira, na Básica) saindo do rolo de trás
 -- e um pilar de brilhos subindo nas laterais.
 local function efeitosPista(modelo: Model, chao: CFrame, nivel: number, cor: Color3)
-	local forca = nivel / #ESTILOS
+	-- 1 na Lendária (nível 5); as Cósmica e Divina passam disso
+	local forca = nivel / 5
 
 	-- riscos de vento: nascem na frente da pista e correm para trás
 	local frente = area(modelo, chao * CFrame.new(0, ALTURA_PISTA + 0.9, -4), Vector3.new(4.4, 1.6, 0.5))

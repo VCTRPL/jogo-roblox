@@ -9,6 +9,7 @@ local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
 local Ninhos = require(script.Ninhos)
+local Renascer = require(script.Renascer)
 local Velocidade = require(script.Velocidade)
 
 -- Todo mundo nasce na própria base: tira o SpawnLocation que vem no lugar
@@ -38,6 +39,7 @@ Velocidade.iniciar()
 Bases.iniciar(infoBases)
 Carregar.iniciar()
 Ninhos.iniciar(infoBiomas)
+Renascer.iniciar()
 
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)

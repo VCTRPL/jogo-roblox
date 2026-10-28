@@ -1,17 +1,20 @@
 # Roube um Ovo Brainrot
 
-Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ninhos dos biomas, fuja do guardião, leve para a sua base, espere chocar e ganhe dinheiro com os Brainrots que nascem (Brr Brr Patapim, Chimpanzini Bananini, Tralalero Tralala, Bombardiro Crocodilo...).
+Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ninhos dos biomas, fuja do guardião, leve para a sua base, espere chocar e ganhe dinheiro com os Brainrots que nascem (Brr Brr Patapim, Chimpanzini Bananini, Tralalero Tralala, Bombardiro Crocodilo, Udin Din Din Dun...).
 
 ## Como o jogo funciona
 
-- **Base**: cada jogador recebe uma das 8 bases ao entrar. Ela tem 10 vagas, uma esteira de corrida e um botão de tranca. O mapa é criado por código quando o jogo começa.
-- **Biomas**: seguindo a estrada, chega à Selva Sahur e depois à Praia Tralalá. Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. A Praia só deixa entrar quem tem 150 de Velocidade.
-- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur na Selva, Cappuccino Assassino na Praia) e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
-- **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Depois de um tempo ele choca e vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, um Mítico ou um Arco-íris, o servidor inteiro fica sabendo.
-- **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Segure **E** nela para melhorar (5 níveis). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
+- **Base**: cada jogador recebe uma das 6 bases ao entrar. Ela tem 10 vagas, uma esteira de corrida e um botão de tranca. O mapa é criado por código quando o jogo começa.
+- **Biomas**: seguindo a estrada, chega à Selva Sahur, Praia Tralalá (150 de Velocidade), Deserto Frigo (600), Vulcão Toasterino (2K) e Espaço Saturnita (6K). Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos.
+- **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur, Cappuccino Assassino, Il Cacto Hipopotamo, Rhino Toasterino e La Vaca Saturno Saturnita) e corre atrás de você. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
+- **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Perto de chocar ele treme e racha. Depois ele vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, Mítico, Secreto ou Arco-íris, o servidor inteiro fica sabendo.
+- **Vender**: segure **E** num Brainrot da sua base para vender (vale 60 segundos da renda dele). Bom para abrir vaga para um melhor.
+- **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Correndo sem parar, o **fôlego** sobe e o ganho chega a 2x. Segure **E** nela para melhorar (7 níveis, até a Esteira Divina). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
 - **Roubar**: segure **E** num ovo ou Brainrot da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono. Cada roubo entregue conta no placar de **Roubos**.
 - **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
-- Dinheiro, Velocidade, nível da esteira e o que está na base ficam salvos (DataStore).
+- **Renascer**: com bastante dinheiro (2M no primeiro), o botão 🔄 zera dinheiro, Velocidade, esteira e a base, e dá para sempre +50% de dinheiro e +25% de Velocidade na esteira por renascimento.
+- **Sons**: tudo tem som (pegar, chocar, vender, roubar...). O botão 🔊 liga e desliga. Música de fundo: ponha ids em `Config.MUSICA` (ou `musica` num bioma).
+- Dinheiro, Velocidade, nível da esteira, renascimentos e o que está na base ficam salvos (DataStore).
 
 Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.luau`. Para criar um bioma novo, basta adicionar mais um item em `Config.BIOMAS`.
 
@@ -34,14 +37,18 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/Blocos.luau` | Estilo Lego: pinos em cima das peças, bolas e cilindros viram blocos |
 | `src/server/Montanhas.luau` | Montanhas quadradas em volta das bases e dos lados das fases |
 | `src/server/Biblioteca.luau` | Prepara chefões e árvores da biblioteca do Roblox (sem scripts, no tamanho certo) |
-| `src/server/Esteiras.luau` | Modelos e efeitos das 5 esteiras de corrida |
+| `src/server/Esteiras.luau` | Modelos e efeitos das 7 esteiras de corrida |
+| `src/server/Renascer.luau` | Renascimento: zera o progresso e dá multiplicadores |
+| `src/ferramentas/Legoizar.luau` | Ferramenta do Studio: transforma modelos da biblioteca em blocos (veja abaixo) |
 | `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
 | `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
 | `src/client/Efeitos.luau` | Explosão de partículas quando um ovo choca |
-| `src/client/Interface.luau` | Barra do próximo bioma, faixa "Carregando" com trilha até a base, Índice e Ajuda |
-| `src/client/Corrida.luau` | Efeitos de quem corre na esteira e luzes das esteiras pulsando |
+| `src/client/Interface.luau` | Barra do próximo bioma, faixa "Carregando" com trilha até a base, Índice, Ajuda, Renascer e Som |
+| `src/client/Corrida.luau` | Efeitos de quem corre na esteira, barra do fôlego, linhas de velocidade e luzes pulsando |
 | `src/client/Ui.luau` | Peças de interface usadas por todas as telas |
 | `src/client/Prompts.luau` | Botões "Pegar", "Roubar" etc. no estilo do jogo (tocar funciona no celular) |
+| `src/client/Sons.luau` | Toca os sons pedidos pelo servidor e a música de fundo |
+| `src/client/OvosVfx.luau` | Efeitos dos ovos: flutuar, aura, órbitas, raios, rachar e barra de tempo |
 
 ## Trocar os bonecos pelos modelos de verdade
 
@@ -57,6 +64,21 @@ Do mesmo jeito, os chefões e as árvores podem vir da biblioteca do Roblox (Too
 - `ReplicatedStorage.ModelosArvore.Floresta` e `ReplicatedStorage.ModelosArvore.Praia`: árvores e palmeiras.
 
 O jogo tira os scripts, ancora e ajusta o tamanho sozinho. Sem essas pastas ele usa os modelos de blocos.
+
+### Transformar modelos da biblioteca em Lego
+
+Para usar um modelo da Toolbox sem copiar o modelo de outra pessoa (e com a cara do resto do mapa), converta ele em blocos antes:
+
+1. No Studio, crie `ServerStorage.Originais` com as subpastas `Brainrot`, `Ovo` e `Chefao`.
+2. Ponha os modelos nelas com o nome do Config: o `id` do Brainrot (`Tralalero`), o `id` do ovo (`OvoTralalero`) ou o nome do guardião (`Tung Tung Tung Sahur`).
+3. Na barra de comandos (**View > Command Bar**), com o jogo parado, rode:
+   ```lua
+   require(game.ServerStorage.Ferramentas.Legoizar).converterTudo()
+   ```
+4. Os modelos de blocos vão para `ModelosBrainrot`, `ModelosOvo` e `ModelosChefao`, e a pasta `Originais` é apagada.
+5. Confira, pinte o que precisar e publique.
+
+O conversor lê a cor de cada peça. Peças pintadas com textura (imagem) não dá para ler, então elas ficam com as cores do Brainrot no `Config.luau` e depois podem ser pintadas à mão.
 
 Como essas pastas são criadas no Studio (e não no código), salve o lugar com **File > Publish to Roblox** para não perder.
 
@@ -165,7 +187,7 @@ Deixe esse terminal aberto. Ele fica observando os arquivos e manda as mudanças
 1. Abra o Roblox Studio e crie um lugar novo (por exemplo, **Baseplate**).
 2. Vá em **Plugins > Rojo** e clique em **Connect**.
 3. Pronto: as pastas `Server`, `Client` e `Shared` aparecem no Explorer.
-4. Aperte **Play**. O mapa aparece, você nasce na sua base e os Verities começam a passar na esteira.
+4. Aperte **Play**. O mapa aparece e você nasce na sua base.
 
 Agora é só editar os arquivos em `src/` e salvar: o Studio atualiza sozinho.
 
