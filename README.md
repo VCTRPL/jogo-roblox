@@ -42,6 +42,8 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/Renascer.luau` | Renascimento: zera o progresso e dá multiplicadores |
 | `src/server/Passes.luau` | Gamepasses: quem tem cada um e compras durante o jogo |
 | `src/server/Paredes.luau` | Paredes dos lados dos biomas, com o tema de cada um |
+| `src/server/Lego/*.luau` | Os Brainrots em blocos Lego (gerados pelo `ferramentas/voxelizar.py`) |
+| `ferramentas/voxelizar.py` | Transforma um modelo .glb do Sketchfab num Brainrot de blocos, com as cores da textura |
 | `src/ferramentas/Legoizar.luau` | Ferramenta do Studio: transforma modelos da biblioteca em blocos (veja abaixo) |
 | `src/client/init.client.luau` | Liga a tela e os efeitos e esconde "Roubar" nas suas próprias coisas |
 | `src/client/Hud.luau` | Cartões de Dinheiro, Velocidade e Roubos, avisos e anúncio arco-íris |
@@ -55,13 +57,26 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/client/Chefes.luau` | Tela tremendo, passos dos chefes e o aviso vermelho de perseguição |
 | `src/client/Ambiente.luau` | Clima de cada bioma: cor da tela, partículas e o nome aparecendo |
 
+## Brainrots de blocos Lego (do Sketchfab)
+
+Os 14 Brainrots são montados com blocos Lego a partir de modelos grátis do Sketchfab (licença CC Attribution; créditos em `docs/modelos-sketchfab.md`). Cada um fica em `src/server/Lego/<id>.luau` e o jogo monta o modelo, pinta as mutações (Prata, Dourado, Arco-íris) e põe os brilhos da raridade.
+
+Para refazer um (por exemplo com mais detalhe) ou fazer um Brainrot novo:
+
+1. Baixe o modelo do Sketchfab em **.glb** (a opção com textura 1k basta) e salve em `ferramentas/glb/<id>.glb`.
+2. Instale as bibliotecas uma vez: `python -m pip install trimesh pillow numpy scipy rtree`.
+3. Rode `python ferramentas/voxelizar.py ferramentas/glb/<id>.glb <id> --previa previa.png` e confira a imagem (frente, lado e topo).
+   - `--resolucao 30`: mais detalhe (mais blocos). O padrão é 24.
+   - `--deitar 90` ou `--deitar -90`: para modelo que veio deitado. `--girar 180`: para virar de frente.
+4. O Rojo manda o arquivo novo para o Studio.
+
 ## Trocar os bonecos pelos modelos de verdade
 
-Por enquanto cada Brainrot é um boneco feito de peças com as cores e um detalhe do personagem, e cada ovo é uma esfera com pintas. Para usar modelos de verdade:
+Os ovos ainda são de blocos com pintas, e os Brainrots sem arquivo em `src/server/Lego` usam o boneco padrão. Para usar outros modelos:
 
 1. No Studio, crie as pastas `ModelosBrainrot` e `ModelosOvo` dentro de `ReplicatedStorage`.
 2. Coloque dentro delas **Models** com o mesmo nome do `id` no `Config.luau` (por exemplo `Tralalero` em `ModelosBrainrot`, `OvoTralalero` em `ModelosOvo`).
-3. Pronto: o jogo passa a usar os seus modelos. Os que não tiverem modelo continuam com o boneco.
+3. Pronto: o jogo passa a usar os seus modelos (eles vêm antes dos de Lego). Os que não tiverem modelo continuam como estão.
 
 Do mesmo jeito, os chefões e as árvores podem vir da biblioteca do Roblox (Toolbox):
 

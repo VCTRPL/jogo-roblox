@@ -317,6 +317,88 @@ local function doStudio(pastaNome: string, id: string): Model?
 	return modelo
 end
 
+-- Brainrots de blocos Lego feitos a partir dos modelos do Sketchfab
+-- (ferramentas/voxelizar.py gera um módulo em Lego/<id>.luau). O modelo é
+-- montado uma vez e guardado; cada Brainrot novo é uma cópia.
+local PASTA_LEGO = script.Parent:FindFirstChild("Lego")
+local ALTURA_LEGO = 7 -- mais ou menos a altura do boneco padrão
+local COMPRIMENTO_LEGO = 8.5 -- bichos compridos (avião, tubarão) não passam disto
+local moldesLego: { [string]: Model } = {}
+
+local function moldeLego(id: string): Model?
+	if moldesLego[id] then
+		return moldesLego[id]
+	end
+	local modulo = PASTA_LEGO and PASTA_LEGO:FindFirstChild(id)
+	if not (modulo and modulo:IsA("ModuleScript")) then
+		return nil
+	end
+	local dados = require(modulo) :: any
+	local grade: Vector3 = dados.grade
+	local passo = math.min(ALTURA_LEGO / grade.Y, COMPRIMENTO_LEGO / math.max(grade.X, grade.Z))
+	local meio = Vector3.new(grade.X / 2, 0, grade.Z / 2)
+	local modelo = Instance.new("Model")
+	local maior: BasePart? = nil
+	local b = dados.blocos
+	for i = 1, #b, 7 do
+		local tamanho = Vector3.new(b[i + 3], b[i + 4], b[i + 5])
+		local bloco = Instance.new("Part")
+		bloco.Name = "Bloco"
+		bloco.Size = tamanho * passo
+		bloco.Position = (Vector3.new(b[i], b[i + 1], b[i + 2]) + tamanho / 2 - meio) * passo
+		bloco.Color = dados.cores[b[i + 6]]
+		bloco.Material = Enum.Material.Plastic
+		bloco.TopSurface = Enum.SurfaceType.Studs
+		bloco.BottomSurface = Enum.SurfaceType.Inlet
+		bloco.CastShadow = false
+		bloco.Parent = modelo
+		if not maior or bloco.Size.Magnitude > maior.Size.Magnitude then
+			maior = bloco
+		end
+	end
+	if not maior then
+		return nil
+	end
+	modelo.PrimaryPart = maior
+	moldesLego[id] = modelo
+	return modelo
+end
+
+-- Cor da mutação misturada nos blocos; o Arco-íris faz faixas de cores pela altura.
+local function pintarMutacao(modelo: Model, mutacao)
+	if not mutacao.cor then
+		return
+	end
+	local arcoIris = mutacao.nome == "Arco-iris"
+	local centro, tamanho = modelo:GetBoundingBox()
+	local base = centro.Position.Y - tamanho.Y / 2
+	for _, bloco in modelo:GetChildren() do
+		if bloco:IsA("BasePart") then
+			local cor = mutacao.cor
+			if arcoIris then
+				cor = Color3.fromHSV(((bloco.Position.Y - base) / tamanho.Y * 0.85) % 1, 0.75, 1)
+			end
+			bloco.Color = bloco.Color:Lerp(cor, 0.6)
+		end
+	end
+end
+
+local function deLego(def, mutacao): Model?
+	local molde = moldeLego(def.id)
+	if not molde then
+		return nil
+	end
+	local modelo = molde:Clone()
+	pintarMutacao(modelo, mutacao)
+	local principal = modelo.PrimaryPart :: BasePart
+	local quantidade = BRILHO_RARIDADE[def.raridade] or 0
+	if mutacao.cor then
+		quantidade += 6
+	end
+	brilhar(principal, mutacao.cor or Config.CORES_RARIDADE[def.raridade], quantidade)
+	return modelo
+end
+
 local function criarTexto(nome: string, texto: string, cor: Color3, parent: Instance)
 	local label = Instance.new("TextLabel")
 	label.Name = nome
@@ -413,7 +495,7 @@ function Modelos.criar(item: Item): Model
 
 	local def = Config.brainrot(item.id)
 	local mutacao = Config.mutacao(item.mutacao)
-	local modelo = doStudio("ModelosBrainrot", def.id) or bonecoBrainrot(def, mutacao)
+	local modelo = doStudio("ModelosBrainrot", def.id) or deLego(def, mutacao) or bonecoBrainrot(def, mutacao)
 	local nome = if mutacao.nome == "Normal" then def.nome else `{def.nome} {mutacao.nome}`
 	local linhas = {
 		{ "Raridade", def.raridade, Config.CORES_RARIDADE[def.raridade] },
@@ -431,7 +513,7 @@ function Modelos.boneco(id: string, mutacao: string?): Model?
 	if not def then
 		return nil
 	end
-	local modelo = doStudio("ModelosBrainrot", def.id)
+	local modelo = doStudio("ModelosBrainrot", def.id) or deLego(def, Config.mutacao(mutacao))
 	if not modelo then
 		modelo = bonecoBrainrot(def, Config.mutacao(mutacao))
 		Blocos.aplicar(modelo)
