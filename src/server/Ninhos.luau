@@ -118,6 +118,7 @@ local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 		end
 		Avisos.enviar(player, `Corra para a sua base! {bioma.info.config.guardiao} acordou!`, VERDE)
 		local guardiao = bioma.guardiao
+		Avisos.som(nil, "Guardiao", guardiao.posicao)
 		if not guardiao.alvo then
 			guardiao.correEm = os.clock() + TEMPO_ACORDAR
 		end
@@ -125,14 +126,16 @@ local function encherNinho(bioma: Bioma, ninho: Ninho, item: Modelos.Item?)
 	end)
 
 	modelo:PivotTo(ninho.cframe)
-	if ovo.raridade == "Lendario" or ovo.raridade == "Mitico" then
+	if Config.nivelRaridade(ovo.raridade) >= Config.nivelRaridade("Lendario") then
 		colunaDeLuz(modelo, Config.CORES_RARIDADE[ovo.raridade])
 	end
+	-- o cliente faz o ovo flutuar e girar em cima do ninho
+	modelo:SetAttribute("NoNinho", true)
 	modelo.Parent = bioma.info.pasta
 	ninho.modelo = modelo
 	ninho.item = itemNinho
-	if novo and ovo.raridade == "Mitico" then
-		Avisos.todos(`Um {ovo.nome} apareceu na {bioma.info.config.nome}! Corra!`, Config.CORES_RARIDADE.Mitico)
+	if novo and Config.nivelRaridade(ovo.raridade) >= Config.nivelRaridade("Mitico") then
+		Avisos.todos(`Um {ovo.nome} apareceu na {bioma.info.config.nome}! Corra!`, Config.CORES_RARIDADE[ovo.raridade])
 	end
 end
 
@@ -285,11 +288,21 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 end
 
 -- Quem não tem Velocidade suficiente é empurrado de volta para a entrada.
+-- Também marca em que bioma cada um está (o cliente troca a música).
 local function verificarPortoes()
 	for _, player in Players:GetPlayers() do
 		local personagem = player.Character
 		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if raiz then
+			local onde = nil
+			for _, bioma in biomas do
+				if Mapa.dentroQuadrado(bioma.info.centro, Mapa.TAMANHO_BIOMA, raiz.Position) then
+					onde = bioma.info.config.nome
+				end
+			end
+			if player:GetAttribute("Bioma") ~= onde then
+				player:SetAttribute("Bioma", onde)
+			end
 			for _, bioma in biomas do
 				local minimo = bioma.info.config.velocidadeMinima
 				if

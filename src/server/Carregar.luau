@@ -64,6 +64,8 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
 	player:SetAttribute("Carregando", nomeDo(item))
 	player:SetAttribute("CorCarregando", Config.CORES_RARIDADE[def.raridade])
+	Avisos.som(nil, "Pegou", raiz.Position)
+	Avisos.efeito("Pegou", { posicao = raiz.Position, raridade = def.raridade })
 	return true
 end
 
@@ -96,6 +98,11 @@ function Carregar.derrubar(player: Player, motivo: string)
 	Carregar.perder(player)
 	Velocidade.atordoar(player, Config.TEMPO_ATORDOADO)
 	Avisos.enviar(player, motivo, VERMELHO)
+	local raiz = raizDe(player)
+	if raiz then
+		Avisos.som(nil, "Derrubado", raiz.Position)
+		Avisos.efeito("Derrubado", { posicao = raiz.Position })
+	end
 end
 
 local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
@@ -128,6 +135,7 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 	carregando[ladrao].roubo = true
 	Avisos.enviar(ladrao, `Você pegou {nomeDo(item)}! Leve para a sua base!`, VERDE)
 	Avisos.enviar(dono, `{ladrao.DisplayName} está roubando seu {nomeDo(item)}!`, VERMELHO)
+	Avisos.som(dono, "Roubando")
 end
 
 local function verificarEntregas()
@@ -139,6 +147,7 @@ local function verificarEntregas()
 				soltar(player)
 				Bases.colocar(minhaBase, carga.item)
 				Avisos.enviar(player, `{nomeDo(carga.item)} guardado na sua base!`, VERDE)
+				Avisos.som(player, "Entregou")
 				if carga.roubo then
 					Dados.adicionar(player, "Roubos", 1)
 				end

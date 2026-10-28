@@ -1,7 +1,9 @@
--- Bases dos jogadores: vagas, ovos chocando, renda por segundo,
--- esteira de corrida e a tranca.
+-- Bases dos jogadores: vagas, ovos chocando, renda por segundo, vender
+-- Brainrots, esteira de corrida (com fôlego) e a tranca.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
@@ -42,6 +44,8 @@ local porJogador: { [Player]: Base } = {}
 local correndo: { [Player]: Base } = {}
 -- Quem já saiu de cima da pista desde a última corrida (pode subir de novo).
 local desceu: { [Player]: boolean } = {}
+-- Quando cada um começou a correr (para o fôlego).
+local inicioCorrida: { [Player]: number } = {}
 
 local VERMELHO = Color3.fromRGB(255, 90, 90)
 local VERDE = Color3.fromRGB(90, 255, 120)
@@ -49,6 +53,15 @@ local VERDE = Color3.fromRGB(90, 255, 120)
 -- Chamado quando alguém tenta roubar algo de uma base (o módulo Carregar preenche isso).
 Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
 
+-- Multiplicador de dinheiro de quem já renasceu.
+local function multiplicador(player: Player?): number
+	if not player then
+		return 1
+	end
+	return Config.multiplicadorRenda(Dados.valor(player, "Renascimentos"))
+end
+
+-- Renda por segundo da base, já contando o renascimento do dono.
 function Bases.renda(base: Base): number
 	local total = 0
 	for _, dados in base.itens do
@@ -56,7 +69,7 @@ function Bases.renda(base: Base): number
 			total += Config.renda(dados.item)
 		end
 	end
-	return total
+	return math.floor(total * multiplicador(base.dono))
 end
 
 local function atualizarPlaca(base: Base)
@@ -66,6 +79,7 @@ local function atualizarPlaca(base: Base)
 		base.textoPlaca.Text = "Base livre"
 	end
 end
+Bases.atualizarPlaca = atualizarPlaca
 
 -- Troca o modelo da esteira quando o nível muda.
 local function montarEsteira(base: Base, nivel: number)
@@ -103,11 +117,13 @@ end
 local function trancar(player: Player, base: Base)
 	if base.dono ~= player then
 		Avisos.enviar(player, "Essa não é a sua base!", VERMELHO)
+		Avisos.som(player, "Erro")
 	elseif Bases.estaTrancada(base) then
 		Avisos.enviar(player, "Sua base já está trancada.")
 	else
 		base.trancadaAte = os.clock() + Config.TEMPO_TRANCA
 		Avisos.enviar(player, `Base trancada por {Config.TEMPO_TRANCA} segundos!`, Color3.fromRGB(90, 200, 255))
+		Avisos.som(nil, "Trancou", base.escudo.Position)
 	end
 end
 
@@ -122,12 +138,17 @@ local function melhorarEsteira(player: Player, base: Base)
 		Avisos.enviar(player, "Sua esteira já está no nível máximo!")
 	elseif Dados.valor(player, "Dinheiro") < proximo.preco then
 		Avisos.enviar(player, "Dinheiro insuficiente!", VERMELHO)
+		Avisos.som(player, "Erro")
 	else
+		-- quem está correndo desce: o modelo da esteira vai ser trocado
+		Bases.sairDaEsteira(player)
 		Dados.adicionar(player, "Dinheiro", -proximo.preco)
 		player:SetAttribute("NivelEsteira", nivel + 1)
 		atualizarEsteira(base)
 		Esteiras.celebrar(base.modeloEsteira, nivel + 1)
 		Avisos.enviar(player, `{proximo.nome}! +{proximo.ganho} Velocidade!`, VERDE)
+		Avisos.som(nil, "Melhorou", base.cframeEsteira.Position)
+		Avisos.efeito("EsteiraNova", { posicao = base.cframeEsteira.Position, nivel = nivel + 1 })
 	end
 end
 
@@ -148,23 +169,26 @@ local function chocar(base: Base, vaga: number)
 	Bases.remover(base, vaga)
 	Bases.colocar(base, nascido, vaga)
 
-	local renda = Config.renda(nascido)
+	local ganho = math.floor(Config.renda(nascido) * 30 * multiplicador(dono))
 	local bonus = Config.BONUS_VELOCIDADE[brainrot.raridade] or 0
-	Dados.adicionar(dono, "Dinheiro", renda * 30)
+	Dados.adicionar(dono, "Dinheiro", ganho)
 	Velocidade.adicionar(dono, bonus)
 	local nome = if nascido.mutacao == "Normal" then brainrot.nome else `{brainrot.nome} {nascido.mutacao}`
 	Avisos.enviar(
 		dono,
-		`Nasceu um {nome}! +${Config.formatar(renda * 30)} e +{bonus} Velocidade`,
+		`Nasceu um {nome}! +${Config.formatar(ganho)} e +{bonus} Velocidade`,
 		Config.CORES_RARIDADE[brainrot.raridade]
 	)
 	-- explosão de partículas na vaga, que todo mundo por perto vê
+	local posicao = base.vagas[vaga].Position
 	Avisos.efeito("Chocou", {
-		posicao = base.vagas[vaga].Position,
+		posicao = posicao,
 		raridade = brainrot.raridade,
 		mutacao = nascido.mutacao,
-		ganho = renda * 30,
+		ganho = ganho,
 	})
+	local raro = Config.nivelRaridade(brainrot.raridade) >= Config.nivelRaridade("Lendario") or nascido.mutacao ~= "Normal"
+	Avisos.som(nil, if raro then "ChocouRaro" else "Chocou", posicao)
 	if Config.ANUNCIAR_RARIDADES[brainrot.raridade] or Config.ANUNCIAR_MUTACOES[nascido.mutacao] then
 		Avisos.todos(`{dono.DisplayName} chocou um {nome}!`, Config.CORES_RARIDADE[brainrot.raridade])
 	end
@@ -277,6 +301,7 @@ function Bases.entrarNaEsteira(player: Player, base: Base)
 		return
 	end
 	correndo[player] = base
+	inicioCorrida[player] = os.clock()
 	hum.Sit = false
 	local pista = base.esteira
 	local altura = hum.HipHeight + raiz.Size.Y / 2
@@ -291,9 +316,11 @@ function Bases.sairDaEsteira(player: Player)
 		return
 	end
 	correndo[player] = nil
+	inicioCorrida[player] = nil
 	-- só volta a correr depois de descer da pista
 	desceu[player] = nil
 	player:SetAttribute("NaEsteira", false)
+	player:SetAttribute("Folego", nil)
 	local personagem = player.Character
 	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if raiz then
@@ -372,7 +399,13 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 					Bases.sairDaEsteira(player) -- morreu ou perdeu a base
 				elseif correndo[player] then
 					local nivel = player:GetAttribute("NivelEsteira") or 1
-					Velocidade.adicionar(player, Config.NIVEIS_ESTEIRA[nivel].ganho)
+					-- fôlego: vai de 1x até FOLEGO_MAXIMO correndo sem parar
+					local tempo = os.clock() - (inicioCorrida[player] or os.clock())
+					local folego = 1 + (Config.FOLEGO_MAXIMO - 1) * math.min(tempo / Config.FOLEGO_TEMPO, 1)
+					local renascimentos = Dados.valor(player, "Renascimentos")
+					local ganho = Config.NIVEIS_ESTEIRA[nivel].ganho * folego * Config.multiplicadorEsteira(renascimentos)
+					Velocidade.adicionar(player, math.floor(ganho))
+					player:SetAttribute("Folego", math.floor(folego * 10) / 10)
 				end
 			end
 		end
@@ -390,6 +423,11 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 				local prontos = {}
 				for vaga, dados in base.itens do
 					Modelos.prompt(dados.modelo).Enabled = not trancada
+					-- quando a renda muda (renascimento), o preço também muda
+					local promptVender = (dados.modelo.PrimaryPart :: BasePart):FindFirstChild("Vender") :: ProximityPrompt?
+					if promptVender and base.dono then
+						promptVender.ObjectText = `${Config.formatar(math.floor(Config.precoVenda(dados.item) * multiplicador(base.dono)))}`
+					end
 					if dados.chocaEm then
 						local falta = dados.chocaEm - agora
 						if falta <= 0 then
@@ -432,6 +470,7 @@ end
 function Bases.liberar(player: Player)
 	correndo[player] = nil
 	desceu[player] = nil
+	inicioCorrida[player] = nil
 	local base = porJogador[player]
 	if not base then
 		return
@@ -448,6 +487,29 @@ end
 
 function Bases.doJogador(player: Player): Base?
 	return porJogador[player]
+end
+
+-- Tira tudo da base (renascimento).
+function Bases.limpar(base: Base)
+	for vaga in base.itens do
+		Bases.remover(base, vaga)
+	end
+end
+
+-- O dono vende o Brainrot da vaga.
+local function vender(player: Player, base: Base, vaga: number, modelo: Model)
+	local dados = base.itens[vaga]
+	if base.dono ~= player or not dados or dados.modelo ~= modelo or dados.item.tipo ~= "brainrot" then
+		return
+	end
+	local preco = math.floor(Config.precoVenda(dados.item) * multiplicador(player))
+	local def = Config.brainrot(dados.item.id)
+	local posicao = base.vagas[vaga].Position
+	Bases.remover(base, vaga)
+	Dados.adicionar(player, "Dinheiro", preco)
+	Avisos.enviar(player, `Vendeu {def.nome} por ${Config.formatar(preco)}!`, VERDE)
+	Avisos.efeito("Vendeu", { posicao = posicao, ganho = preco })
+	Avisos.som(nil, "Vendeu", posicao)
 end
 
 function Bases.vagaLivre(base: Base): number?
@@ -486,9 +548,31 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 		end
 	end)
 
+	-- Botão "Vender" que só o dono vê (o cliente esconde dos outros).
+	if item.tipo == "brainrot" then
+		local preco = math.floor(Config.precoVenda(item) * multiplicador(dono))
+		local promptVender = Instance.new("ProximityPrompt")
+		promptVender.Name = "Vender"
+		promptVender.ActionText = "Vender"
+		promptVender.ObjectText = `${Config.formatar(preco)}`
+		promptVender.HoldDuration = 1
+		promptVender.RequiresLineOfSight = false
+		promptVender.MaxActivationDistance = 10
+		promptVender:SetAttribute("SoDonoId", dono.UserId)
+		promptVender.Parent = prompt.Parent
+		promptVender.Triggered:Connect(function(player)
+			vender(player, base, vaga, modelo)
+		end)
+	end
+
 	local chocaEm = nil
 	if item.tipo == "ovo" then
-		chocaEm = os.clock() + (item.restante or Config.ovo(item.id).chocar)
+		local falta = item.restante or Config.ovo(item.id).chocar
+		chocaEm = os.clock() + falta
+		-- o cliente usa para os efeitos do ovo chocando (tremer, rachar, barra)
+		modelo:SetAttribute("ChocaEm", Workspace:GetServerTimeNow() + falta)
+		modelo:SetAttribute("Duracao", Config.ovo(item.id).chocar)
+		CollectionService:AddTag(modelo, "OvoChocando")
 	end
 
 	modelo:PivotTo(base.vagas[vaga])

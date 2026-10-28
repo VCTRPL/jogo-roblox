@@ -31,4 +31,22 @@ function Avisos.efeito(nome: string, ...: any)
 	eventoEfeito:FireAllClients(nome, ...)
 end
 
+-- Efeito só para um jogador.
+function Avisos.efeitoPara(player: Player, nome: string, ...: any)
+	if player.Parent ~= nil then
+		eventoEfeito:FireClient(player, nome, ...)
+	end
+end
+
+-- Toca um som de Config.SONS. Com "posicao", o som sai daquele lugar e
+-- todo mundo por perto ouve; sem, só o jogador ouve.
+function Avisos.som(player: Player?, nome: string, posicao: Vector3?)
+	local dados = { nome = nome, posicao = posicao }
+	if player then
+		Avisos.efeitoPara(player, "Som", dados)
+	else
+		eventoEfeito:FireAllClients("Som", dados)
+	end
+end
+
 return Avisos

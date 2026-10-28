@@ -27,6 +27,11 @@ local function verificarPrompt(objeto: Instance)
 		-- Mudança só no seu computador: os outros jogadores continuam vendo o botão.
 		objeto.MaxActivationDistance = 0
 	end
+	-- "Vender" é só para o dono: some para os outros jogadores.
+	local soDono = objeto:IsA("ProximityPrompt") and objeto:GetAttribute("SoDonoId")
+	if soDono and soDono ~= jogador.UserId then
+		(objeto :: ProximityPrompt).MaxActivationDistance = 0
+	end
 end
 
 Workspace.DescendantAdded:Connect(verificarPrompt)

@@ -1,4 +1,4 @@
--- Placar (Dinheiro, Velocidade e Roubos) e salvamento com DataStore.
+-- Placar (Dinheiro, Velocidade, Roubos e Renascimentos) e salvamento com DataStore.
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -60,6 +60,10 @@ function Dados.carregar(player: Player): { any }
 	roubos.Name = "Roubos"
 	roubos.Value = salvo.roubos or 0
 	roubos.Parent = stats
+	local renascimentos = Instance.new("IntValue")
+	renascimentos.Name = "Renascimentos"
+	renascimentos.Value = salvo.renascimentos or 0
+	renascimentos.Parent = stats
 	stats.Parent = player
 
 	player:SetAttribute("NivelEsteira", salvo.nivelEsteira or 1)
@@ -78,6 +82,7 @@ function Dados.salvar(player: Player, itens: { any })
 			dinheiro = dinheiro.Value,
 			velocidade = velocidade.Value,
 			roubos = Dados.valor(player, "Roubos"),
+			renascimentos = Dados.valor(player, "Renascimentos"),
 			nivelEsteira = player:GetAttribute("NivelEsteira"),
 			itens = itens,
 		})
@@ -91,7 +96,7 @@ function Dados.esquecer(player: Player)
 	podeSalvar[player] = nil
 end
 
--- nome: "Dinheiro", "Velocidade" ou "Roubos"
+-- nome: "Dinheiro", "Velocidade", "Roubos" ou "Renascimentos"
 function Dados.valor(player: Player, nome: string): number
 	local valor = stat(player, nome)
 	return if valor then valor.Value else 0
@@ -101,6 +106,13 @@ function Dados.adicionar(player: Player, nome: string, quantia: number)
 	local valor = stat(player, nome)
 	if valor then
 		valor.Value += quantia
+	end
+end
+
+function Dados.definir(player: Player, nome: string, quantia: number)
+	local valor = stat(player, nome)
+	if valor then
+		valor.Value = quantia
 	end
 end
 
