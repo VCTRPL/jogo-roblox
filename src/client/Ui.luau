@@ -64,6 +64,37 @@ function Ui.texto(props: { [string]: any }): TextLabel
 	return label
 end
 
+-- Ícones de blocos Lego feitos no ForgeGUI (arte/gui). Quem não tem imagem
+-- aqui continua usando o emoji.
+Ui.IMAGENS = {
+	Dinheiro = "rbxassetid://130947068605662",
+	Velocidade = "rbxassetid://93729721093398",
+	Roubos = "rbxassetid://79422839232555",
+	["Índice"] = "rbxassetid://131760784198257",
+	Ajuda = "rbxassetid://101323235798081",
+} :: { [string]: string }
+
+-- Ícone com a imagem de "nome" ou, se não tiver, o emoji como texto.
+function Ui.icone(nome: string, emoji: string, props: { [string]: any }): GuiObject
+	local imagem = Ui.IMAGENS[nome]
+	if not imagem then
+		props.Text = emoji
+		return Ui.texto(props)
+	end
+	local icone = Ui.criar("ImageLabel", {
+		BackgroundTransparency = 1,
+		Image = imagem,
+		ScaleType = Enum.ScaleType.Fit,
+	})
+	for chave, valor in props do
+		if chave ~= "Parent" then
+			(icone :: any)[chave] = valor
+		end
+	end
+	icone.Parent = props.Parent
+	return icone
+end
+
 function Ui.pular(escala: UIScale, ate: number)
 	escala.Scale = ate
 	TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()

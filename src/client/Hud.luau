@@ -76,7 +76,7 @@ local function criarCartao(nome: string, ordem: number, icone: string, cima: Col
 		borda(CONTORNO, 3.5),
 		gradiente(baixo:Lerp(BRANCO, 0.35), baixo),
 	})
-	texto({ Text = icone, Size = UDim2.fromScale(0.8, 0.8), Position = UDim2.fromScale(0.1, 0.1), Parent = bolinha })
+	Ui.icone(nome, icone, { Size = UDim2.fromScale(0.8, 0.8), Position = UDim2.fromScale(0.1, 0.1), Parent = bolinha })
 
 	local valor = texto({
 		Name = "Valor",

@@ -661,7 +661,7 @@ local menu = criar("Frame", {
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
 -- "acao" é um painel para abrir ou uma função para chamar.
-local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, acao: Frame | (() -> ())): TextLabel
+local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, acao: Frame | (() -> ())): any
 	local b = criar("TextButton", {
 		Name = legenda,
 		LayoutOrder = ordem,
@@ -679,7 +679,7 @@ local function botao(ordem: number, icone: string, legenda: string, cima: Color3
 		BackgroundTransparency = 0.75,
 		Parent = b,
 	}, { cantos(14) })
-	local textoIcone = texto({ Text = icone, Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(52, 48), Parent = b })
+	local textoIcone = Ui.icone(legenda, icone, { Position = UDim2.fromOffset(12, 4), Size = UDim2.fromOffset(60, 52), Parent = b })
 	texto({ Text = legenda, Position = UDim2.new(0, 4, 1, -28), Size = UDim2.new(1, -8, 0, 24), Parent = b })
 	b.MouseEnter:Connect(function()
 		TweenService:Create(escala, TweenInfo.new(0.15), { Scale = 1.08 }):Play()
