@@ -5,7 +5,9 @@
 -- cima dela correndo sozinho (veja Bases.luau). O cliente anima as faixas da pista (tag "FaixaEsteira") e o
 -- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Mapa = require(script.Parent.Mapa)
 
 local Esteiras = {}
@@ -26,7 +28,6 @@ type Estilo = {
 	faixa: Color3,
 	neon: Color3?, -- cor das luzes (nil = sem brilho)
 	grosso: boolean?, -- luzes largas, tipo armadura
-	tela: (gui: SurfaceGui, cor: Color3) -> (),
 	extra: ((modelo: Model, cf: CFrame, cor: Color3) -> ())?,
 }
 
@@ -177,118 +178,58 @@ end
 
 -- Telas do painel ------------------------------------------------------------
 
--- Mosaico de pinos Lego na tela: cada letra do desenho é um pino ("o" na
--- cor do nível, "." vazio, as outras nas cores de CORES_PINO). Cada pino é
--- um quadradinho com o pino redondo, mais claro, em cima.
-local CORES_PINO = {
-	y = Color3.fromRGB(255, 240, 150),
-	w = Color3.fromRGB(250, 250, 255),
-	r = Color3.fromRGB(255, 70, 90),
-	g = Color3.fromRGB(90, 230, 110),
-	b = Color3.fromRGB(80, 170, 255),
-	p = Color3.fromRGB(255, 120, 220),
-}
-
-local DESENHOS = {
-	corredor = {
-		"...oo....",
-		"...oo....",
-		"..oooo.o.",
-		".o.oo.o..",
-		"o..oo....",
-		"..o..o...",
-		".o....o..",
-		"o.....oo.",
-	},
-	raio = {
-		".....oo.",
-		"....oo..",
-		"...oo...",
-		"..ooooo.",
-		".ooooo..",
-		"...oo...",
-		"..oo....",
-		".oo.....",
-	},
-	coroa = {
-		"y...y...y",
-		"oo.ooo.oo",
-		"ooooooooo",
-		"orogobopo",
-		"ooooooooo",
-		".........",
-		"yyyyyyyyy",
-	},
-	chama = {
-		"....o....",
-		"...oo..o.",
-		"..ooo.oo.",
-		".oooyooo.",
-		".ooyyyoo.",
-		"ooyyyyyoo",
-		"ooyywyyoo",
-		".ooyyyoo.",
-	},
-	planeta = {
-		"....ooo....",
-		"...ooooo...",
-		"yy.ooooo.yy",
-		"..yyyyyyy..",
-		"...ooooo...",
-		"....ooo....",
-	},
-	divina = {
-		"...yyyy...",
-		"..y....y..",
-		"...yyyy...",
-		"w...oo...w",
-		"ww.oooo.ww",
-		"wwwoooowww",
-		".ww.oo.ww.",
-		"....oo....",
-	},
-}
-
-local function mosaico(nome: string, corFixa: Color3?)
-	return function(gui: SurfaceGui, cor: Color3)
-		local desenho = DESENHOS[nome]
-		local linhas, colunas = #desenho, #desenho[1]
-		local principal = corFixa or cor
-		local fundo = Instance.new("Frame")
-		fundo.Size = UDim2.fromScale(1, 1)
-		fundo.BackgroundColor3 = principal:Lerp(Color3.new(0, 0, 0), 0.85)
-		fundo.BorderSizePixel = 0
-		fundo.Parent = gui
-		-- a tela tem 3.6 x 1.6 studs: o mosaico ocupa 86% da altura, com pinos quadrados
-		local quadro = Instance.new("Frame")
-		quadro.AnchorPoint = Vector2.new(0.5, 0.5)
-		quadro.Position = UDim2.fromScale(0.5, 0.5)
-		quadro.Size = UDim2.fromScale(0.86 * colunas / linhas * 1.6 / 3.6, 0.86)
-		quadro.BackgroundTransparency = 1
-		quadro.Parent = fundo
-		for l, linha in desenho do
-			for c = 1, colunas do
-				local letra = string.sub(linha, c, c)
-				if letra ~= "." then
-					local corPino = if letra == "o" then principal else CORES_PINO[letra] or principal
-					local pino = Instance.new("Frame")
-					pino.Position = UDim2.fromScale((c - 1) / colunas, (l - 1) / linhas)
-					pino.Size = UDim2.fromScale(0.92 / colunas, 0.92 / linhas)
-					pino.BackgroundColor3 = corPino
-					pino.BorderSizePixel = 0
-					pino.Parent = quadro
-					local bolinha = Instance.new("Frame")
-					bolinha.AnchorPoint = Vector2.new(0.5, 0.5)
-					bolinha.Position = UDim2.fromScale(0.5, 0.5)
-					bolinha.Size = UDim2.fromScale(0.55, 0.55)
-					bolinha.BackgroundColor3 = corPino:Lerp(Color3.new(1, 1, 1), 0.35)
-					bolinha.BorderSizePixel = 0
-					bolinha.Parent = pino
-					local redondo = Instance.new("UICorner")
-					redondo.CornerRadius = UDim.new(0.5, 0)
-					redondo.Parent = bolinha
-				end
-			end
+-- Visor do painel: fundo escuro com linhas de varredura, o nível no canto,
+-- o ganho de Velocidade bem grande na cor do nível e barrinhas de medidor.
+local function painelDigital(gui: SurfaceGui, cor: Color3, nivel: number)
+	local fundo = Instance.new("Frame")
+	fundo.Size = UDim2.fromScale(1, 1)
+	fundo.BackgroundColor3 = Color3.new(1, 1, 1)
+	fundo.BorderSizePixel = 0
+	fundo.Parent = gui
+	local gradiente = Instance.new("UIGradient")
+	gradiente.Color = ColorSequence.new(cor:Lerp(Color3.new(0, 0, 0), 0.82), Color3.fromRGB(6, 6, 10))
+	gradiente.Rotation = 90
+	gradiente.Parent = fundo
+	for y = 0.08, 0.95, 0.12 do
+		local linha = Instance.new("Frame")
+		linha.Position = UDim2.fromScale(0, y)
+		linha.Size = UDim2.new(1, 0, 0, 2)
+		linha.BackgroundColor3 = cor
+		linha.BackgroundTransparency = 0.88
+		linha.BorderSizePixel = 0
+		linha.Parent = fundo
+	end
+	local function texto(conteudo: string, x: number, y: number, w: number, h: number, corTexto: Color3, alinhamento: Enum.TextXAlignment?)
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(x, y)
+		label.Size = UDim2.fromScale(w, h)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = corTexto
+		label.TextXAlignment = alinhamento or Enum.TextXAlignment.Center
+		label.Text = conteudo
+		label.Parent = fundo
+		local contorno = Instance.new("UIStroke")
+		contorno.Color = Color3.fromRGB(10, 10, 16)
+		contorno.Thickness = 3
+		contorno.Parent = label
+		return label
+	end
+	local ganho = Config.NIVEIS_ESTEIRA[nivel] and Config.NIVEIS_ESTEIRA[nivel].ganho or 1
+	texto(`NV {nivel}`, 0.05, 0.06, 0.3, 0.2, cor:Lerp(Color3.new(1, 1, 1), 0.4), Enum.TextXAlignment.Left)
+	texto(`+{ganho}`, 0.22, 0.18, 0.56, 0.48, cor:Lerp(Color3.new(1, 1, 1), 0.25))
+	texto("VELOCIDADE", 0.25, 0.64, 0.5, 0.14, Color3.fromRGB(235, 235, 245))
+	-- barrinhas de medidor dos dois lados
+	for _, lado in { 0.07, 0.8 } do
+		for i = 0, 4 do
+			local barra = Instance.new("Frame")
+			barra.AnchorPoint = Vector2.new(0, 1)
+			barra.Position = UDim2.fromScale(lado + i * 0.026, 0.9)
+			barra.Size = UDim2.fromScale(0.018, 0.12 + ((i * 37 + nivel * 11) % 5) * 0.08)
+			barra.BackgroundColor3 = cor
+			barra.BorderSizePixel = 0
+			barra.Parent = fundo
 		end
 	end
 end
@@ -304,7 +245,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(45, 45, 50),
 		neon = nil,
-		tela = mosaico("corredor", Color3.fromRGB(120, 230, 130)), -- visor verde de academia
 	},
 	-- 2: Intermediária, preta com neon azul
 	{
@@ -314,7 +254,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(35, 40, 50),
 		neon = Color3.fromRGB(0, 170, 255),
-		tela = mosaico("raio"),
 		extra = function(modelo, cf, cor)
 			halo(modelo, cf, cor, 0.7)
 			brilhosSubindo(modelo, cf, cor, 5)
@@ -329,7 +268,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(45, 35, 60),
 		neon = Color3.fromRGB(115, 60, 255),
-		tela = mosaico("corredor"),
 		extra = function(modelo, cf, cor)
 			halo(modelo, cf, cor, 0.55)
 			fumaca(modelo, cf, cor, 8)
@@ -346,7 +284,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(50, 45, 30),
 		neon = Color3.fromRGB(255, 165, 20),
 		grosso = true,
-		tela = mosaico("coroa"),
 		extra = function(modelo, cf, cor)
 			-- placas douradas nas laterais e nas colunas, tipo armadura
 			for _, x in { -1, 1 } do
@@ -386,7 +323,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(110, 20, 25),
 		neon = Color3.fromRGB(255, 35, 45),
 		grosso = true,
-		tela = mosaico("chama"),
 		extra = function(modelo, cf, cor)
 			-- espinhos nas colunas, no painel e nos cantos
 			local function espinho(lugar: CFrame, tamanho: number)
@@ -453,7 +389,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(40, 70, 130),
 		neon = Color3.fromRGB(80, 220, 255),
 		grosso = true,
-		tela = mosaico("planeta"),
 		extra = function(modelo, cf, cor)
 			local roxo = Color3.fromRGB(190, 90, 255)
 			anel(modelo, cf, cor, 5.4, 8.4, 2.5, 0.8, 40)
@@ -501,7 +436,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(255, 220, 120),
 		neon = Color3.fromRGB(255, 225, 120),
 		grosso = true,
-		tela = mosaico("divina"),
 		extra = function(modelo, cf, cor)
 			-- asas de penas dos dois lados
 			for _, x in { -1, 1 } do
@@ -659,6 +593,73 @@ local function efeitosPista(modelo: Model, chao: CFrame, nivel: number, cor: Col
 		end
 	end
 
+	-- ondas de energia saindo do chão em volta da esteira (o cliente faz cada
+	-- uma nascer pequena, crescer e sumir, sem parar)
+	if nivel >= 2 then
+		for i = 0, 1 do
+			local onda = enfeite(modelo, chao * CFrame.new(0, 0.2, 0.3) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.12, 10, 10), cor, Enum.Material.Neon, { Name = "Onda", Shape = Enum.PartType.Cylinder, Transparency = 0.5 })
+			onda:SetAttribute("ManterForma", true)
+			onda:SetAttribute("Fase", i * 0.5)
+			onda:SetAttribute("Tamanho", 8 + forca * 6)
+			CollectionService:AddTag(onda, "OndaEsteira")
+		end
+	end
+
+	-- arcos de energia passando por cima da pista, da frente até atrás
+	if nivel >= 3 then
+		for _, x in { -1, 1 } do
+			local suporte = area(modelo, chao * CFrame.new(x * 2.95, 7.6, -5.4), Vector3.new(0.2, 0.2, 0.2))
+			local a0 = Instance.new("Attachment")
+			a0.Parent = suporte
+			local a1 = Instance.new("Attachment")
+			a1.Position = suporte.CFrame:PointToObjectSpace((chao * CFrame.new(x * 3.2, 1.4, 6.6)).Position)
+			a1.Parent = suporte
+			local arco = Instance.new("Beam")
+			arco.Name = "Arco"
+			arco.Attachment0 = a0
+			arco.Attachment1 = a1
+			arco.Texture = FAISCA
+			arco.TextureMode = Enum.TextureMode.Wrap
+			arco.TextureLength = 3
+			arco.TextureSpeed = 1.5 + forca
+			arco.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
+			arco.LightEmission = 1
+			arco.LightInfluence = 0
+			arco.Width0 = 0.9
+			arco.Width1 = 0.4
+			arco.CurveSize0 = 6
+			arco.CurveSize1 = 3
+			arco.Segments = 24
+			arco.FaceCamera = true
+			arco.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.2),
+				NumberSequenceKeypoint.new(0.8, 0.4),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			arco.Parent = suporte
+		end
+	end
+
+	-- escapamento: chamas na cor do nível saindo dos pés de trás
+	if nivel >= 4 then
+		for _, x in { -1, 1 } do
+			local cano = area(modelo, chao * CFrame.new(x * 3.15, 1, 7.4), Vector3.new(0.6, 0.6, 0.2))
+			particulas(cano, {
+				Name = "Escapamento",
+				Texture = FOGO,
+				Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+				Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) }),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0.1) }),
+				EmissionDirection = Enum.NormalId.Back,
+				Lifetime = NumberRange.new(0.25, 0.45),
+				Rate = 18 + forca * 10,
+				Speed = NumberRange.new(5, 8),
+				SpreadAngle = Vector2.new(10, 10),
+				LightEmission = 1,
+			})
+		end
+	end
+
 	-- pilares de brilho subindo dos dois lados
 	if nivel >= 2 then
 		for _, x in { -1, 1 } do
@@ -771,7 +772,7 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	gui.LightInfluence = 0
 	gui.Brightness = 2
 	gui.Parent = tela
-	estilo.tela(gui, cor)
+	painelDigital(gui, cor, nivel)
 	for i = -1, 1 do
 		enfeite(
 			modelo,
