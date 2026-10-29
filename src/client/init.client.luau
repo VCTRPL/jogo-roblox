@@ -78,6 +78,7 @@ local function esquecer(parte: Instance)
 end
 CollectionService:GetInstanceRemovedSignal("FaixaEsteira"):Connect(esquecer)
 CollectionService:GetInstanceRemovedSignal("GirarEsteira"):Connect(esquecer)
+CollectionService:GetInstanceRemovedSignal("GirarPortal"):Connect(esquecer)
 
 RunService.RenderStepped:Connect(function()
 	local agora = os.clock()
@@ -91,6 +92,17 @@ RunService.RenderStepped:Connect(function()
 			end
 			local andou = (fase + agora * (faixa:GetAttribute("Velocidade") or 10)) % (faixa:GetAttribute("Curso") or 10)
 			faixa.CFrame = inicio * CFrame.new(0, 0, andou)
+		end
+	end
+	-- raios do portal do fim do mapa: giram em volta do próprio eixo X
+	for _, parte in CollectionService:GetTagged("GirarPortal") do
+		if parte:IsA("BasePart") and parte:IsDescendantOf(Workspace) then
+			local inicio = inicios[parte]
+			if not inicio then
+				inicio = parte.CFrame
+				inicios[parte] = inicio
+			end
+			parte.CFrame = inicio * CFrame.Angles(math.rad(agora * (parte:GetAttribute("Giro") or 90)), 0, 0)
 		end
 	end
 	for _, parte in CollectionService:GetTagged("GirarEsteira") do

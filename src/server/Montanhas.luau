@@ -266,7 +266,7 @@ function Montanhas.construir()
 
 	local fim = Mapa.FIM_ESTRADA + 14
 	local inicio = Montanhas.INICIO
-	local zb, zf, t = Montanhas.Z_BASES, Montanhas.Z_FASES, Montanhas.TRANSICAO
+	local zb, t = Montanhas.Z_BASES, Montanhas.TRANSICAO
 
 	for _, lado in { -1, 1 } do
 		local fora = Vector3.new(0, 0, lado)
@@ -279,7 +279,7 @@ function Montanhas.construir()
 	-- começo (o túnel entra na montanha) e fim da estrada
 	montanhaDoTunel(pasta)
 	cordilheira(pasta, Vector3.new(inicio, 0, -zb), Vector3.new(inicio, 0, zb), -Vector3.xAxis, 34, 50)
-	cordilheira(pasta, Vector3.new(fim, 0, -zf), Vector3.new(fim, 0, zf), Vector3.xAxis, 30, 44)
+	-- o fim da estrada é a parede com o portal "em breve" (Decoracao)
 
 	pasta.Parent = Workspace
 	return pasta

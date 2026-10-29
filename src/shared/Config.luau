@@ -285,6 +285,10 @@ Config.OVOS_ROBUX = {
 	},
 }
 
+-- Quando sai o próximo bioma (horário UTC). O portal no fim do mapa mostra
+-- a contagem até lá; depois disso ele mostra "MUITO EM BREVE!".
+Config.PROXIMO_BIOMA = { dia = 5, mes = 11, ano = 2026, hora = 18 }
+
 -- Ranking: de quantos em quantos segundos atualiza e quantos aparecem.
 Config.RANKING = {
 	categorias = {
