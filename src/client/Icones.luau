@@ -193,6 +193,12 @@ local DESENHOS: { [string]: (ctx: Ctx) -> () } = {
 		brilho(ctx, 0.23, 0.25, 0.08, 0.2)
 	end,
 
+	-- só o X vermelho, para pôr em cima da imagem do botão Som (mudo)
+	Mudo = function(ctx)
+		forma(ctx, 0.5, 0.33, 0.36, 0.11, VERMELHO, 0.5, 45)
+		forma(ctx, 0.5, 0.33, 0.36, 0.11, VERMELHO, 0.5, -45)
+	end,
+
 	-- seta verde para cima (melhorar)
 	Melhorar = function(ctx)
 		forma(ctx, 0.36, 0.46, 0.28, 0.44, VERDE, 0.2)

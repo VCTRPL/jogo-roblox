@@ -74,6 +74,18 @@ Ui.IMAGENS = {
 	Ajuda = "rbxassetid://101323235798081",
 } :: { [string]: string }
 
+-- Botões do menu da direita inteiros (moldura, ícone e nome), gerados com
+-- IA e recortados em arte/gui/botoes. Quem tem imagem aqui não desenha a
+-- moldura por código (veja Interface.luau).
+Ui.BOTOES = {
+	["Índice"] = "rbxassetid://95103673286782",
+	Ajuda = "rbxassetid://118805225301399",
+	Ranking = "rbxassetid://104103890074746",
+	Renascer = "rbxassetid://88622449692239",
+	Loja = "rbxassetid://100609958700586",
+	Som = "rbxassetid://83906082992387",
+} :: { [string]: string }
+
 -- Ícone com a imagem de "nome"; se não tiver, o desenhado em Icones.luau;
 -- se nem isso, o emoji como texto.
 function Ui.icone(nome: string, emoji: string, props: { [string]: any }): GuiObject
