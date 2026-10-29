@@ -12,3 +12,6 @@ Todos foram limpos antes: sem Scripts, LocalScripts, ModuleScripts, Sounds nem v
 | Low Poly Tree (Arvore3) | 10707210767 | z4cked | ReplicatedStorage.ModelosArvore.Floresta |
 | Low Poly Palm Tree (Palmeira1) | 10354687850 | LoucDu44 | ReplicatedStorage.ModelosArvore.Praia |
 | Low Poly Palm Tree (Palmeira2) | 3097584763 | Yxreus | ReplicatedStorage.ModelosArvore.Praia |
+| Low poly Mountain (PicoNevado) | 4941433371 | madisynettv | ReplicatedStorage.ModelosMontanha.Picos |
+| Low Poly Mountain (PenhascoDegraus) | 15173362991 | ItzRoVoider | ReplicatedStorage.ModelosMontanha.Penhascos |
+| Low poly Mountain (PenhascoGrama) | 8761162042 | zZenderC | ReplicatedStorage.ModelosMontanha.Penhascos |
