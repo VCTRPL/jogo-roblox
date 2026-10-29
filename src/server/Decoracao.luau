@@ -399,7 +399,7 @@ local function decorarBase(info: Mapa.InfoBase)
 	local meio = Mapa.TAMANHO_BASE / 2 - 0.6
 	local topo = info.centro
 	local lado = info.lado
-	local cor = info.piso.Color
+	local cor = info.piso:GetAttribute("CorBase") or info.piso.Color
 	local function ponto(x: number, z: number): Vector3
 		-- z positivo = fundos da base (longe da estrada)
 		return topo + Vector3.new(x, 0, lado * z)
@@ -1063,101 +1063,132 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	end
 end
 
--- Poste de luz de blocos: pé de pedra, haste verde-escura com anéis
--- dourados, bandeirinha e um braço com uma lanterna de vidro pendurada.
+-- Poste de rua alto, de cidade: pé de concreto, coluna grossa embaixo e
+-- fina em cima com anéis, cabeça no topo, um braço com mão-francesa indo
+-- para cima da estrada e a luminária (caixa escura com a luz embaixo, que
+-- ilumina a rua). No meio, um banner na cor de uma das bases.
 -- "paraEstrada" é 1 ou -1: para que lado (Z) fica a estrada.
-local CORES_BANDEIRA = { Color3.fromRGB(255, 90, 90), Color3.fromRGB(255, 210, 60), Color3.fromRGB(80, 170, 255), Color3.fromRGB(120, 220, 100) }
+local CORES_BANNER = { Color3.fromRGB(255, 90, 90), Color3.fromRGB(255, 210, 60), Color3.fromRGB(80, 170, 255), Color3.fromRGB(120, 220, 100) }
+local ALTURA_POSTE = 19
 local function poste(pasta: Instance, chao: Vector3, paraEstrada: number)
-	local HASTE = Color3.fromRGB(40, 70, 55)
-	local DOURADO = Color3.fromRGB(215, 175, 85)
-	parte({ Name = "PePoste", Size = Vector3.new(2.4, 1.4, 2.4), Position = chao + Vector3.new(0, 0.7, 0), Color = Color3.fromRGB(120, 120, 128), Parent = pasta })
-	parte({ Name = "Poste", Size = Vector3.new(0.9, 10.4, 0.9), Position = chao + Vector3.new(0, 6.6, 0), Color = HASTE, Material = Enum.Material.Metal, Parent = pasta })
-	for _, y in { 2.4, 8.5 } do
-		parte({ Name = "Anel", Size = Vector3.new(1.3, 0.4, 1.3), Position = chao + Vector3.new(0, y, 0), Color = DOURADO, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	local HASTE = Color3.fromRGB(38, 44, 52)
+	local DETALHE = Color3.fromRGB(205, 170, 90)
+	local CONCRETO = Color3.fromRGB(165, 165, 170)
+	local h = ALTURA_POSTE
+	parte({ Name = "PePoste", Size = Vector3.new(3, 1.2, 3), Position = chao + Vector3.new(0, 0.6, 0), Color = CONCRETO, Parent = pasta })
+	parte({ Name = "PePoste", Size = Vector3.new(2.2, 0.8, 2.2), Position = chao + Vector3.new(0, 1.6, 0), Color = CONCRETO:Lerp(Color3.new(1, 1, 1), 0.15), Parent = pasta })
+	parte({ Name = "Poste", Size = Vector3.new(1.4, 5, 1.4), Position = chao + Vector3.new(0, 4.5, 0), Color = HASTE, Material = Enum.Material.Metal, Parent = pasta })
+	parte({ Name = "Poste", Size = Vector3.new(0.9, h - 7, 0.9), Position = chao + Vector3.new(0, 7 + (h - 7) / 2, 0), Color = HASTE, Material = Enum.Material.Metal, Parent = pasta })
+	for _, y in { 7.1, 12, h - 0.4 } do
+		parte({ Name = "Anel", Size = Vector3.new(1.6, 0.5, 1.6), Position = chao + Vector3.new(0, y, 0), Color = DETALHE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
 	end
+	parte({ Name = "TopoPoste", Size = Vector3.new(1.3, 1, 1.3), Position = chao + Vector3.new(0, h + 0.5, 0), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	parte({ Name = "PontaPoste", Size = Vector3.new(0.5, 0.8, 0.5), Position = chao + Vector3.new(0, h + 1.4, 0), Color = DETALHE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+
+	-- banner preso na coluna, virado para quem passa na rua
+	local corBanner = escolher(CORES_BANNER)
+	parte({ Name = "SuporteBanner", Size = Vector3.new(0.3, 0.3, 2.6), Position = chao + Vector3.new(0, 15.6, -paraEstrada * 1.5), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	parte({ Name = "Banner", Size = Vector3.new(0.2, 4.2, 2.2), Position = chao + Vector3.new(0, 13.4, -paraEstrada * 1.7), Color = corBanner, CanCollide = false, Parent = pasta })
+	parte({ Name = "FaixaBanner", Size = Vector3.new(0.25, 0.5, 2.2), Position = chao + Vector3.new(0, 12.1, -paraEstrada * 1.7), Color = Color3.new(1, 1, 1), CanCollide = false, Parent = pasta })
+
+	-- braço por cima da rua, com a mão-francesa por baixo
+	local comprimento = 5.5
+	local yBraco = h - 1.2
+	parte({ Name = "Braco", Size = Vector3.new(0.6, 0.6, comprimento), Position = chao + Vector3.new(0, yBraco, paraEstrada * comprimento / 2), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	local de = chao + Vector3.new(0, yBraco - 3, paraEstrada * 0.4)
+	local ate = chao + Vector3.new(0, yBraco - 0.3, paraEstrada * 3)
 	parte({
-		Name = "Bandeira",
-		Size = Vector3.new(0.15, 2.2, 1.6),
-		Position = chao + Vector3.new(0, 6.4, -paraEstrada * 1.25),
-		Color = escolher(CORES_BANDEIRA),
+		Name = "MaoFrancesa",
+		Size = Vector3.new(0.35, 0.35, (ate - de).Magnitude),
+		CFrame = CFrame.lookAt((de + ate) / 2, ate),
+		Color = HASTE,
+		Material = Enum.Material.Metal,
 		CanCollide = false,
 		Parent = pasta,
-	})
-	-- braço indo para cima da estrada, com a lanterna pendurada na ponta
-	parte({ Name = "Braco", Size = Vector3.new(0.5, 0.5, 3.6), Position = chao + Vector3.new(0, 11.6, paraEstrada * 1.6), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
-	local ponta = chao + Vector3.new(0, 11.6, paraEstrada * 3.2)
-	parte({ Name = "Corrente", Size = Vector3.new(0.2, 0.8, 0.2), Position = ponta - Vector3.new(0, 0.6, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
-	parte({ Name = "TampaLanterna", Size = Vector3.new(1.8, 0.4, 1.8), Position = ponta - Vector3.new(0, 1.2, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
-	parte({
-		Name = "VidroLanterna",
-		Size = Vector3.new(1.4, 1.6, 1.4),
-		Position = ponta - Vector3.new(0, 2.2, 0),
-		Color = Color3.fromRGB(255, 235, 180),
-		Material = Enum.Material.Glass,
-		Transparency = 0.45,
-		CanCollide = false,
-		CastShadow = false,
-		Parent = pasta,
-	})
+	}):SetAttribute("ManterForma", true)
+
+	-- luminária na ponta do braço
+	local ponta = chao + Vector3.new(0, yBraco, paraEstrada * comprimento)
+	parte({ Name = "Luminaria", Size = Vector3.new(1.8, 0.8, 3), Position = ponta + Vector3.new(0, -0.1, 0), Color = HASTE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
+	parte({ Name = "TampaLuminaria", Size = Vector3.new(1.4, 0.4, 2.4), Position = ponta + Vector3.new(0, 0.5, 0), Color = DETALHE, Material = Enum.Material.Metal, CanCollide = false, Parent = pasta })
 	local lampada = parte({
 		Name = "Lampada",
-		Size = Vector3.new(0.7, 0.9, 0.7),
-		Position = ponta - Vector3.new(0, 2.2, 0),
-		Color = Color3.fromRGB(255, 225, 150),
+		Size = Vector3.new(1.4, 0.25, 2.5),
+		Position = ponta + Vector3.new(0, -0.6, 0),
+		Color = Color3.fromRGB(255, 232, 170),
 		Material = Enum.Material.Neon,
 		CanCollide = false,
 		CastShadow = false,
 		Parent = pasta,
 	})
-	parte({ Name = "FundoLanterna", Size = Vector3.new(1.2, 0.3, 1.2), Position = ponta - Vector3.new(0, 3.15, 0), Color = Color3.fromRGB(30, 30, 34), CanCollide = false, Parent = pasta })
-	local luz = Instance.new("PointLight")
-	luz.Range = 20
-	luz.Brightness = 1.3
+	local luz = Instance.new("SpotLight")
+	luz.Face = Enum.NormalId.Bottom
+	luz.Angle = 110
+	luz.Range = 28
+	luz.Brightness = 2
 	luz.Color = Color3.fromRGB(255, 220, 160)
 	luz.Shadows = false
 	luz.Parent = lampada
 end
 
+-- Faixa de pedestre (zebra) atravessando a rua em "x".
+local function faixaPedestre(pasta: Instance, x: number)
+	for z = -5.6, 5.6, 1.6 do
+		parte({
+			Name = "Zebra",
+			Size = Vector3.new(8, 0.06, 0.9),
+			Position = Vector3.new(x, 1.03, z),
+			Color = Color3.fromRGB(240, 240, 240),
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = pasta,
+		})
+	end
+end
+
 local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 	-- Meio-fio, faixas e postes só na estrada até a Selva Sahur: entre os
 	-- biomas não tem rua (veja Mapa.construir).
-	local trechos = { { Mapa.INICIO_ESTRADA, biomas[1].centro.X - Mapa.TAMANHO_BIOMA / 2 } }
+	local a, b = Mapa.INICIO_ESTRADA, biomas[1].centro.X - Mapa.TAMANHO_BIOMA / 2
 
-	local ladoPoste = 1
-	for _, trecho in trechos do
-		local a, b = trecho[1], trecho[2]
-		for _, z in { -7.4, 7.4 } do
-			parte({
-				Name = "Meiofio",
-				Size = Vector3.new(b - a, 0.4, 0.8),
-				Position = Vector3.new((a + b) / 2, 1.2, z),
-				Color = Color3.fromRGB(230, 230, 235),
-				Material = Enum.Material.SmoothPlastic,
-				Parent = pasta,
-			})
-		end
-		for x = a + 6, b - 4, 10 do
+	-- meio-fio alto, com a guia branca e uma faixa cinza por cima
+	for _, lado in { -1, 1 } do
+		parte({ Name = "Meiofio", Size = Vector3.new(b - a, 0.6, 1), Position = Vector3.new((a + b) / 2, 1.2, lado * 7.5), Color = Color3.fromRGB(225, 225, 230), Material = Enum.Material.SmoothPlastic, Parent = pasta })
+		parte({ Name = "Sarjeta", Size = Vector3.new(b - a, 0.08, 0.6), Position = Vector3.new((a + b) / 2, 1.03, lado * 6.7), Color = Color3.fromRGB(95, 95, 105), Material = Enum.Material.SmoothPlastic, CanCollide = false, CastShadow = false, Parent = pasta })
+		-- linha branca contínua da borda
+		parte({ Name = "LinhaBorda", Size = Vector3.new(b - a, 0.06, 0.35), Position = Vector3.new((a + b) / 2, 1.04, lado * 5.9), Color = Color3.fromRGB(245, 245, 245), Material = Enum.Material.SmoothPlastic, CanCollide = false, CastShadow = false, Parent = pasta })
+	end
+	-- faixa dupla amarela tracejada no meio
+	for x = a + 6, b - 4, 9 do
+		for _, z in { -0.35, 0.35 } do
 			parte({
 				Name = "Faixa",
-				Size = Vector3.new(5, 0.06, 0.6),
-				Position = Vector3.new(x, 1.03, 0),
-				Color = Color3.fromRGB(255, 220, 80),
+				Size = Vector3.new(5, 0.06, 0.35),
+				Position = Vector3.new(x, 1.04, z),
+				Color = Color3.fromRGB(255, 210, 60),
 				Material = Enum.Material.SmoothPlastic,
 				CanCollide = false,
 				CastShadow = false,
 				Parent = pasta,
 			})
 		end
-		-- sem poste colado nos portais dos biomas nem dentro do túnel
-		for x = math.max(a + 10, TUNEL_BOCA + 8), b - 16, 26 do
-			-- na área das bases, nada de poste na frente dos caminhos e das esteiras
-			local baseMaisPerto = math.round(x / Mapa.ESPACO_BASES) * Mapa.ESPACO_BASES
-			local naFrenteDeBase = x < Mapa.FIM_BASES and math.abs(baseMaisPerto) <= Mapa.ESPACO_BASES and math.abs(x - baseMaisPerto) < 30
-			if not naFrenteDeBase then
-				local z = ladoPoste * 9.5
-				ladoPoste = -ladoPoste
-				poste(pasta, Vector3.new(x, 0.05, z), -math.sign(z))
-			end
+	end
+	-- faixa de pedestre na frente do caminho de cada base
+	for i = -1, 1 do
+		faixaPedestre(pasta, i * Mapa.ESPACO_BASES)
+	end
+
+	-- postes dos dois lados, alternados, sem ficar na frente dos caminhos,
+	-- das esteiras, dos portais nem dentro do túnel
+	local ladoPoste = 1
+	for x = math.max(a + 10, TUNEL_BOCA + 10), b - 18, 30 do
+		local baseMaisPerto = math.round(x / Mapa.ESPACO_BASES) * Mapa.ESPACO_BASES
+		local naFrenteDeBase = x < Mapa.FIM_BASES and math.abs(baseMaisPerto) <= Mapa.ESPACO_BASES and math.abs(x - baseMaisPerto) < 32
+		if not naFrenteDeBase then
+			local z = ladoPoste * 10
+			ladoPoste = -ladoPoste
+			poste(pasta, Vector3.new(x, 0.05, z), -math.sign(z))
 		end
 	end
 
@@ -1771,7 +1802,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	local transicao = Montanhas.TRANSICAO
 	local fimEstrada = Mapa.FIM_ESTRADA + 14 + 62 -- montanha do fim
 	local zBases = Montanhas.Z_BASES + 66 -- montanhas atrás das bases
-	local zFases = Montanhas.Z_FASES + 66 -- montanhas dos lados das fases
+	local zFases = Mapa.Z_PAREDE + 8 -- nos biomas não tem montanha: o chão vai até as paredes
 	for _, area in {
 		{ de = inicio, ate = transicao + 60, z = zBases }, -- bases (e o degrau até a estrada das fases)
 		{ de = transicao, ate = fimEstrada, z = zFases }, -- estrada das fases

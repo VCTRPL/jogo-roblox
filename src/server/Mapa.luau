@@ -8,15 +8,17 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Mapa = {}
 
 Mapa.TAMANHO_BASE = 72
-Mapa.ESPACO_BASES = 112 -- de um centro de base ao próximo (no eixo X)
-Mapa.Z_BASES = 66 -- distância do centro das bases até o meio da estrada
-Mapa.INICIO_ESTRADA = -205
-Mapa.TUNEL_BOCA = -182 -- a estrada sai de um túnel na montanha
+-- Bases bem separadas (de lado e da estrada) para roubar dar trabalho mesmo
+-- com muita Velocidade.
+Mapa.ESPACO_BASES = 190 -- de um centro de base ao próximo (no eixo X)
+Mapa.Z_BASES = 110 -- distância do centro das bases até o meio da estrada
+Mapa.INICIO_ESTRADA = -313
+Mapa.TUNEL_BOCA = -290 -- a estrada sai de um túnel na montanha
 Mapa.TUNEL_LARGURA = 22 -- por dentro
 Mapa.TUNEL_ALTURA = 20
 Mapa.TAMANHO_BIOMA = 100
-Mapa.INICIO_BIOMAS = 200 -- x onde começa o primeiro bioma
-Mapa.ESPACO_BIOMAS = 50 -- estrada entre um bioma e o próximo
+Mapa.INICIO_BIOMAS = 330 -- x onde começa o primeiro bioma
+Mapa.ESPACO_BIOMAS = 70 -- transição entre um bioma e o próximo
 Mapa.FIM_BASES = Mapa.INICIO_BIOMAS - 18 -- daqui para trás é a área das bases (os chefes param aqui)
 Mapa.Z_PAREDE = Mapa.TAMANHO_BIOMA / 2 + 2 -- paredes dos lados dos biomas
 Mapa.FIM_ESTRADA = Mapa.INICIO_BIOMAS + #Config.BIOMAS * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
@@ -106,10 +108,13 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 			Name = "Piso",
 			Size = Vector3.new(Mapa.TAMANHO_BASE, 1, Mapa.TAMANHO_BASE),
 			Position = Vector3.new(x, 0.5, lado * Mapa.Z_BASES),
-			Color = Color3.fromHSV((i - 1) / 6, 0.4, 0.85),
-			Material = Enum.Material.SmoothPlastic,
+			-- grama, igual ao resto do mapa
+			Color = Color3.fromRGB(125, 195, 90),
+			Material = Enum.Material.Grass,
 			Parent = pastaBase,
 		})
+		-- cor de cada base, usada nas lanternas dos cantos (Decoracao)
+		piso:SetAttribute("CorBase", Color3.fromHSV((i - 1) / 6, 0.4, 0.85))
 		table.insert(bases, { piso = piso, centro = Vector3.new(x, 1, lado * Mapa.Z_BASES), lado = lado, pasta = pastaBase })
 	end
 	-- caminho de pedra da estrada até a entrada de cada base

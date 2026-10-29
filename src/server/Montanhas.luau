@@ -274,8 +274,7 @@ function Montanhas.construir()
 		cordilheira(pasta, Vector3.new(inicio, 0, lado * zb), Vector3.new(t, 0, lado * zb), fora, 30, 46)
 		-- degrau onde a área das bases encontra a estrada das fases
 		cordilheira(pasta, Vector3.new(t, 0, lado * Mapa.Z_PAREDE), Vector3.new(t, 0, lado * zb), Vector3.xAxis, 28, 40)
-		-- laterais das fases
-		cordilheira(pasta, Vector3.new(t, 0, lado * zf), Vector3.new(fim, 0, lado * zf), fora, 24, 38)
+		-- nas laterais dos biomas não tem montanha: as paredes deles são altas (Paredes)
 	end
 	-- começo (o túnel entra na montanha) e fim da estrada
 	montanhaDoTunel(pasta)
