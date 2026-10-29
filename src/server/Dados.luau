@@ -127,6 +127,15 @@ function Dados.carregar(player: Player): { any }
 			end
 		end
 	end
+	-- Brainrots que o jogador já teve (o Índice mostra a foto deles)
+	if typeof(salvo.indice) == "table" then
+		for _, id in salvo.indice do
+			if typeof(id) == "string" and Config.brainrot(id) then
+				player:SetAttribute(`Ind_{id}`, true)
+			end
+		end
+	end
+
 	compras[player] = {}
 	if typeof(salvo.compras) == "table" then
 		for _, id in salvo.compras do
@@ -161,6 +170,7 @@ function Dados.salvar(player: Player, itens: { any }): boolean
 			estatisticas = estatisticas,
 			pendentes = pendentes[player],
 			compras = compras[player],
+			indice = Dados.indice(player),
 		}, { player.UserId })
 	end)
 	if not ok then
@@ -219,6 +229,25 @@ function Dados.recorde(player: Player, nome: string, valor: number)
 	if valor > Dados.estatistica(player, nome) then
 		player:SetAttribute(`Est_{nome}`, math.min(math.floor(valor), MAXIMO))
 	end
+end
+
+-- Índice: marca o Brainrot como descoberto. Devolve true se for a primeira vez.
+function Dados.descobrir(player: Player, id: string): boolean
+	if player:GetAttribute(`Ind_{id}`) or not Config.brainrot(id) then
+		return false
+	end
+	player:SetAttribute(`Ind_{id}`, true)
+	return true
+end
+
+function Dados.indice(player: Player): { string }
+	local lista = {}
+	for _, def in Config.BRAINROTS do
+		if player:GetAttribute(`Ind_{def.id}`) then
+			table.insert(lista, def.id)
+		end
+	end
+	return lista
 end
 
 -- Brainrots comprados esperando vaga na base.

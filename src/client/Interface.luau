@@ -304,6 +304,40 @@ local function criarPainel(nome: string, titulo: string, cima: Color3, baixo: Co
 	return painel, conteudo
 end
 
+-- Foto 3D do Brainrot: o boneco de blocos de ReplicatedStorage.FotosIndice
+-- (o servidor monta) dentro de um ViewportFrame. Quem ainda não teve o
+-- Brainrot vê só a silhueta preta. Se a foto não chegar, usa o bonequinho.
+local function fotoBrainrot(def, parent: Instance): ViewportFrame?
+	local fotos = ReplicatedStorage:WaitForChild("FotosIndice", 15)
+	local molde = fotos and fotos:WaitForChild(def.id, 5)
+	if not (molde and molde:IsA("Model")) then
+		return nil
+	end
+	local vista = criar("ViewportFrame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(1, -16, 0, 104),
+		BackgroundTransparency = 1,
+		Ambient = Color3.fromRGB(205, 205, 215),
+		LightColor = Color3.fromRGB(255, 250, 240),
+		LightDirection = Vector3.new(-1, -1.5, -1),
+		ZIndex = 6,
+		Parent = parent,
+	})
+	local modelo = molde:Clone()
+	modelo:PivotTo(CFrame.new())
+	modelo.Parent = vista
+	local caixa, tamanho = modelo:GetBoundingBox()
+	local camera = criar("Camera", { FieldOfView = 30, Parent = vista })
+	-- de frente (-Z), um pouco de lado e de cima, longe o bastante para caber tudo
+	local raio = math.max(tamanho.X, tamanho.Y, tamanho.Z) * 0.5
+	local distancia = raio / math.tan(math.rad(camera.FieldOfView / 2)) * 1.05
+	local direcao = Vector3.new(-0.45, 0.3, -1).Unit
+	camera.CFrame = CFrame.lookAt(caixa.Position + direcao * distancia, caixa.Position)
+	vista.CurrentCamera = camera
+	return vista
+end
+
 -- Bonequinho de blocos de um Brainrot, feito só com quadrados.
 local function bonequinho(def, parent: Instance)
 	local caixa = criar("Frame", {
@@ -353,7 +387,7 @@ end
 
 local painelIndice, conteudoIndice = criarPainel("Indice", "📖 ÍNDICE DE BRAINROTS", Color3.fromRGB(255, 200, 70), Color3.fromRGB(240, 120, 40))
 criar("UIGridLayout", {
-	CellSize = UDim2.fromOffset(196, 196),
+	CellSize = UDim2.fromOffset(196, 214),
 	CellPadding = UDim2.fromOffset(10, 10),
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	SortOrder = Enum.SortOrder.LayoutOrder,
@@ -368,6 +402,20 @@ table.sort(ordemIndice, function(a, b)
 	end
 	return a.renda < b.renda
 end)
+-- Cada Brainrot do Índice: aparece quando o atributo "Ind_<id>" (o servidor
+-- marca quando ele entra na sua base) fica true.
+local tituloIndice = (painelIndice:FindFirstChildWhichIsA("Frame") :: Frame):FindFirstChildWhichIsA("TextLabel") :: TextLabel
+local cartoesIndice: { () -> () } = {}
+local function atualizarTituloIndice()
+	local total = 0
+	for _, def in Config.BRAINROTS do
+		if jogador:GetAttribute(`Ind_{def.id}`) then
+			total += 1
+		end
+	end
+	tituloIndice.Text = `📖 ÍNDICE DE BRAINROTS ({total}/{#Config.BRAINROTS})`
+end
+
 for ordem, def in ordemIndice do
 	local corRaridade = Config.CORES_RARIDADE[def.raridade]
 	local cartao = criar("Frame", {
@@ -376,21 +424,20 @@ for ordem, def in ordemIndice do
 		ZIndex = 5,
 		Parent = conteudoIndice,
 	}, { cantos(16), borda(corRaridade, 3.5), gradiente(Color3.fromRGB(62, 56, 108), Color3.fromRGB(32, 28, 60)) })
-	bonequinho(def, cartao)
-	texto({ Text = def.nome, Position = UDim2.fromOffset(8, 88), Size = UDim2.new(1, -16, 0, 24), ZIndex = 6, Parent = cartao })
+	local nome = texto({ Text = def.nome, Position = UDim2.fromOffset(8, 112), Size = UDim2.new(1, -16, 0, 24), ZIndex = 6, Parent = cartao })
 	local selo = criar("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 116),
+		Position = UDim2.new(0.5, 0, 0, 140),
 		Size = UDim2.fromOffset(110, 24),
 		BackgroundColor3 = corRaridade,
 		ZIndex = 6,
 		Parent = cartao,
 	}, { cantos(12), borda(CONTORNO, 2.5) })
 	texto({ Text = NOME_RARIDADE[def.raridade] or def.raridade, Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = selo })
-	texto({
+	local renda = texto({
 		Text = `💰 ${Config.formatar(def.renda)}/s`,
 		TextColor3 = Color3.fromRGB(130, 255, 130),
-		Position = UDim2.fromOffset(8, 144),
+		Position = UDim2.fromOffset(8, 166),
 		Size = UDim2.new(1, -16, 0, 22),
 		ZIndex = 6,
 		Parent = cartao,
@@ -398,12 +445,46 @@ for ordem, def in ordemIndice do
 	texto({
 		Text = `📍 {biomasDo(def.id)}`,
 		TextColor3 = Color3.fromRGB(200, 220, 255),
-		Position = UDim2.fromOffset(8, 168),
+		Position = UDim2.fromOffset(8, 190),
 		Size = UDim2.new(1, -16, 0, 18),
 		ZIndex = 6,
 		Parent = cartao,
 	})
+	local foto: ViewportFrame? = nil
+	local interrogacao = texto({
+		Text = "?",
+		TextColor3 = Color3.fromRGB(200, 200, 230),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 30),
+		Size = UDim2.fromOffset(60, 60),
+		ZIndex = 7,
+		Parent = cartao,
+	})
+	local function atualizar()
+		local tem = jogador:GetAttribute(`Ind_{def.id}`) == true
+		nome.Text = if tem then def.nome else "???"
+		renda.Text = if tem then `💰 ${Config.formatar(def.renda)}/s` else "💰 ???"
+		interrogacao.Visible = not tem
+		if foto then
+			-- silhueta preta até descobrir
+			foto.ImageColor3 = if tem then BRANCO else Color3.new(0, 0, 0)
+		end
+	end
+	table.insert(cartoesIndice, atualizar)
+	jogador:GetAttributeChangedSignal(`Ind_{def.id}`):Connect(function()
+		atualizar()
+		atualizarTituloIndice()
+	end)
+	atualizar()
+	task.spawn(function()
+		foto = fotoBrainrot(def, cartao)
+		if not foto then
+			bonequinho(def, cartao)
+		end
+		atualizar()
+	end)
 end
+atualizarTituloIndice()
 
 local painelAjuda, conteudoAjuda = criarPainel("Ajuda", "❓ COMO JOGAR", Color3.fromRGB(120, 230, 140), Color3.fromRGB(30, 160, 90))
 criar("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = conteudoAjuda })

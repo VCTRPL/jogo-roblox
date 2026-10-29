@@ -975,6 +975,47 @@ local function textoArco(placa: BasePart, face: Enum.NormalId, nome: string, avi
 	end
 end
 
+-- Placa de aviso amarela e preta antes do portal: dá para entrar com
+-- qualquer Velocidade, mas abaixo do mínimo o guardião alcança quem pega um ovo.
+local function placaAviso(pasta: Instance, x: number, z: number, info: Mapa.InfoBioma)
+	local PRETO = Color3.fromRGB(30, 28, 32)
+	local AMARELO = Color3.fromRGB(255, 205, 40)
+	for _, dz in { -4, 4 } do
+		parte({ Name = "PostePlaca", Size = Vector3.new(0.9, 9, 0.9), Position = Vector3.new(x, 4.5, z + dz), Color = PRETO, Parent = pasta })
+	end
+	parte({ Name = "MolduraAviso", Size = Vector3.new(0.8, 7.4, 11.4), Position = Vector3.new(x, 8.2, z), Color = PRETO, Parent = pasta })
+	local placa = parte({ Name = "PlacaAviso", Size = Vector3.new(1, 6.8, 10.8), Position = Vector3.new(x, 8.2, z), Color = AMARELO, Parent = pasta })
+	-- pinos de Lego em cima
+	for dz = -4, 4, 2 do
+		local pino = parte({ Name = "Pino", Size = Vector3.new(0.6, 0.5, 0.6), Position = Vector3.new(x, 11.9, z + dz), Color = AMARELO, CanCollide = false, Parent = pasta })
+		pino.Shape = Enum.PartType.Cylinder
+		pino.Orientation = Vector3.new(0, 0, 90)
+	end
+	local minimo = Config.formatar(info.config.velocidadeMinima)
+	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		gui.Parent = placa
+		local function linha(texto: string, y: number, altura: number, cor: Color3)
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Position = UDim2.fromScale(0.05, y)
+			label.Size = UDim2.fromScale(0.9, altura)
+			label.Font = Enum.Font.FredokaOne
+			label.TextScaled = true
+			label.TextWrapped = true
+			label.TextColor3 = cor
+			label.Text = texto
+			label.Parent = gui
+		end
+		linha("⚠️ ATENÇÃO! ⚠️", 0.05, 0.2, Color3.fromRGB(200, 30, 30))
+		linha(`VELOCIDADE MÍNIMA: {minimo}`, 0.27, 0.22, PRETO)
+		linha(`para pegar um ovo sem ser pego pelo {info.config.guardiao}`, 0.53, 0.4, PRETO)
+	end
+end
+
 local function decorarPortal(info: Mapa.InfoBioma)
 	local pasta = Instance.new("Folder")
 	pasta.Name = "DecoracaoPortal"
@@ -1024,7 +1065,7 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	parte({ Name = "Viga", Size = Vector3.new(2.4, 1.6, 30), Position = Vector3.new(x, 22.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
 	local nome = Config.maiusculas(Config.semAcento(info.config.nome))
 	local minimo = info.config.velocidadeMinima
-	local aviso = if minimo > 0 then `PRECISA DE {Config.formatar(minimo)} DE VELOCIDADE` else nil
+	local aviso = if minimo > 0 then `VELOCIDADE MÍNIMA: {Config.formatar(minimo)}` else nil
 	textoArco(placa, Enum.NormalId.Left, nome, aviso, tema)
 	textoArco(placa, Enum.NormalId.Right, nome, aviso, tema)
 
@@ -1042,6 +1083,10 @@ local function decorarPortal(info: Mapa.InfoBioma)
 		brilho.SpreadAngle = Vector2.new(180, 180)
 		brilho.Size = NumberSequence.new(0.6, 0)
 		brilho.Parent = portal
+	end
+
+	if minimo > 0 then
+		placaAviso(pasta, x - 16, -17, info)
 	end
 
 	-- estátuas do guardião, olhando para quem chega pela estrada

@@ -9,6 +9,7 @@ local Compras = require(script.Compras)
 local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
+local Modelos = require(script.Modelos)
 local Ninhos = require(script.Ninhos)
 local Passes = require(script.Passes)
 local Ranking = require(script.Ranking)
@@ -38,6 +39,7 @@ end
 
 local infoBases, infoBiomas = Mapa.construir()
 Decoracao.construir(infoBases, infoBiomas)
+Modelos.publicarIndice()
 Passes.iniciar()
 Velocidade.iniciar()
 Bases.iniciar(infoBases)
@@ -67,6 +69,8 @@ local function aoEntrar(player: Player)
 	for _, item in itens do
 		Bases.colocar(base, item)
 	end
+	-- daqui para a frente, Brainrot novo avisa "Novo no Índice"
+	player:SetAttribute("BaseCarregada", true)
 	-- ovos comprados com Robux que estavam esperando vaga
 	Compras.entrar(player)
 	Velocidade.atualizar(player)

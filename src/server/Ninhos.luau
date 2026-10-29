@@ -1,5 +1,5 @@
 -- Biomas: ninhos com ovos, o guardião que persegue quem pega um ovo
--- e o bloqueio para quem não tem Velocidade suficiente.
+-- e o aviso para quem entra sem a Velocidade mínima.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -343,8 +343,9 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 	)
 end
 
--- Quem não tem Velocidade suficiente é empurrado de volta para a entrada.
--- Também marca em que bioma cada um está (o cliente troca a música).
+-- Marca em que bioma cada um está (o cliente troca a música). Todo mundo
+-- pode entrar em qualquer bioma; quem entra sem a Velocidade mínima recebe
+-- um aviso de que o guardião corre mais que ele.
 local function verificarPortoes()
 	for _, player in Players:GetPlayers() do
 		local personagem = player.Character
@@ -353,29 +354,20 @@ local function verificarPortoes()
 			local onde = nil
 			for _, bioma in biomas do
 				if Mapa.dentroQuadrado(bioma.info.centro, Mapa.TAMANHO_BIOMA, raiz.Position) then
-					onde = bioma.info.config.nome
+					onde = bioma
 				end
 			end
-			if player:GetAttribute("Bioma") ~= onde then
-				player:SetAttribute("Bioma", onde)
-			end
-			-- o primeiro bioma trancado para essa pessoa barra a estrada inteira
-			-- dali para a frente (não dá para passar pelo lado)
-			for _, bioma in biomas do
-				local minimo = bioma.info.config.velocidadeMinima
-				local inicioBioma = bioma.info.centro.X - Mapa.TAMANHO_BIOMA / 2
-				local trancado = minimo > 0 and Dados.valor(player, "Velocidade") < minimo
-				if trancado and raiz.Position.X > inicioBioma - 0.5 and math.abs(raiz.Position.Z) < Mapa.Z_PAREDE + 12 then
-					personagem:PivotTo(CFrame.lookAt(bioma.info.entrada, bioma.info.entrada - Vector3.xAxis))
-					if os.clock() - (ultimoAvisoPortao[player] or 0) > 3 then
-						ultimoAvisoPortao[player] = os.clock()
-						Avisos.enviar(
-							player,
-							`Você precisa de {Config.formatar(minimo)} de Velocidade para entrar em {bioma.info.config.nome}!`,
-							VERMELHO
-						)
-					end
-					break
+			local nome = onde and onde.info.config.nome
+			if player:GetAttribute("Bioma") ~= nome then
+				player:SetAttribute("Bioma", nome)
+				local minimo = onde and onde.info.config.velocidadeMinima or 0
+				if minimo > Dados.valor(player, "Velocidade") and os.clock() - (ultimoAvisoPortao[player] or 0) > 10 then
+					ultimoAvisoPortao[player] = os.clock()
+					Avisos.enviar(
+						player,
+						`Cuidado! Com menos de {Config.formatar(minimo)} de Velocidade, o {onde.info.config.guardiao} te pega se você pegar um ovo!`,
+						VERMELHO
+					)
 				end
 			end
 		end

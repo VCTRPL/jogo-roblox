@@ -618,6 +618,12 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	modelo:PivotTo(base.vagas[vaga])
 	modelo.Parent = base.info.pasta
 	base.itens[vaga] = { item = item, modelo = modelo, chocaEm = chocaEm }
+
+	-- Brainrot novo na base (chocou, roubou ou comprou): entra no Índice
+	if item.tipo == "brainrot" and Dados.descobrir(dono, item.id) and dono:GetAttribute("BaseCarregada") then
+		local def = Config.brainrot(item.id)
+		Avisos.enviar(dono, `📖 Novo no Índice: {def.nome}!`, Config.CORES_RARIDADE[def.raridade])
+	end
 	atualizarPlaca(base)
 	return true
 end
