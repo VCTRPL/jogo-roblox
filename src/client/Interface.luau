@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Icones = require(script.Parent.Icones)
 local LojaOvos = require(script.Parent.LojaOvos)
 local Ranking = require(script.Parent.Ranking)
 local Sons = require(script.Parent.Sons)
@@ -817,9 +818,9 @@ botao(4, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 
 	abrirPainel(painelRenascer)
 end)
 botao(5, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
-local iconeSom: TextLabel
+local iconeSom: GuiObject
 iconeSom = botao(6, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
-	iconeSom.Text = if Sons.alternar() then "🔇" else "🔊"
+	Icones.desenhar(iconeSom, if Sons.alternar() then "SemSom" else "Som")
 end)
 
 function Interface.iniciar()

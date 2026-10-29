@@ -5,6 +5,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
+local Icones = require(script.Parent.Icones)
 local Ui = require(script.Parent.Ui)
 
 local criar, cantos, borda, gradiente, texto, pular = Ui.criar, Ui.cantos, Ui.borda, Ui.gradiente, Ui.texto, Ui.pular
@@ -21,6 +22,8 @@ local CORES = {
 	{ "Vender", Color3.fromRGB(255, 235, 110), Color3.fromRGB(60, 190, 80) },
 }
 local PADRAO = { "", Color3.fromRGB(120, 240, 130), Color3.fromRGB(30, 165, 80) }
+-- Ações com ícone (o nome do desenho em Icones.luau é a palavra da ação).
+local ICONES = { "Melhorar", "Trancar" }
 
 local function coresDa(acao: string)
 	for _, cor in CORES do
@@ -86,12 +89,28 @@ local function mostrar(prompt: ProximityPrompt, entrada: Enum.ProximityPromptInp
 		Parent = gui,
 	}, { cantos(14), borda(CONTORNO, 3), gradiente(Color3.fromRGB(70, 62, 120), Color3.fromRGB(36, 30, 66)) })
 	local temObjeto = prompt.ObjectText ~= ""
+	-- ícone no canto (Icones.luau), para as ações que têm
+	local icone = nil
+	for _, nome in ICONES do
+		if string.find(prompt.ActionText, nome, 1, true) then
+			icone = nome
+		end
+	end
+	local folga = if icone then 64 else 20
+	if icone then
+		Icones.criar(icone, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(42, 42),
+			Parent = caixa,
+		})
+	end
 	texto({
 		Text = prompt.ActionText,
 		TextColor3 = cor[2],
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Position = UDim2.fromOffset(12, if temObjeto then 3 else 9),
-		Size = UDim2.new(1, -20, 0, if temObjeto then 28 else 36),
+		Size = UDim2.new(1, -folga, 0, if temObjeto then 28 else 36),
 		Parent = caixa,
 	})
 	if temObjeto then
@@ -99,7 +118,7 @@ local function mostrar(prompt: ProximityPrompt, entrada: Enum.ProximityPromptInp
 			Text = prompt.ObjectText,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Position = UDim2.fromOffset(12, 30),
-			Size = UDim2.new(1, -20, 0, 20),
+			Size = UDim2.new(1, -folga, 0, 20),
 			Parent = caixa,
 		})
 	end

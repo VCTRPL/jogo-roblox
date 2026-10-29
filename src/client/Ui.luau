@@ -74,9 +74,15 @@ Ui.IMAGENS = {
 	Ajuda = "rbxassetid://101323235798081",
 } :: { [string]: string }
 
--- Ícone com a imagem de "nome" ou, se não tiver, o emoji como texto.
+-- Ícone com a imagem de "nome"; se não tiver, o desenhado em Icones.luau;
+-- se nem isso, o emoji como texto.
 function Ui.icone(nome: string, emoji: string, props: { [string]: any }): GuiObject
 	local imagem = Ui.IMAGENS[nome]
+	-- carregado aqui dentro porque o Icones usa o Ui
+	local Icones = require(script.Parent.Icones) :: any
+	if not imagem and Icones.tem(nome) then
+		return Icones.criar(nome, props)
+	end
 	if not imagem then
 		props.Text = emoji
 		return Ui.texto(props)
