@@ -617,6 +617,7 @@ function LojaOvos.montar(painel: Frame, conteudoPasses: ScrollingFrame)
 
 	-- abas
 	local abas = criar("Frame", {
+		Name = "Abas",
 		Position = UDim2.fromOffset(16, 74),
 		Size = UDim2.new(1, -32, 0, 42),
 		BackgroundTransparency = 1,
@@ -635,6 +636,7 @@ function LojaOvos.montar(painel: Frame, conteudoPasses: ScrollingFrame)
 	end
 	for ordem, info in { { conteudoOvos, "🥚 OVOS ESPECIAIS" }, { conteudoPasses, "🎫 PASSES" } } do
 		local b = criar("TextButton", {
+			Name = `Aba{ordem}`,
 			LayoutOrder = ordem,
 			Size = UDim2.fromOffset(if ordem == 1 then 250 else 170, 42),
 			BackgroundColor3 = BRANCO,

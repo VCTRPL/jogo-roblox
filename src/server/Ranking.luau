@@ -33,7 +33,7 @@ local ultimoPedido: { [Player]: number } = {}
 
 local function desligarGlobal(erro: any)
 	local texto = tostring(erro)
-	if string.find(texto, "StudioAccessToApisNotAllowed") or string.find(texto, "403") then
+	if string.find(texto, "Studio access to APIs") or string.find(texto, "StudioAccessToApisNotAllowed") then
 		globalDesligado = true
 		globalErro = "O ranking global só funciona no jogo publicado."
 	else

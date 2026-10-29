@@ -59,7 +59,9 @@ local function botaoPilula(props: { [string]: any }, rotulo: string, aoClicar: (
 	local grad = gradiente(CINZA_CIMA, CINZA_BAIXO)
 	grad.Parent = b
 	local escala = criar("UIScale", { Parent = b })
-	texto({ Text = rotulo, Position = UDim2.fromOffset(8, 5), Size = UDim2.new(1, -16, 1, -10), ZIndex = 7, Parent = b })
+	local rotuloTexto = texto({ Text = rotulo, Position = UDim2.fromOffset(8, 5), Size = UDim2.new(1, -16, 1, -10), ZIndex = 7, Parent = b })
+	-- todas as categorias com o texto do mesmo tamanho
+	criar("UITextSizeConstraint", { MaxTextSize = 18, Parent = rotuloTexto })
 	b.Activated:Connect(function()
 		pular(escala, 0.85)
 		Sons.tocar("Clique")
@@ -247,6 +249,7 @@ function Ranking.montar(novoPainel: Frame, conteudo: ScrollingFrame)
 	painel.Size = UDim2.fromOffset(660, 540)
 
 	local abas = criar("Frame", {
+		Name = "Abas",
 		Position = UDim2.fromOffset(16, 74),
 		Size = UDim2.new(1, -32, 0, 40),
 		BackgroundTransparency = 1,
@@ -254,7 +257,7 @@ function Ranking.montar(novoPainel: Frame, conteudo: ScrollingFrame)
 		Parent = painel,
 	}, { criar("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for ordem, info in { { "servidor", "🏠 SERVIDOR" }, { "global", "🌍 GLOBAL" } } do
-		local _, grad = botaoPilula({ LayoutOrder = ordem, Size = UDim2.fromOffset(180, 40), Parent = abas }, info[2], function()
+		local _, grad = botaoPilula({ Name = `Aba_{info[1]}`, LayoutOrder = ordem, Size = UDim2.fromOffset(180, 40), Parent = abas }, info[2], function()
 			aba = info[1]
 			desenhar()
 		end)
@@ -262,6 +265,7 @@ function Ranking.montar(novoPainel: Frame, conteudo: ScrollingFrame)
 	end
 
 	local categorias = criar("Frame", {
+		Name = "Categorias",
 		Position = UDim2.fromOffset(16, 124),
 		Size = UDim2.new(1, -32, 0, 40),
 		BackgroundTransparency = 1,
@@ -270,7 +274,7 @@ function Ranking.montar(novoPainel: Frame, conteudo: ScrollingFrame)
 	}, { criar("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }) })
 	for ordem, def in CATEGORIAS do
 		local largura = (628 - 8 * (#CATEGORIAS - 1)) / #CATEGORIAS
-		local _, grad, contorno = botaoPilula({ LayoutOrder = ordem, Size = UDim2.fromOffset(largura, 40), Parent = categorias }, `{def.icone} {def.nome}`, function()
+		local _, grad, contorno = botaoPilula({ Name = `Categoria_{def.chave}`, LayoutOrder = ordem, Size = UDim2.fromOffset(largura, 40), Parent = categorias }, `{def.icone} {def.nome}`, function()
 			categoria = def.chave
 			desenhar()
 		end)
