@@ -952,14 +952,15 @@ end
 local function placaAviso(pasta: Instance, x: number, z: number, info: Mapa.InfoBioma)
 	local PRETO = Color3.fromRGB(30, 28, 32)
 	local AMARELO = Color3.fromRGB(255, 205, 40)
+	local y = 1 -- em cima do chão de transição
 	for _, dz in { -4, 4 } do
-		parte({ Name = "PostePlaca", Size = Vector3.new(0.9, 9, 0.9), Position = Vector3.new(x, 4.5, z + dz), Color = PRETO, Parent = pasta })
+		parte({ Name = "PostePlaca", Size = Vector3.new(0.9, 9, 0.9), Position = Vector3.new(x, y + 4.5, z + dz), Color = PRETO, Parent = pasta })
 	end
-	parte({ Name = "MolduraAviso", Size = Vector3.new(0.8, 7.4, 11.4), Position = Vector3.new(x, 8.2, z), Color = PRETO, Parent = pasta })
-	local placa = parte({ Name = "PlacaAviso", Size = Vector3.new(1, 6.8, 10.8), Position = Vector3.new(x, 8.2, z), Color = AMARELO, Parent = pasta })
+	parte({ Name = "MolduraAviso", Size = Vector3.new(0.8, 7.4, 11.4), Position = Vector3.new(x, y + 8.2, z), Color = PRETO, Parent = pasta })
+	local placa = parte({ Name = "PlacaAviso", Size = Vector3.new(1, 6.8, 10.8), Position = Vector3.new(x, y + 8.2, z), Color = AMARELO, Parent = pasta })
 	-- pinos de Lego em cima
 	for dz = -4, 4, 2 do
-		local pino = parte({ Name = "Pino", Size = Vector3.new(0.6, 0.5, 0.6), Position = Vector3.new(x, 11.9, z + dz), Color = AMARELO, CanCollide = false, Parent = pasta })
+		local pino = parte({ Name = "Pino", Size = Vector3.new(0.6, 0.5, 0.6), Position = Vector3.new(x, y + 11.9, z + dz), Color = AMARELO, CanCollide = false, Parent = pasta })
 		pino.Shape = Enum.PartType.Cylinder
 		pino.Orientation = Vector3.new(0, 0, 90)
 	end
@@ -1658,6 +1659,40 @@ local function decorarEspaco(info: Mapa.InfoBioma)
 	})
 end
 
+-- Transição entre um bioma e o próximo: um chão de blocos de parede a
+-- parede que vai misturando o piso dos dois como pixels (perto de um, quase
+-- tudo dele; no meio, metade de cada). Depois do último bioma, só o piso dele.
+local BLOCO_TRANSICAO = 5
+local function transicoes(pasta: Instance, biomas: { Mapa.InfoBioma })
+	for i, info in biomas do
+		local proximo = biomas[i + 1]
+		local de = info.centro.X + Mapa.TAMANHO_BIOMA / 2
+		local ate = if proximo then proximo.centro.X - Mapa.TAMANHO_BIOMA / 2 else Mapa.FIM_ESTRADA + 14
+		local pisoA = info.pasta:FindFirstChild("Piso") :: BasePart
+		local pisoB = if proximo then proximo.pasta:FindFirstChild("Piso") :: BasePart else pisoA
+		local colunas = math.max(1, math.round((ate - de) / BLOCO_TRANSICAO))
+		local passo = (ate - de) / colunas
+		local largura = Mapa.Z_PAREDE * 2
+		local linhas = math.round(largura / BLOCO_TRANSICAO)
+		local passoZ = largura / linhas
+		for c = 0, colunas - 1 do
+			local t = (c + 0.5) / colunas
+			local chance = t * t * (3 - 2 * t) -- suave nas pontas
+			for l = 0, linhas - 1 do
+				local piso = if aleatorio:NextNumber() < chance then pisoB else pisoA
+				parte({
+					Name = "Transicao",
+					Size = Vector3.new(passo, 1.3, passoZ),
+					Position = Vector3.new(de + (c + 0.5) * passo, info.centro.Y - 0.6, -largura / 2 + (l + 0.5) * passoZ),
+					Color = escurecer(piso.Color, aleatorio:NextNumber(0, 0.08)),
+					Material = piso.Material,
+					Parent = pasta,
+				})
+			end
+		end
+	end
+end
+
 -- Árvores, arbustos e pedras nos cantos livres entre as montanhas, fora
 -- das áreas de jogo.
 local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
@@ -1685,6 +1720,10 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 		end
 		for _, bioma in biomas do
 			if math.abs(p.X - bioma.centro.X) < 60 and math.abs(p.Z) < 60 then
+				return false
+			end
+			-- nada no chão de transição entre os biomas (fica mais alto)
+			if p.X > Mapa.FIM_BASES and math.abs(p.Z) < Mapa.Z_PAREDE + 3 then
 				return false
 			end
 			-- nada na frente da placa amarela de atenção (veja placaAviso)
@@ -1769,6 +1808,8 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 		end
 		decorarPortal(info)
 	end
+	-- depois das decorações, que trocam a cor e o material dos pisos
+	transicoes(pasta, biomas)
 
 	pasta.Parent = Workspace
 

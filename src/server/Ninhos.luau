@@ -224,7 +224,9 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 
 	-- placa de madeira do lado de fora, na frente do arco com o nome do bioma
 	-- (do lado direito da passagem), virada para quem chega
-	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, 0.05, 13)
+	-- antes do primeiro bioma é o gramado do mapa; nos outros, o chão de transição
+	local altura = if info.config == Config.BIOMAS[1] then 0.05 else info.centro.Y
+	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, altura, 13)
 	-- o poste fica atrás da placa (quem chega vem de -X), sem tampar o texto
 	Mapa.parte({
 		Name = "PostePlaca",
