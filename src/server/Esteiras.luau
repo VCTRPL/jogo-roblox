@@ -5,6 +5,8 @@
 -- cima dela correndo sozinho (veja Bases.luau). O cliente anima as faixas da pista (tag "FaixaEsteira") e o
 -- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -625,15 +627,15 @@ local function efeitosPista(modelo: Model, chao: CFrame, nivel: number, cor: Col
 			arco.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
 			arco.LightEmission = 1
 			arco.LightInfluence = 0
-			arco.Width0 = 0.9
-			arco.Width1 = 0.4
+			arco.Width0 = 1.6
+			arco.Width1 = 0.8
 			arco.CurveSize0 = 6
 			arco.CurveSize1 = 3
 			arco.Segments = 24
 			arco.FaceCamera = true
 			arco.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.2),
-				NumberSequenceKeypoint.new(0.8, 0.4),
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(0.8, 0.2),
 				NumberSequenceKeypoint.new(1, 1),
 			})
 			arco.Parent = suporte
@@ -837,10 +839,22 @@ function Esteiras.celebrar(modelo: Model, nivel: number)
 		RotSpeed = NumberRange.new(-180, 180),
 		LightEmission = 1,
 	})
-	explosao:Emit(120)
-	task.delay(3, function()
-		anexo:Destroy()
+	-- impacto em fases: clarão rápido, onda de choque no chão e as faíscas
+	local clarao = Instance.new("PointLight")
+	clarao.Color = cor
+	clarao.Range = 24
+	clarao.Brightness = 0
+	clarao.Parent = anexo
+	TweenService:Create(clarao, TweenInfo.new(0.12), { Brightness = 8 }):Play()
+	task.delay(0.12, function()
+		TweenService:Create(clarao, TweenInfo.new(0.6), { Brightness = 0 }):Play()
 	end)
+	local onda = enfeite(modelo, CFrame.new(pista.Position - Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 4, 4), cor, Enum.Material.Neon, { Name = "OndaCelebrar", Shape = Enum.PartType.Cylinder })
+	onda:SetAttribute("ManterForma", true)
+	TweenService:Create(onda, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.15, 30, 30), Transparency = 1 }):Play()
+	explosao:Emit(120)
+	Debris:AddItem(onda, 0.8)
+	Debris:AddItem(anexo, 3)
 end
 
 return Esteiras
