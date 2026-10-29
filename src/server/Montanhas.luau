@@ -172,6 +172,17 @@ local function modeloMontanha(pasta: Instance, moldes: { Model }, chao: Vector3,
 	return modelo
 end
 
+-- true se a montanha entra na área dos biomas (com as paredes) ou na das
+-- bases: lá ela tampava ovos e caminhos.
+local function invade(modelo: Model): boolean
+	local menor, maior = Biblioteca.limites(modelo)
+	local zMin = if menor.Z < 0 and maior.Z > 0 then 0 else math.min(math.abs(menor.Z), math.abs(maior.Z))
+	if maior.X > Mapa.FIM_BASES - 2 and zMin < Mapa.Z_PAREDE + 4 then
+		return true
+	end
+	return menor.X < Montanhas.TRANSICAO and maior.X > Montanhas.INICIO + 20 and zMin < Montanhas.Z_BASES - 2
+end
+
 -- Empurra o modelo na direção "fora" até a borda de dentro dele ficar na
 -- "linha" (medida ao longo de "fora").
 local function encostar(modelo: Model, fora: Vector3, linha: number)
@@ -274,13 +285,18 @@ local function cordilheira(pasta: Instance, de: Vector3, ate: Vector3, fora: Vec
 		local direcao = (ate - de).Unit
 		local comprimento = (ate - de).Magnitude
 		local linha = de:Dot(fora)
-		local andou = -10
-		while andou < comprimento + 10 do
+		-- as pontas passam um pouco da linha, para as fileiras se cruzarem nos cantos
+		local andou = -30
+		while andou < comprimento + 30 do
 			local largura = aleatorio:NextNumber(32, 46)
 			local ponto = de + direcao * andou
 			local modelo = modeloMontanha(pasta, PENHASCOS, ponto, largura, aleatorio:NextNumber(alturaMin, alturaMax))
 			if modelo then
 				encostar(modelo, fora, linha + 1)
+			end
+			if modelo and invade(modelo) then
+				modelo:Destroy()
+			elseif modelo then
 				if aleatorio:NextNumber() < 0.3 then
 					-- o raio só acha o modelo depois que ele estiver no Workspace
 					table.insert(cachoeirasPendentes, function()
@@ -290,12 +306,15 @@ local function cordilheira(pasta: Instance, de: Vector3, ate: Vector3, fora: Vec
 			end
 			andou += largura * aleatorio:NextNumber(0.5, 0.65)
 		end
-		andou = -20
-		while andou < comprimento + 20 do
+		andou = -40
+		while andou < comprimento + 40 do
 			local largura = aleatorio:NextNumber(55, 75)
 			local modelo = modeloMontanha(pasta, PICOS, de + direcao * andou, largura, aleatorio:NextNumber(alturaMax * 1.25, alturaMax * 1.7))
 			if modelo then
 				encostar(modelo, fora, linha + 16)
+				if invade(modelo) then
+					modelo:Destroy()
+				end
 			end
 			andou += largura * aleatorio:NextNumber(0.45, 0.6)
 		end
@@ -412,6 +431,24 @@ function Montanhas.construir()
 	montanhaDoTunel(pasta)
 	cordilheira(pasta, Vector3.new(inicio, 0, -zb), Vector3.new(inicio, 0, zb), -Vector3.xAxis, 34, 50)
 	-- o fim da estrada é a parede com o portal "em breve" (Decoracao)
+
+	-- um pico grande em cada canto, por fora, para não sobrar buraco onde as
+	-- fileiras se encontram
+	if #PICOS > 0 then
+		for _, lado in { -1, 1 } do
+			for _, canto in { Vector3.new(inicio, 0, lado * zb), Vector3.new(t, 0, lado * zb), Vector3.new(t, 0, lado * Mapa.Z_PAREDE) } do
+				local para = Vector3.new(if canto.X == inicio then -1 else 1, 0, lado).Unit
+				for distancia = 30, 90, 20 do
+					local modelo = modeloMontanha(pasta, PICOS, canto + para * distancia, 80, 75)
+					if modelo and not invade(modelo) then
+						break
+					elseif modelo then
+						modelo:Destroy()
+					end
+				end
+			end
+		end
+	end
 
 	pasta.Parent = Workspace
 	for _, fazer in cachoeirasPendentes do
