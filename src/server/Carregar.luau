@@ -17,7 +17,6 @@ type Carga = {
 	item: Modelos.Item,
 	modelo: Model,
 	aoPerder: () -> (), -- devolve o item para onde ele estava
-	avisouCheia: boolean,
 	roubo: boolean, -- veio da base de outro jogador
 }
 
@@ -58,7 +57,7 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 	modelo.Parent = personagem
 	Modelos.grudar(modelo, raiz)
 
-	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, avisouCheia = false, roubo = false }
+	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, roubo = false }
 	Velocidade.definirPeso(player, Config.tamanho(item.tamanho).peso)
 	-- o cliente mostra a faixa "Carregando" e a seta até a base
 	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
@@ -151,9 +150,16 @@ local function verificarEntregas()
 				if carga.roubo then
 					Dados.adicionar(player, "Roubos", 1)
 				end
-			elseif not carga.avisouCheia then
-				carga.avisouCheia = true
-				Avisos.enviar(player, "Sua base está cheia!", VERMELHO)
+			else
+				-- Base cheia: vai para o inventário (e entra na base quando
+				-- abrir vaga), para ele poder pegar outro ovo.
+				soltar(player)
+				Dados.adicionarPendente(player, carga.item)
+				Avisos.enviar(player, `Base cheia! {nomeDo(carga.item)} foi para o seu inventário.`, Color3.fromRGB(255, 215, 80))
+				Avisos.som(player, "Entregou")
+				if carga.roubo then
+					Dados.adicionar(player, "Roubos", 1)
+				end
 			end
 		end
 	end

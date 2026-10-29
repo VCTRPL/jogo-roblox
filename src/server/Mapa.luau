@@ -80,16 +80,32 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Mapa"
 
+	-- Estrada de asfalto só até a entrada do primeiro bioma. Entre um bioma e
+	-- o próximo (e depois do último) fica uma passagem de grama na mesma
+	-- altura, sem cara de rua.
 	local fimEstrada = Mapa.FIM_ESTRADA
 	local inicioEstrada = Mapa.INICIO_ESTRADA
+	local primeiroBioma = Mapa.inicioBioma(1)
 	parte({
 		Name = "Estrada",
-		Size = Vector3.new(fimEstrada - inicioEstrada, 1, 14),
-		Position = Vector3.new((fimEstrada + inicioEstrada) / 2, 0.5, 0),
+		Size = Vector3.new(primeiroBioma - inicioEstrada, 1, 14),
+		Position = Vector3.new((primeiroBioma + inicioEstrada) / 2, 0.5, 0),
 		Color = Color3.fromRGB(60, 60, 70),
 		Material = Enum.Material.Asphalt,
 		Parent = pasta,
 	})
+	for i = 1, #Config.BIOMAS do
+		local de = Mapa.inicioBioma(i) + Mapa.TAMANHO_BIOMA
+		local ate = if i < #Config.BIOMAS then Mapa.inicioBioma(i + 1) else fimEstrada
+		parte({
+			Name = "Passagem",
+			Size = Vector3.new(ate - de, 1, 14),
+			Position = Vector3.new((de + ate) / 2, 0.5, 0),
+			Color = Color3.fromRGB(125, 195, 90),
+			Material = Enum.Material.Grass,
+			Parent = pasta,
+		})
+	end
 
 	local bases = {}
 	for i = 1, 6 do

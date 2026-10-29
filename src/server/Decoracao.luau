@@ -11,7 +11,6 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Biblioteca = require(script.Parent.Biblioteca)
 local Blocos = require(script.Parent.Blocos)
-local Guardioes = require(script.Parent.Guardioes)
 local Mapa = require(script.Parent.Mapa)
 local Montanhas = require(script.Parent.Montanhas)
 local Paredes = require(script.Parent.Paredes)
@@ -422,39 +421,12 @@ local function decorarBase(info: Mapa.InfoBase)
 		end
 	end
 
-	-- portão da entrada: dois troncos, a viga e a placa com o número
+	-- portão da entrada: dois troncos e a viga
 	for _, x in { -1, 1 } do
 		parte({ Name = "Portao", Size = Vector3.new(2.6, 11, 2.6), Position = ponto(x * (ENTRADA + 1.3), -meio) + Vector3.new(0, 5.5, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
 		parte({ Name = "Tocha", Size = Vector3.new(1, 1, 1), Position = ponto(x * (ENTRADA + 1.3), -meio - 1.8) + Vector3.new(0, 7, 0), Color = cor:Lerp(Color3.new(1, 1, 1), 0.3), Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
 	end
 	parte({ Name = "Viga", Size = Vector3.new(ENTRADA * 2 + 6, 1.4, 1.8), Position = ponto(0, -meio) + Vector3.new(0, 10.4, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
-	local placa = parte({
-		Name = "Placa",
-		Size = Vector3.new(14, 4, 0.8),
-		CFrame = CFrame.lookAt(ponto(0, -meio) + Vector3.new(0, 13, 0), ponto(0, -meio - 10) + Vector3.new(0, 13, 0)),
-		Color = MADEIRA_CLARA[1],
-		Material = Enum.Material.WoodPlanks,
-		Parent = pasta,
-	})
-	parte({ Name = "MolduraPlaca", Size = Vector3.new(15, 5, 0.6), CFrame = placa.CFrame * CFrame.new(0, 0, 0.3), Color = cor, Parent = pasta })
-	texto(placa, Enum.NormalId.Front, (info.pasta.Name:gsub("Base", "BASE ")), Color3.new(1, 1, 1), Enum.Font.LuckiestGuy)
-end
-
--- Põe um modelo em pé num ponto do chão, olhando para "olhar", e ancora tudo.
-local function plantar(modelo: Model, pasta: Instance, chao: Vector3, olhar: Vector3, escala: number)
-	modelo:ScaleTo(modelo:GetScale() * escala)
-	for _, p in modelo:GetDescendants() do
-		if p:IsA("BasePart") then
-			p.Anchored = true
-			p.CanCollide = false
-		end
-	end
-	local caixa, tamanho = modelo:GetBoundingBox()
-	local pes = caixa.Position - Vector3.new(0, tamanho.Y / 2, 0)
-	modelo:PivotTo(modelo:GetPivot() + (Vector3.zero - pes))
-	local giro = CFrame.lookAt(Vector3.zero, Vector3.new(olhar.X, 0, olhar.Z))
-	modelo:PivotTo(CFrame.new(chao) * giro * modelo:GetPivot())
-	modelo.Parent = pasta
 end
 
 -- Túnel de trem no começo da estrada, de concreto, entrando na montanha
@@ -1064,10 +1036,10 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	})
 	parte({ Name = "Viga", Size = Vector3.new(2.4, 1.6, 30), Position = Vector3.new(x, 22.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
 	local nome = Config.maiusculas(Config.semAcento(info.config.nome))
+	-- só o nome: a Velocidade mínima fica na placa amarela de atenção
 	local minimo = info.config.velocidadeMinima
-	local aviso = if minimo > 0 then `VELOCIDADE MÍNIMA: {Config.formatar(minimo)}` else nil
-	textoArco(placa, Enum.NormalId.Left, nome, aviso, tema)
-	textoArco(placa, Enum.NormalId.Right, nome, aviso, tema)
+	textoArco(placa, Enum.NormalId.Left, nome, nil, tema)
+	textoArco(placa, Enum.NormalId.Right, nome, nil, tema)
 
 	local portal = info.pasta:FindFirstChild("Portal")
 	if portal then
@@ -1087,13 +1059,6 @@ local function decorarPortal(info: Mapa.InfoBioma)
 
 	if minimo > 0 then
 		placaAviso(pasta, x - 16, -17, info)
-	end
-
-	-- estátuas do guardião, olhando para quem chega pela estrada
-	for _, z in { -20, 20 } do
-		local estatua = Guardioes.estatua(info.config.guardiao)
-		estatua.Name = "EstatuaGuardiao"
-		plantar(estatua, pasta, Vector3.new(x - 6, 0.05, z), -Vector3.xAxis, 0.8)
 	end
 end
 
@@ -1153,16 +1118,9 @@ local function poste(pasta: Instance, chao: Vector3, paraEstrada: number)
 end
 
 local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
-	local fim = Mapa.INICIO_BIOMAS + #biomas * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
-	-- trechos de estrada à mostra (dentro dos biomas o piso cobre a estrada)
-	local trechos = {}
-	local inicio = Mapa.INICIO_ESTRADA
-	for _, bioma in biomas do
-		local comeco = bioma.centro.X - Mapa.TAMANHO_BIOMA / 2
-		table.insert(trechos, { inicio, comeco })
-		inicio = comeco + Mapa.TAMANHO_BIOMA
-	end
-	table.insert(trechos, { inicio, fim })
+	-- Meio-fio, faixas e postes só na estrada até a Selva Sahur: entre os
+	-- biomas não tem rua (veja Mapa.construir).
+	local trechos = { { Mapa.INICIO_ESTRADA, biomas[1].centro.X - Mapa.TAMANHO_BIOMA / 2 } }
 
 	local ladoPoste = 1
 	for _, trecho in trechos do
@@ -1729,6 +1687,11 @@ local function decorarArredores(pasta: Instance, biomas: { Mapa.InfoBioma })
 			if math.abs(p.X - bioma.centro.X) < 60 and math.abs(p.Z) < 60 then
 				return false
 			end
+			-- nada na frente da placa amarela de atenção (veja placaAviso)
+			local portal = bioma.centro.X - Mapa.TAMANHO_BIOMA / 2
+			if p.X > portal - 50 and p.X < portal + 2 and p.Z < -6 and p.Z > -45 then
+				return false
+			end
 		end
 		return true
 	end
@@ -1758,16 +1721,31 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Decoracao"
 
-	-- chão de grama por cima da Baseplate
-	local fim = Mapa.INICIO_BIOMAS + #biomas * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
-	parte({
-		Name = "Chao",
-		Size = Vector3.new(2000, 1, 2000),
-		Position = Vector3.new(fim / 2, -0.45, 0),
-		Color = Color3.fromRGB(125, 195, 90),
-		Material = Enum.Material.Grass,
-		Parent = pasta,
-	})
+	-- Chão de grama só até o fim das montanhas: depois delas é o vazio (void).
+	-- A Baseplate que vem no lugar sai, senão ela aparece em volta do mapa.
+	local baseplate = Workspace:FindFirstChild("Baseplate")
+	if baseplate then
+		baseplate:Destroy()
+	end
+	-- (as folgas vêm do tamanho das montanhas medido no Studio)
+	local inicio = Montanhas.INICIO - 64 -- montanha do começo
+	local transicao = Montanhas.TRANSICAO
+	local fimEstrada = Mapa.FIM_ESTRADA + 14 + 62 -- montanha do fim
+	local zBases = Montanhas.Z_BASES + 66 -- montanhas atrás das bases
+	local zFases = Montanhas.Z_FASES + 66 -- montanhas dos lados das fases
+	for _, area in {
+		{ de = inicio, ate = transicao + 60, z = zBases }, -- bases (e o degrau até a estrada das fases)
+		{ de = transicao, ate = fimEstrada, z = zFases }, -- estrada das fases
+	} do
+		parte({
+			Name = "Chao",
+			Size = Vector3.new(area.ate - area.de, 1, area.z * 2),
+			Position = Vector3.new((area.de + area.ate) / 2, -0.45, 0),
+			Color = Color3.fromRGB(125, 195, 90),
+			Material = Enum.Material.Grass,
+			Parent = pasta,
+		})
+	end
 
 	decorarEstrada(pasta, biomas)
 	Montanhas.construir()

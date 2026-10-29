@@ -29,7 +29,8 @@ export type Base = {
 	itens: { [number]: ItemNaBase },
 	trancadaAte: number,
 	spawn: CFrame,
-	escudo: Part,
+	escudo: Part, -- a parede da frente da tranca
+	paredes: { Part }, -- as quatro paredes da tranca
 	esteira: BasePart, -- a "Pista" do modelo atual
 	modeloEsteira: Model,
 	cframeEsteira: CFrame,
@@ -50,6 +51,11 @@ local inicioCorrida: { [Player]: number } = {}
 
 local VERMELHO = Color3.fromRGB(255, 90, 90)
 local VERDE = Color3.fromRGB(90, 255, 120)
+
+-- Brainrots passeando pela base: velocidade (studs/s) e distância da cerca.
+local VELOCIDADE_PASSEIO = 5
+local MARGEM_PASSEIO = 7
+local aleatorio = Random.new()
 
 -- Chamado quando alguém tenta roubar algo de uma base (o módulo Carregar preenche isso).
 Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
@@ -233,17 +239,29 @@ local function criarBase(info: Mapa.InfoBase): Base
 		table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
 	end
 
-	local escudo = Instance.new("Part")
-	escudo.Name = "Escudo"
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.Size = Vector3.new(tamanho, 14, 1)
-	escudo.Position = topo + Vector3.new(0, 7, -lado * tamanho / 2)
-	escudo.Color = Color3.fromRGB(80, 170, 255)
-	escudo.Material = Enum.Material.ForceField
-	escudo.Transparency = 1
-	escudo.Parent = info.pasta
+	-- Tranca: quatro paredes de campo de força em volta da base, altas demais
+	-- para pular. Trancada, elas seguram quem está fora (e quem já estava
+	-- dentro, que só sai resetando). O dono passa: o cliente dele desliga a
+	-- colisão das paredes da própria base (atributo "DonoId").
+	local ALTURA_TRANCA = 30
+	local paredes = {}
+	for _, lado2 in { Vector3.new(0, 0, -1), Vector3.new(0, 0, 1), Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0) } do
+		local parede = Instance.new("Part")
+		parede.Name = "Escudo"
+		parede.Anchored = true
+		parede.CanCollide = false
+		parede.CanQuery = false
+		parede.CanTouch = false
+		parede.Size = if lado2.Z ~= 0 then Vector3.new(tamanho + 1, ALTURA_TRANCA, 1) else Vector3.new(1, ALTURA_TRANCA, tamanho + 1)
+		parede.Position = topo + Vector3.new(lado2.X * tamanho / 2, ALTURA_TRANCA / 2, lado2.Z * lado * tamanho / 2)
+		parede.Color = Color3.fromRGB(80, 170, 255)
+		parede.Material = Enum.Material.ForceField
+		parede.Transparency = 1
+		parede.Parent = info.pasta
+		CollectionService:AddTag(parede, "TrancaBase")
+		table.insert(paredes, parede)
+	end
+	local escudo = paredes[1] -- a da frente (lado da estrada)
 
 	local botao = Instance.new("Part")
 	botao.Name = "BotaoTrancar"
@@ -303,6 +321,7 @@ local function criarBase(info: Mapa.InfoBase): Base
 		trancadaAte = 0,
 		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
 		escudo = escudo,
+		paredes = paredes,
 		esteira = modeloEsteira:FindFirstChild("Pista") :: BasePart,
 		modeloEsteira = modeloEsteira,
 		cframeEsteira = cframeEsteira,
@@ -455,7 +474,10 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 			local agora = os.clock()
 			for _, base in bases do
 				local trancada = Bases.estaTrancada(base)
-				base.escudo.Transparency = if trancada then 0.3 else 1
+				for _, parede in base.paredes do
+					parede.Transparency = if trancada then 0.3 else 1
+					parede.CanCollide = trancada
+				end
 				base.textoBotao.Text = if trancada then `Trancada: {math.ceil(base.trancadaAte - agora)}s` else "Trancar"
 				local prontos = {}
 				for vaga, dados in base.itens do
@@ -490,6 +512,9 @@ function Bases.atribuir(player: Player): Base?
 			porJogador[player] = base
 			-- o cliente usa para a seta que leva de volta para a base
 			player:SetAttribute("BaseCentro", base.info.centro)
+			for _, parede in base.paredes do
+				parede:SetAttribute("DonoId", player.UserId)
+			end
 			-- o nível pode chegar depois (dados carregados): troca o modelo
 			player:GetAttributeChangedSignal("NivelEsteira"):Connect(function()
 				if base.dono == player then
@@ -518,6 +543,9 @@ function Bases.liberar(player: Player)
 	base.dono = nil
 	base.trancadaAte = 0
 	porJogador[player] = nil
+	for _, parede in base.paredes do
+		parede:SetAttribute("DonoId", nil)
+	end
 	atualizarPlaca(base)
 	atualizarEsteira(base)
 end
@@ -541,7 +569,7 @@ local function vender(player: Player, base: Base, vaga: number, modelo: Model)
 	end
 	local preco = math.floor(Config.precoVenda(dados.item) * multiplicador(player))
 	local def = Config.brainrot(dados.item.id)
-	local posicao = base.vagas[vaga].Position
+	local posicao = modelo:GetPivot().Position -- ele anda pela base
 	Bases.remover(base, vaga)
 	Dados.adicionar(player, "Dinheiro", preco)
 	Avisos.enviar(player, `Vendeu {def.nome} por ${Config.formatar(preco)}!`, VERDE)
@@ -556,6 +584,48 @@ function Bases.vagaLivre(base: Base): number?
 		end
 	end
 	return nil
+end
+
+-- O Brainrot anda sozinho pela base, sempre dentro da cerca: escolhe um
+-- ponto, vai até lá dando pulinhos, para um pouco e escolhe outro. Só a
+-- PrimaryPart fica ancorada (o resto vai soldado), então mover o modelo
+-- manda uma posição só pela rede. Para quando o modelo some (vendido,
+-- roubado ou chocou).
+local function passear(base: Base, modelo: Model)
+	local primaria = modelo.PrimaryPart :: BasePart
+	for _, parte in modelo:GetDescendants() do
+		if parte:IsA("BasePart") and parte ~= primaria then
+			parte.Anchored = false
+		end
+	end
+	task.spawn(function()
+		local meio = Mapa.TAMANHO_BASE / 2 - MARGEM_PASSEIO
+		local giro = modelo:GetPivot().Rotation
+		while modelo.Parent do
+			task.wait(aleatorio:NextNumber(1.5, 4.5))
+			if not modelo.Parent then
+				break
+			end
+			local de = modelo:GetPivot().Position
+			local alvo = base.info.centro + Vector3.new(aleatorio:NextNumber(-meio, meio), 0, aleatorio:NextNumber(-meio, meio))
+			alvo = Vector3.new(alvo.X, de.Y, alvo.Z)
+			if (alvo - de).Magnitude > 1 then
+				giro = CFrame.lookAt(de, alvo).Rotation
+			end
+			local duracao = math.max((alvo - de).Magnitude / VELOCIDADE_PASSEIO, 0.1)
+			local inicio = os.clock()
+			while modelo.Parent do
+				local passou = os.clock() - inicio
+				local t = math.min(passou / duracao, 1)
+				local pulo = if t < 1 then math.abs(math.sin(passou * 9)) * 0.35 else 0
+				modelo:PivotTo(CFrame.new(de:Lerp(alvo, t) + Vector3.new(0, pulo, 0)) * giro)
+				if t >= 1 then
+					break
+				end
+				task.wait()
+			end
+		end
+	end)
 end
 
 -- Coloca um ovo ou Brainrot numa vaga livre (ou na vaga pedida, se estiver livre).
@@ -618,6 +688,10 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	modelo:PivotTo(base.vagas[vaga])
 	modelo.Parent = base.info.pasta
 	base.itens[vaga] = { item = item, modelo = modelo, chocaEm = chocaEm }
+
+	if item.tipo == "brainrot" then
+		passear(base, modelo)
+	end
 
 	-- Brainrot novo na base (chocou, roubou ou comprou): entra no Índice
 	if item.tipo == "brainrot" and Dados.descobrir(dono, item.id) and dono:GetAttribute("BaseCarregada") then

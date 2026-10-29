@@ -3,7 +3,8 @@
 -- confere a oferta e abre a janela de compra, e o Roblox avisa o servidor
 -- quando o pagamento passou. Cada recibo (PurchaseId) fica guardado nos dados
 -- do jogador junto com o prêmio, então o mesmo recibo nunca dá duas vezes.
--- O Brainrot sorteado vai para a base; se ela estiver cheia, espera vaga.
+-- O Brainrot sorteado vai para a base; se ela estiver cheia, espera no
+-- inventário (Dados.pendentes), que este módulo esvazia quando abre vaga.
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -43,7 +44,7 @@ local function atualizarContagem(player: Player)
 	player:SetAttribute("Pendentes", #Dados.pendentes(player))
 end
 
--- Põe na base os Brainrots comprados que estavam esperando vaga.
+-- Põe na base o que estava no inventário esperando vaga.
 local function entregarPendentes(player: Player)
 	local base = Bases.doJogador(player)
 	if not base or not prontos[player] then
@@ -171,7 +172,7 @@ function Compras.iniciar()
 					local agora = os.clock()
 					if #Dados.pendentes(player) > 0 and agora - (avisouCheia[player] or 0) > 60 then
 						avisouCheia[player] = agora
-						Avisos.enviar(player, `Base cheia! {#Dados.pendentes(player)} Brainrot(s) comprado(s) esperando vaga.`, DOURADO)
+						Avisos.enviar(player, `Base cheia! {#Dados.pendentes(player)} item(ns) no inventário esperando vaga.`, DOURADO)
 					end
 				end
 			end

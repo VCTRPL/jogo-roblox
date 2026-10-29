@@ -45,6 +45,28 @@ for _, objeto in Workspace:GetDescendants() do
 	verificarPrompt(objeto)
 end
 
+-- Tranca da base: o dono atravessa as paredes da própria base -----------------
+-- O personagem é simulado neste computador, então desligar a colisão só aqui
+-- deixa o dono passar enquanto as paredes seguram os outros.
+
+local function liberarDono(parede: Instance)
+	if not parede:IsA("BasePart") then
+		return
+	end
+	local function ajustar()
+		if parede:GetAttribute("DonoId") == jogador.UserId and parede.CanCollide then
+			parede.CanCollide = false
+		end
+	end
+	parede:GetPropertyChangedSignal("CanCollide"):Connect(ajustar)
+	parede:GetAttributeChangedSignal("DonoId"):Connect(ajustar)
+	ajustar()
+end
+CollectionService:GetInstanceAddedSignal("TrancaBase"):Connect(liberarDono)
+for _, parede in CollectionService:GetTagged("TrancaBase") do
+	liberarDono(parede)
+end
+
 -- Anima as esteiras ---------------------------------------------------------
 -- As faixas andam pela pista e o que tem a tag "GirarEsteira" gira. Só neste
 -- computador: o servidor não precisa mandar nada.

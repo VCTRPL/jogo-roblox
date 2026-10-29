@@ -34,7 +34,8 @@ local MAXIMO = 2 ^ 53
 
 -- Se o carregamento falhar, não salvamos por cima para não apagar o progresso.
 local podeSalvar: { [Player]: boolean } = {}
--- Brainrots comprados que ainda não couberam na base.
+-- Inventário: ovos e Brainrots (comprados ou trazidos com a base cheia) que
+-- ainda não couberam na base. Entram sozinhos quando abre uma vaga.
 local pendentes: { [Player]: { any } } = {}
 -- PurchaseIds de compras com Robux já entregues.
 local compras: { [Player]: { string } } = {}
@@ -122,7 +123,9 @@ function Dados.carregar(player: Player): { any }
 	pendentes[player] = {}
 	if typeof(salvo.pendentes) == "table" then
 		for _, item in salvo.pendentes do
-			if typeof(item) == "table" and item.tipo == "brainrot" and Config.brainrot(item.id) then
+			local valido = typeof(item) == "table"
+				and ((item.tipo == "brainrot" and Config.brainrot(item.id)) or (item.tipo == "ovo" and Config.ovo(item.id)))
+			if valido then
 				table.insert(pendentes[player], item)
 			end
 		end
@@ -135,6 +138,8 @@ function Dados.carregar(player: Player): { any }
 			end
 		end
 	end
+
+	player:SetAttribute("Pendentes", #pendentes[player])
 
 	compras[player] = {}
 	if typeof(salvo.compras) == "table" then
@@ -250,7 +255,8 @@ function Dados.indice(player: Player): { string }
 	return lista
 end
 
--- Brainrots comprados esperando vaga na base.
+-- Inventário (itens esperando vaga na base). O atributo "Pendentes" é a
+-- quantidade, para o cliente mostrar.
 function Dados.pendentes(player: Player): { any }
 	return pendentes[player] or {}
 end
@@ -258,12 +264,17 @@ end
 function Dados.adicionarPendente(player: Player, item: any)
 	if pendentes[player] then
 		table.insert(pendentes[player], item)
+		player:SetAttribute("Pendentes", #pendentes[player])
 	end
 end
 
 function Dados.tirarPendente(player: Player): any?
 	local lista = pendentes[player]
-	return lista and table.remove(lista, 1)
+	local item = lista and table.remove(lista, 1)
+	if lista then
+		player:SetAttribute("Pendentes", #lista)
+	end
+	return item
 end
 
 -- Compras com Robux já entregues (pelo PurchaseId do recibo).

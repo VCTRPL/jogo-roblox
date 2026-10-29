@@ -222,20 +222,22 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 		table.insert(bioma.ninhos, ninho)
 	end
 
-	-- placa de madeira logo depois da entrada, virada para quem chega
-	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 + 5, info.centro.Y, -11)
+	-- placa de madeira do lado de fora, na frente do arco com o nome do bioma
+	-- (do lado direito da passagem), virada para quem chega
+	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, 0.05, 13)
+	-- o poste fica atrás da placa (quem chega vem de -X), sem tampar o texto
 	Mapa.parte({
 		Name = "PostePlaca",
-		Size = Vector3.new(0.8, 5, 0.8),
-		Position = chao + Vector3.new(0, 2.5, 0),
+		Size = Vector3.new(0.8, 6, 0.8),
+		Position = chao + Vector3.new(0.7, 3, 0),
 		Color = Color3.fromRGB(105, 70, 42),
 		Material = Enum.Material.Wood,
 		Parent = info.pasta,
 	})
 	local placa = Mapa.parte({
 		Name = "Relogio",
-		Size = Vector3.new(7, 2.6, 0.5),
-		CFrame = CFrame.lookAt(chao + Vector3.new(0, 5, 0), chao + Vector3.new(-1, 5, 0)),
+		Size = Vector3.new(10, 3.6, 0.5),
+		CFrame = CFrame.lookAt(chao + Vector3.new(0, 6, 0), chao + Vector3.new(-1, 6, 0)),
 		Color = Color3.fromRGB(170, 120, 72),
 		Material = Enum.Material.WoodPlanks,
 		Parent = info.pasta,

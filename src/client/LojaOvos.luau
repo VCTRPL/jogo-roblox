@@ -606,7 +606,7 @@ function LojaOvos.montar(painel: Frame, conteudoPasses: ScrollingFrame)
 	local function atualizarEsperando()
 		local quantos = jogador:GetAttribute("Pendentes") or 0
 		esperando.Visible = quantos > 0
-		textoEsperando.Text = `📦 {quantos} Brainrot(s) esperando vaga na sua base`
+		textoEsperando.Text = `🎒 {quantos} item(ns) no inventário esperando vaga na base`
 	end
 	jogador:GetAttributeChangedSignal("Pendentes"):Connect(atualizarEsperando)
 	atualizarEsperando()

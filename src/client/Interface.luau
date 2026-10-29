@@ -118,6 +118,25 @@ local function atualizarBarra(velocidade: number)
 	proximoAnterior = nome
 end
 
+-- Inventário: ovos e Brainrots esperando vaga na base -----------------------
+
+local seloInventario = criar("Frame", {
+	Name = "Inventario",
+	Position = UDim2.new(0, 14, 0.45, 124),
+	Size = UDim2.fromOffset(240, 42),
+	BackgroundColor3 = BRANCO,
+	Visible = false,
+	Parent = tela,
+}, { cantos(14), borda(CONTORNO, 3.5), gradiente(Color3.fromRGB(255, 200, 70), Color3.fromRGB(230, 120, 30)) })
+local textoInventario = texto({ Text = "", Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 1, -12), Parent = seloInventario })
+local function atualizarInventario()
+	local quantos = jogador:GetAttribute("Pendentes") or 0
+	seloInventario.Visible = quantos > 0
+	textoInventario.Text = `🎒 Inventário: {quantos} (esperando vaga)`
+end
+jogador:GetAttributeChangedSignal("Pendentes"):Connect(atualizarInventario)
+atualizarInventario()
+
 -- Faixa "Carregando" e trilha até a base ------------------------------------
 
 local faixaCarga = criar("Frame", {
