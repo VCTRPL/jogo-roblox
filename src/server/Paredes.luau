@@ -173,7 +173,7 @@ function Paredes.construir(biomas: { Mapa.InfoBioma })
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Paredes"
 
-	local inicio = Mapa.FIM_BASES
+	local inicio = Mapa.inicioBioma(1) -- começa no arco do primeiro bioma
 	local fim = Mapa.FIM_ESTRADA + 14
 	for i, info in biomas do
 		-- cada bioma cuida do trecho dele e da metade das estradas em volta

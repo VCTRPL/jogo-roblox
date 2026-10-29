@@ -17,7 +17,7 @@ local Montanhas = {}
 Montanhas.INICIO = Mapa.INICIO_ESTRADA - 20 -- atrás do túnel da entrada
 Montanhas.Z_BASES = Mapa.Z_BASES + Mapa.TAMANHO_BASE / 2 + 18 -- sobra espaço para árvores atrás das bases
 Montanhas.Z_FASES = Mapa.Z_PAREDE + 8 -- atrás das paredes dos biomas
-Montanhas.TRANSICAO = Mapa.FIM_BASES -- onde a área das bases vira estrada das fases
+Montanhas.TRANSICAO = Mapa.inicioBioma(1) -- onde a área das bases vira estrada das fases (no arco do 1º bioma)
 
 local aleatorio = Random.new(4321)
 
@@ -177,7 +177,7 @@ end
 local function invade(modelo: Model): boolean
 	local menor, maior = Biblioteca.limites(modelo)
 	local zMin = if menor.Z < 0 and maior.Z > 0 then 0 else math.min(math.abs(menor.Z), math.abs(maior.Z))
-	if maior.X > Mapa.FIM_BASES - 2 and zMin < Mapa.Z_PAREDE + 4 then
+	if maior.X > Montanhas.TRANSICAO - 2 and zMin < Mapa.Z_PAREDE + 4 then
 		return true
 	end
 	return menor.X < Montanhas.TRANSICAO and maior.X > Montanhas.INICIO + 20 and zMin < Montanhas.Z_BASES - 2
