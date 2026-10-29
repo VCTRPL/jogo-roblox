@@ -5,11 +5,13 @@ local Workspace = game:GetService("Workspace")
 local Avisos = require(script.Avisos)
 local Bases = require(script.Bases)
 local Carregar = require(script.Carregar)
+local Compras = require(script.Compras)
 local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
 local Ninhos = require(script.Ninhos)
 local Passes = require(script.Passes)
+local Ranking = require(script.Ranking)
 local Renascer = require(script.Renascer)
 local Velocidade = require(script.Velocidade)
 
@@ -42,6 +44,8 @@ Bases.iniciar(infoBases)
 Carregar.iniciar()
 Ninhos.iniciar(infoBiomas)
 Renascer.iniciar()
+Ranking.iniciar()
+Compras.iniciar()
 
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)
@@ -63,6 +67,8 @@ local function aoEntrar(player: Player)
 	for _, item in itens do
 		Bases.colocar(base, item)
 	end
+	-- ovos comprados com Robux que estavam esperando vaga
+	Compras.entrar(player)
 	Velocidade.atualizar(player)
 
 	local function nascerNaBase(personagem: Model)
@@ -86,6 +92,8 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	Carregar.perder(player)
 	salvar(player)
+	Ranking.sair(player)
+	Compras.sair(player)
 	Dados.esquecer(player)
 	Bases.liberar(player)
 end)
@@ -103,5 +111,6 @@ end)
 game:BindToClose(function()
 	for _, player in Players:GetPlayers() do
 		salvar(player)
+		Ranking.gravar(player)
 	end
 end)

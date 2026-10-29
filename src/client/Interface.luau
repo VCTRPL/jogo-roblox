@@ -10,6 +10,8 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local LojaOvos = require(script.Parent.LojaOvos)
+local Ranking = require(script.Parent.Ranking)
 local Sons = require(script.Parent.Sons)
 local Ui = require(script.Parent.Ui)
 
@@ -414,7 +416,8 @@ local PASSOS = {
 	{ "😈", "Roube ovos e Brainrots das outras bases, e tranque a sua!" },
 	{ "💰", "Base cheia? Segure E num Brainrot seu para vender." },
 	{ "🔄", "Com bastante dinheiro, renasça: começa de novo, mas ganha mais para sempre." },
-	{ "🛒", "Na Loja tem passes como 2x Dinheiro, 2x Velocidade e Tênis Turbo." },
+	{ "🛒", "Na Loja tem ovos especiais, que abrem na hora, e passes como 2x Dinheiro e Tênis Turbo." },
+	{ "🏆", "No Ranking, veja quem tem mais Brainrots, dinheiro e Velocidade no servidor e no mundo." },
 }
 for ordem, passo in PASSOS do
 	local linha = criar("Frame", {
@@ -649,13 +652,21 @@ for ordem, passe in Config.GAMEPASSES do
 	end
 end
 
+-- Ovos especiais (Robux) numa aba da Loja
+LojaOvos.montar(painelLoja, conteudoLoja)
+
+-- Ranking ---------------------------------------------------------------------
+
+local painelRanking, conteudoRanking = criarPainel("Ranking", "🏆 RANKING", Color3.fromRGB(255, 215, 80), Color3.fromRGB(240, 130, 30))
+Ranking.montar(painelRanking, conteudoRanking)
+
 -- Botões do lado direito ----------------------------------------------------
 
 local menu = criar("Frame", {
 	Name = "Menu",
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -14, 0.45, 0),
-	Size = UDim2.fromOffset(84, 468),
+	Size = UDim2.fromOffset(84, 564),
 	BackgroundTransparency = 1,
 	Parent = tela,
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
@@ -700,13 +711,14 @@ end
 
 botao(1, "📖", "Índice", Color3.fromRGB(255, 210, 80), Color3.fromRGB(240, 120, 40), painelIndice)
 botao(2, "❓", "Ajuda", Color3.fromRGB(130, 235, 150), Color3.fromRGB(30, 160, 90), painelAjuda)
-botao(3, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230), function()
+botao(3, "🏆", "Ranking", Color3.fromRGB(255, 225, 90), Color3.fromRGB(235, 140, 30), painelRanking)
+botao(4, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230), function()
 	atualizarRenascer()
 	abrirPainel(painelRenascer)
 end)
-botao(4, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
+botao(5, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
 local iconeSom: TextLabel
-iconeSom = botao(5, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
+iconeSom = botao(6, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
 	iconeSom.Text = if Sons.alternar() then "🔇" else "🔊"
 end)
 

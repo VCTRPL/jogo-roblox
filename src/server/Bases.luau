@@ -80,6 +80,17 @@ function Bases.renda(base: Base): number
 	return math.floor(total * multiplicador(base.dono))
 end
 
+-- Quanto valem, juntos, os Brainrots da base (o preço de venda de cada um).
+function Bases.valor(base: Base): number
+	local total = 0
+	for _, dados in base.itens do
+		if dados.item.tipo == "brainrot" then
+			total += Config.precoVenda(dados.item)
+		end
+	end
+	return math.floor(total * multiplicador(base.dono))
+end
+
 local function atualizarPlaca(base: Base)
 	if base.dono then
 		base.textoPlaca.Text = `Base de {base.dono.DisplayName}\n${Config.formatar(Bases.renda(base))}/s`
@@ -182,6 +193,8 @@ local function chocar(base: Base, vaga: number)
 	local bonus = Config.BONUS_VELOCIDADE[brainrot.raridade] or 0
 	Dados.adicionar(dono, "Dinheiro", ganho)
 	Velocidade.adicionar(dono, bonus)
+	Dados.somarEstatistica(dono, "Ovos", 1)
+	Dados.somarEstatistica(dono, "Brainrots", 1)
 	local nome = if nascido.mutacao == "Normal" then brainrot.nome else `{brainrot.nome} {nascido.mutacao}`
 	Avisos.enviar(
 		dono,
@@ -592,6 +605,9 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	local chocaEm = nil
 	if item.tipo == "ovo" then
 		local falta = item.restante or Config.ovo(item.id).chocar
+		if Passes.tem(dono, "ChocarRapido") then
+			falta = math.min(falta, math.ceil(Config.ovo(item.id).chocar / 2))
+		end
 		chocaEm = os.clock() + falta
 		-- o cliente usa para os efeitos do ovo chocando (tremer, rachar, barra)
 		modelo:SetAttribute("ChocaEm", Workspace:GetServerTimeNow() + falta)

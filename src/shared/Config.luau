@@ -238,6 +238,66 @@ Config.GAMEPASSES = {
 	{ chave = "Sorte", id = 0, nome = "Sorte", icone = "🍀", descricao = "Mais chance de mutação Prata, Dourado e Arco-íris." },
 	{ chave = "TrancaLonga", id = 0, nome = "Tranca Longa", icone = "🔒", descricao = "Sua base fica trancada por 2x mais tempo." },
 	{ chave = "VIP", id = 0, nome = "VIP", icone = "👑", descricao = "+50% de dinheiro e etiqueta VIP em cima da cabeça." },
+	{ chave = "ChocarRapido", id = 0, nome = "Chocar Rápido", icone = "🐣", descricao = "Os ovos da sua base chocam na metade do tempo." },
+}
+
+-- Ovos especiais comprados com Robux. Cada um é um Developer Product: crie no
+-- Creator Dashboard (Monetização > Developer Products), com o preço de
+-- "robux", e ponha o número em "produtoId". Com produtoId = 0 o ovo aparece
+-- na loja como "Em breve" e não dá para comprar.
+--   chances: Brainrot (id) = peso. A loja mostra a porcentagem de cada um.
+--   tamanhoMinimo / mutacaoMinima: o sorteio nunca sai abaixo disso.
+--   sorte: sorteia a mutação duas vezes e fica com a melhor.
+--   quantidade: quantos ovos vêm no pacote.
+--   ate: oferta limitada (dia/mês/ano, fim do dia no horário UTC). Sem "ate" é permanente.
+--   cores: as duas cores do ovo (cima e baixo); efeito: "brilho", "arco-iris" ou "cosmico".
+Config.OVOS_ROBUX = {
+	{
+		chave = "Dourado", nome = "Ovo Dourado", produtoId = 0, robux = 49, raridade = "Lendario",
+		cores = { Color3.fromRGB(255, 235, 120), Color3.fromRGB(235, 150, 20) }, efeito = "brilho",
+		chances = { Tralalero = 35, Glorbo = 30, Cocofanto = 20, Bombardiro = 10, Gusini = 5 },
+		tamanhoMinimo = "Medio", mutacaoMinima = "Prata", quantidade = 1,
+	},
+	{
+		chave = "PacoteDourado", nome = "Pacote 3 Ovos Dourados", produtoId = 0, robux = 129, raridade = "Lendario",
+		cores = { Color3.fromRGB(255, 235, 120), Color3.fromRGB(235, 150, 20) }, efeito = "brilho",
+		chances = { Tralalero = 35, Glorbo = 30, Cocofanto = 20, Bombardiro = 10, Gusini = 5 },
+		tamanhoMinimo = "Medio", mutacaoMinima = "Prata", quantidade = 3,
+	},
+	{
+		chave = "Cosmico", nome = "Ovo Cósmico", produtoId = 0, robux = 149, raridade = "Mitico",
+		cores = { Color3.fromRGB(150, 110, 255), Color3.fromRGB(40, 20, 110) }, efeito = "cosmico",
+		chances = { Bombardiro = 30, Gusini = 30, Svinino = 25, Udin = 15 },
+		tamanhoMinimo = "Grande", mutacaoMinima = "Prata", sorte = true, quantidade = 1,
+	},
+	{
+		chave = "ArcoIris", nome = "Ovo Arco-íris", produtoId = 0, robux = 99, raridade = "Mitico",
+		cores = { Color3.fromRGB(255, 120, 200), Color3.fromRGB(90, 200, 255) }, efeito = "arco-iris",
+		chances = { Cocofanto = 35, Bombardiro = 30, Gusini = 20, Svinino = 12, Udin = 3 },
+		tamanhoMinimo = "Medio", mutacaoMinima = "Arco-iris", quantidade = 1,
+		ate = { dia = 31, mes = 12, ano = 2026 },
+	},
+	{
+		chave = "Supremo", nome = "Ovo Secreto Supremo", produtoId = 0, robux = 399, raridade = "Secreto",
+		cores = { Color3.fromRGB(120, 255, 235), Color3.fromRGB(20, 120, 140) }, efeito = "cosmico",
+		chances = { Udin = 60, Svinino = 25, Gusini = 15 },
+		tamanhoMinimo = "Gigante", mutacaoMinima = "Dourado", quantidade = 1,
+	},
+}
+
+-- Ranking: de quantos em quantos segundos atualiza e quantos aparecem.
+Config.RANKING = {
+	categorias = {
+		{ chave = "Brainrots", nome = "Brainrots", icone = "🧠", descricao = "Brainrots coletados" },
+		{ chave = "DinheiroTotal", nome = "Dinheiro", icone = "💰", descricao = "Dinheiro ganho no total", dinheiro = true },
+		{ chave = "VelocidadeMax", nome = "Velocidade", icone = "⚡", descricao = "Maior Velocidade" },
+		{ chave = "Ovos", nome = "Ovos", icone = "🥚", descricao = "Ovos chocados" },
+		{ chave = "ValorBase", nome = "Base", icone = "🏠", descricao = "Valor dos Brainrots da base", dinheiro = true },
+	},
+	servidorSegundos = 15, -- ranking do servidor
+	globalSegundos = 300, -- leitura do ranking global (OrderedDataStore)
+	gravarSegundos = 300, -- gravação de cada jogador no ranking global
+	quantos = 10,
 }
 
 -- Músicas de fundo (tocam em sequência). Ponha ids de músicas da Creator
@@ -366,6 +426,84 @@ function Config.gamepass(chave: string)
 	for _, passe in Config.GAMEPASSES do
 		if passe.chave == chave then
 			return passe
+		end
+	end
+	return nil
+end
+
+function Config.ovoRobux(chave: string)
+	for _, ovo in Config.OVOS_ROBUX do
+		if ovo.chave == chave then
+			return ovo
+		end
+	end
+	return nil
+end
+
+-- Fim da oferta limitada (os.time, UTC) ou nil se for permanente.
+function Config.fimOferta(ovo): number?
+	if not ovo.ate then
+		return nil
+	end
+	return os.time({ year = ovo.ate.ano, month = ovo.ate.mes, day = ovo.ate.dia, hour = 23, min = 59, sec = 59 })
+end
+
+-- Chance (de 0 a 100) de cada Brainrot de um ovo de Robux, do mais provável ao menos.
+function Config.chancesOvoRobux(ovo): { { id: string, chance: number } }
+	local total = 0
+	for _, peso in ovo.chances do
+		total += peso
+	end
+	local lista = {}
+	for id, peso in ovo.chances do
+		table.insert(lista, { id = id, chance = peso / total * 100 })
+	end
+	table.sort(lista, function(a, b)
+		if a.chance ~= b.chance then
+			return a.chance > b.chance
+		end
+		return a.id < b.id
+	end)
+	return lista
+end
+
+-- Só os itens de "lista" a partir de "minimo" (pelo nome).
+local function aPartirDe(lista, minimo: string?)
+	local inicio = 1
+	for i, item in lista do
+		if item.nome == minimo then
+			inicio = i
+		end
+	end
+	return table.move(lista, inicio, #lista, 1, {})
+end
+
+-- Sorteia o Brainrot que sai de um ovo de Robux (só o servidor chama).
+function Config.sortearOvoRobux(ovo)
+	local lista = {}
+	for _, item in Config.chancesOvoRobux(ovo) do
+		table.insert(lista, { id = item.id, chance = item.chance })
+	end
+	local mutacoes = aPartirDe(Config.MUTACOES, ovo.mutacaoMinima)
+	local mutacao = sortearLista(mutacoes)
+	if ovo.sorte then
+		local outra = sortearLista(mutacoes)
+		if outra.renda > mutacao.renda then
+			mutacao = outra
+		end
+	end
+	return {
+		tipo = "brainrot",
+		id = sortearLista(lista).id,
+		tamanho = sortearLista(aPartirDe(Config.TAMANHOS, ovo.tamanhoMinimo)).nome,
+		mutacao = mutacao.nome,
+	}
+end
+
+function Config.categoriaRanking(chave: string)
+	for _, categoria in Config.RANKING.categorias do
+		if categoria.chave == chave then
+			return categoria
 		end
 	end
 	return nil
