@@ -564,22 +564,21 @@ end
 
 local textoVezes = texto({ Text = "", Size = UDim2.new(1, -16, 1, -8), Position = UDim2.fromOffset(8, 4), ZIndex = 6, Parent = linhaRenascer(1, 46) })
 local quadroGanhos = linhaRenascer(2, 92)
-local textoRenda = texto({
-	Text = "",
-	TextColor3 = Color3.fromRGB(130, 255, 130),
-	Size = UDim2.new(1, -16, 0, 38),
-	Position = UDim2.fromOffset(8, 6),
-	ZIndex = 6,
-	Parent = quadroGanhos,
-})
-local textoEsteira = texto({
-	Text = "",
-	TextColor3 = Color3.fromRGB(130, 220, 255),
-	Size = UDim2.new(1, -16, 0, 38),
-	Position = UDim2.fromOffset(8, 48),
-	ZIndex = 6,
-	Parent = quadroGanhos,
-})
+-- os quatro bônus em duas colunas: renda e esteira, vagas e tranca
+local function textoGanho(cor: Color3, coluna: number, linha: number): TextLabel
+	return texto({
+		Text = "",
+		TextColor3 = cor,
+		Size = UDim2.new(0.5, -12, 0, 38),
+		Position = UDim2.new(0.5 * coluna, 8, 0, 6 + 42 * linha),
+		ZIndex = 6,
+		Parent = quadroGanhos,
+	})
+end
+local textoRenda = textoGanho(Color3.fromRGB(130, 255, 130), 0, 0)
+local textoEsteira = textoGanho(Color3.fromRGB(130, 220, 255), 0, 1)
+local textoVagas = textoGanho(Color3.fromRGB(255, 220, 120), 1, 0)
+local textoTranca = textoGanho(Color3.fromRGB(200, 170, 255), 1, 1)
 texto({
 	Text = "⚠️ Você perde o dinheiro, a Velocidade, a esteira e tudo da base.",
 	TextColor3 = Color3.fromRGB(255, 170, 170),
@@ -637,6 +636,8 @@ local function atualizarRenascer()
 	if vezes >= Config.RENASCER.maximo then
 		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x`
 		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x`
+		textoVagas.Text = `🥚 Vagas: {Config.vagas(vezes)}`
+		textoTranca.Text = `🔒 Tranca: {Config.tempoTranca(vezes)}s`
 		textoPreco.Text = "MÁXIMO!"
 		enchimentoPreco.Size = UDim2.fromScale(1, 1)
 		podeRenascer = false
@@ -644,6 +645,8 @@ local function atualizarRenascer()
 		local preco = Config.precoRenascer(vezes)
 		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x → {Config.multiplicadorRenda(vezes + 1)}x`
 		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x → {Config.multiplicadorEsteira(vezes + 1)}x`
+		textoVagas.Text = `🥚 Vagas: {Config.vagas(vezes)} → {Config.vagas(vezes + 1)}`
+		textoTranca.Text = `🔒 Tranca: {Config.tempoTranca(vezes)}s → {Config.tempoTranca(vezes + 1)}s`
 		textoPreco.Text = `${Config.formatar(dinheiro)} / ${Config.formatar(preco)}`
 		enchimentoPreco.Size = UDim2.fromScale(math.clamp(dinheiro / preco, 0, 1), 1)
 		podeRenascer = dinheiro >= preco

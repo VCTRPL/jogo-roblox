@@ -67,7 +67,10 @@ local function aoEntrar(player: Player)
 		return
 	end
 	for _, item in itens do
-		Bases.colocar(base, item)
+		-- não coube (vagas a menos que no save): espera no inventário
+		if not Bases.colocar(base, item) then
+			Dados.adicionarPendente(player, item)
+		end
 	end
 	-- daqui para a frente, Brainrot novo avisa "Novo no Índice"
 	player:SetAttribute("BaseCarregada", true)

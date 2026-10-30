@@ -35,6 +35,10 @@ Config.RENASCER = {
 	fator = 6, -- cada renascimento custa "fator" vezes o anterior
 	bonusRenda = 0.5, -- +50% de dinheiro por renascimento
 	bonusEsteira = 0.25, -- +25% de Velocidade na esteira por renascimento
+	vagas = 1, -- +1 vaga para Brainrot na base por renascimento
+	vagasMaximo = 10, -- no máximo +10 vagas (VAGAS_POR_BASE + 10)
+	tranca = 5, -- +5 segundos de tranca por renascimento
+	trancaMaximo = 60, -- no máximo +60 segundos de tranca
 	maximo = 20,
 }
 
@@ -413,6 +417,17 @@ end
 
 function Config.multiplicadorEsteira(n: number): number
 	return 1 + n * Config.RENASCER.bonusEsteira
+end
+
+-- Vagas da base de quem já renasceu "n" vezes.
+function Config.vagas(n: number): number
+	return Config.VAGAS_POR_BASE + math.min(n * Config.RENASCER.vagas, Config.RENASCER.vagasMaximo)
+end
+
+-- Segundos de tranca de quem já renasceu "n" vezes (o passe Tranca Longa dobra).
+function Config.tempoTranca(n: number, trancaLonga: boolean?): number
+	local tempo = Config.TEMPO_TRANCA + math.min(n * Config.RENASCER.tranca, Config.RENASCER.trancaMaximo)
+	return if trancaLonga then tempo * 2 else tempo
 end
 
 -- Posição da raridade na lista (1 = Comum). Serve para comparar raridades.
