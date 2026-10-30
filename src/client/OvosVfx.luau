@@ -10,6 +10,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
@@ -34,7 +35,12 @@ type Ovo = {
 	barra: Frame?,
 	rachou: boolean,
 	proximoRaio: number,
+	nasceu: number?, -- quando apareceu no ninho (para cair do alto)
+	quicou: boolean?,
+	brilhoQuase: PointLight?, -- luz que pulsa cada vez mais rápido perto de chocar
 }
+
+local inicioModulo = os.clock()
 
 local ovos: { [Model]: Ovo } = {}
 local pasta = Instance.new("Folder")
@@ -136,6 +142,42 @@ local function rachar(ovo: Ovo)
 			)
 		end
 	end
+	-- brilho escapando pelas rachaduras e uma luz pulsando
+	local miolo = peca({ Name = "MioloOvo", Transparency = 1, Size = tamanho * 0.6, CFrame = pivot * CFrame.new(0, tamanho.Y / 2, 0), Parent = ovo.modelo })
+	table.insert(ovo.pecas, miolo)
+	local escapando = Instance.new("ParticleEmitter")
+	escapando.Texture = FAISCA
+	escapando.Color = ColorSequence.new(ovo.cor:Lerp(BRANCO, 0.4), BRANCO)
+	escapando.LightEmission = 1
+	escapando.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0) })
+	escapando.Lifetime = NumberRange.new(0.4, 0.8)
+	escapando.Speed = NumberRange.new(2, 5)
+	escapando.SpreadAngle = Vector2.new(180, 180)
+	escapando.Shape = Enum.ParticleEmitterShape.Box
+	escapando.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	escapando.Rate = 10 + ovo.nivel * 3
+	escapando.Parent = miolo
+	local luz = Instance.new("PointLight")
+	luz.Color = ovo.cor
+	luz.Range = 10
+	luz.Brightness = 0
+	luz.Parent = miolo
+	ovo.brilhoQuase = luz
+end
+
+-- Anel de luz no chão quando um ovo novo cai no ninho.
+local function anelChegada(posicao: Vector3, cor: Color3)
+	local anel = peca({
+		Name = "AnelOvo",
+		Shape = Enum.PartType.Cylinder,
+		Color = cor,
+		Transparency = 0.1,
+		Size = Vector3.new(0.2, 1, 1),
+		CFrame = CFrame.new(posicao + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+	})
+	local info = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+	TweenService:Create(anel, info, { Size = Vector3.new(0.2, 9, 9), Transparency = 1 }):Play()
+	task.delay(0.55, anel.Destroy, anel)
 end
 
 -- Raio rápido entre o ovo e um ponto em volta (Mítico e Secreto).
@@ -248,6 +290,10 @@ local function montar(modelo: Instance, tentativa: number?)
 	if CollectionService:HasTag(modelo, "OvoChocando") then
 		criarBarra(ovo, primaria)
 	end
+	-- ovo novo no ninho (não os que já estavam quando você entrou): cai do alto
+	if modelo:GetAttribute("NoNinho") and os.clock() - inicioModulo > 5 then
+		ovo.nasceu = os.clock()
+	end
 end
 
 -- Rastro de quem carrega um ovo ---------------------------------------------
@@ -317,8 +363,24 @@ local function animar()
 		local pivot = ovo.inicio
 		if modelo:GetAttribute("NoNinho") then
 			-- flutua e gira em cima do ninho
+			local queda = 0
+			if ovo.nasceu then
+				-- cai em 0,45 s e quica uma vez
+				local t = (agora - ovo.nasceu) / 0.45
+				if t < 1 then
+					queda = (1 - t) * (1 - t) * 10
+				elseif t < 1.6 then
+					queda = math.sin((t - 1) / 0.6 * math.pi) * 0.8
+				else
+					ovo.nasceu = nil
+				end
+				if t >= 1 and not ovo.quicou then
+					ovo.quicou = true
+					anelChegada(base, ovo.cor)
+				end
+			end
 			pivot = ovo.inicio
-				* CFrame.new(0, 0.5 + math.sin(agora * 2 + ovo.fase) * 0.35, 0)
+				* CFrame.new(0, 0.5 + queda + math.sin(agora * 2 + ovo.fase) * 0.35, 0)
 				* CFrame.Angles(0, agora * 0.9 + ovo.fase, 0)
 		else
 			local progresso = chocando(ovo)
@@ -336,6 +398,11 @@ local function animar()
 					* CFrame.Angles(math.sin(agora * 21 + ovo.fase) * 0.08 * forca, 0, math.sin(agora * 25) * 0.12 * forca)
 				if progresso >= 0.75 and not ovo.rachou then
 					rachar(ovo)
+				end
+				local luz = ovo.brilhoQuase
+				if luz then
+					-- bate como um coração, cada vez mais rápido e mais forte
+					luz.Brightness = (math.sin(agora * (3 + forca * 9)) + 1) / 2 * (0.5 + forca * 3)
 				end
 			end
 		end

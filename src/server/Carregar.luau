@@ -64,7 +64,7 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 	player:SetAttribute("Carregando", nomeDo(item))
 	player:SetAttribute("CorCarregando", Config.CORES_RARIDADE[def.raridade])
 	Avisos.som(nil, "Pegou", raiz.Position)
-	Avisos.efeito("Pegou", { posicao = raiz.Position, raridade = def.raridade })
+	Avisos.efeito("Pegou", { posicao = raiz.Position, raridade = def.raridade, userId = player.UserId })
 	return true
 end
 
@@ -117,6 +117,7 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 		return
 	end
 
+	local vagaCFrame = base.vagas[vaga]
 	local item = Bases.remover(base, vaga)
 	if not item then
 		return
@@ -132,9 +133,24 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 		return
 	end
 	carregando[ladrao].roubo = true
+	if vagaCFrame then
+		Avisos.efeito("Roubou", { posicao = vagaCFrame.Position, userId = ladrao.UserId })
+	end
+	Avisos.efeitoPara(dono, "Alarme", {})
 	Avisos.enviar(ladrao, `Você pegou {nomeDo(item)}! Leve para a sua base!`, VERDE)
 	Avisos.enviar(dono, `{ladrao.DisplayName} está roubando seu {nomeDo(item)}!`, VERMELHO)
 	Avisos.som(dono, "Roubando")
+end
+
+-- explosão de "guardado!" (ou "roubo completo!") que todo mundo por perto vê
+local function entregou(player: Player, carga: Carga, posicao: Vector3)
+	local def = if carga.item.tipo == "ovo" then Config.ovo(carga.item.id) else Config.brainrot(carga.item.id)
+	Avisos.efeito("Entregou", {
+		posicao = posicao,
+		raridade = def and def.raridade or "Comum",
+		roubo = carga.roubo,
+		userId = player.UserId,
+	})
 end
 
 local function verificarEntregas()
@@ -144,6 +160,7 @@ local function verificarEntregas()
 		if minhaBase and raiz and Bases.dentro(minhaBase, raiz.Position) then
 			if Bases.vagaLivre(minhaBase) then
 				soltar(player)
+				entregou(player, carga, raiz.Position)
 				Bases.colocar(minhaBase, carga.item)
 				Avisos.enviar(player, `{nomeDo(carga.item)} guardado na sua base!`, VERDE)
 				Avisos.som(player, "Entregou")
@@ -154,6 +171,7 @@ local function verificarEntregas()
 				-- Base cheia: vai para o inventário (e entra na base quando
 				-- abrir vaga), para ele poder pegar outro ovo.
 				soltar(player)
+				entregou(player, carga, raiz.Position)
 				Dados.adicionarPendente(player, carga.item)
 				Avisos.enviar(player, `Base cheia! {nomeDo(carga.item)} foi para o seu inventário.`, Color3.fromRGB(255, 215, 80))
 				Avisos.som(player, "Entregou")

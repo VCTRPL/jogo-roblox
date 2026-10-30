@@ -4,6 +4,7 @@
 -- "CORRA PARA A BASE!". O servidor marca os chefes com a tag "Guardiao" e o
 -- atributo "Bravo", e põe o atributo "Perseguido" em quem ele persegue.
 local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -11,6 +12,7 @@ local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Sons = require(script.Parent.Sons)
+local Tremor = require(script.Parent.Tremor)
 local Ui = require(script.Parent.Ui)
 
 local Chefes = {}
@@ -75,6 +77,37 @@ end
 type Estado = { ultima: Vector3, proximoPasso: number }
 local estados: { [Instance]: Estado } = {}
 
+-- Nuvem de poeira e um anel no chão a cada passo pesado do chefe.
+local function poeira(chefe: Model)
+	local caixa, tamanho = chefe:GetBoundingBox()
+	local chao = caixa.Position - Vector3.new(0, tamanho.Y / 2 - 0.3, 0)
+	local centro = Instance.new("Part")
+	centro.Name = "PoeiraPasso"
+	centro.Anchored = true
+	centro.CanCollide = false
+	centro.CanQuery = false
+	centro.CanTouch = false
+	centro.Transparency = 1
+	centro.Size = Vector3.new(tamanho.X * 0.6, 0.2, tamanho.Z * 0.6)
+	centro.Position = chao
+	centro.Parent = Workspace
+	local nuvem = Instance.new("ParticleEmitter")
+	nuvem.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	nuvem.Color = ColorSequence.new(Color3.fromRGB(200, 185, 160))
+	nuvem.Transparency = NumberSequence.new(0.35, 1)
+	nuvem.Size = NumberSequence.new(1.5, 4.5)
+	nuvem.Lifetime = NumberRange.new(0.6, 1)
+	nuvem.Speed = NumberRange.new(5, 9)
+	nuvem.SpreadAngle = Vector2.new(180, 8)
+	nuvem.Drag = 4
+	nuvem.Rotation = NumberRange.new(0, 360)
+	nuvem.Rate = 0
+	nuvem.Shape = Enum.ParticleEmitterShape.Box
+	nuvem.Parent = centro
+	nuvem:Emit(if Tremor.celular then 4 else 8)
+	Debris:AddItem(centro, 1.2)
+end
+
 local function tremer()
 	local camera = Workspace.CurrentCamera
 	if not camera then
@@ -99,6 +132,7 @@ local function tremer()
 				if agora >= estado.proximoPasso then
 					estado.proximoPasso = agora + 0.42
 					Sons.tocar("Passo", posicao)
+					poeira(chefe)
 				end
 			end
 		end

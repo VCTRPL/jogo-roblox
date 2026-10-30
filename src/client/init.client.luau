@@ -11,12 +11,15 @@ local jogador = Players.LocalPlayer
 -- Sons, tela (dinheiro, avisos, anúncios, barra do próximo bioma, Índice,
 -- Ajuda e Renascer) e efeitos visuais (ovos, corrida na esteira) ------------
 
+require(script.Tremor).iniciar()
 require(script.Sons).iniciar()
 require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
 require(script.OvosVfx).iniciar()
 require(script.Chefes).iniciar()
 require(script.Ambiente).iniciar()
+require(script.MapaVfx).iniciar()
+require(script.BaseVfx).iniciar()
 require(script.Interface).iniciar()
 require(script.LojaOvos).iniciar()
 require(script.Corrida).iniciar()

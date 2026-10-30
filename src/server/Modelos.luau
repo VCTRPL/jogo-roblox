@@ -504,6 +504,10 @@ function Modelos.criar(item: Item): Model
 	}
 	finalizar(modelo, def.id, tamanho.escala, linhas)
 	Modelos.prompt(modelo).ObjectText = nome
+	-- o cliente mostra a chegada na base e a aura dos raros
+	modelo:SetAttribute("Raridade", def.raridade)
+	modelo:SetAttribute("Mutacao", mutacao.nome)
+	CollectionService:AddTag(modelo, "Brainrot")
 	return modelo
 end
 
