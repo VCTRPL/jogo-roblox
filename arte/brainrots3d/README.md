@@ -25,21 +25,25 @@ blender -b --factory-startup -P arte/brainrots3d/gerar_brainrots.py
 Comuns: Patapim, Larila, Bananini, Ambalabu, Cappuccina, Trippi, Frigo,
 Tralalero, Glorbo, Cocofanto, Bombardiro, Gusini, Svinino, Udin.
 
+Cada um segue o visual do meme original (pesquisado por imagem), só que de
+blocos: o Udin é a laranja musculosa, o Tralalero é o tubarão de 3 pernas de
+tênis, o Bombardiro é o bombardeiro com cabeça de crocodilo, e assim por diante.
+
 Chefes (1,7x a 2x maiores, íris vermelha e sobrancelha brava):
 
-| Id | Guardião | Acessório |
+| Id | Guardião | Visual |
 | --- | --- | --- |
-| Sahur | Tung Tung Tung Sahur | coroa de ouro e taco com pregos |
-| Assassino | Cappuccino Assassino | armadura, máscara ninja e duas espadas |
-| Cacto | Il Cacto Hipopotamo | chifres, ombreiras com cravos e presas |
-| Toasterino | Rhino Toasterino | tech: faixas e visor de neon, antena |
-| Saturnita | La Vaca Saturno Saturnita | asas, chifres e coroa de estrelas |
+| Sahur | Tung Tung Tung Sahur | tora de madeira com taco de pregos |
+| Assassino | Cappuccino Assassino | copo de papel ninja com duas katanas |
+| Cacto | Il Cacto Hipopotamo | cacto com cabeça de hipopótamo e sandálias |
+| Toasterino | Rhino Toasterino | torradeira com cabeça de rinoceronte e torradas |
+| Saturnita | La Vaca Saturno Saturnita | Saturno com cabeça de vaca e pés de gente |
 
 ## Organização
 
 - Cada personagem tem um Empty com o `Id` (com as propriedades `nome` e
   `raridade`) e as partes como filhas, nomeadas `<Id>_<Parte>` (`Patapim_Cabeca`,
-  `Sahur_Coroa`...).
+  `Sahur_Taco`...).
 - As partes não têm transform: a origem de todas é o ponto entre os pés. Só o
   Empty é movido para montar a grade de apresentação.
 - Sem modificadores. Materiais nomeados (`Patapim_Madeira`, `Olho_Branco`...) e a

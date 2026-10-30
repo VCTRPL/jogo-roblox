@@ -251,451 +251,566 @@ def bracos(p, cor, x, z, comp=0.8, r=0.13, abre=55, frente=0, mao=None):
 
 
 # ---------------------------------------------------------------- os 14 comuns
+# Cada um segue o visual do meme original (imagens do Google/Bing), só que de
+# blocos. Frente para -Y, pés em z=0.
+
+LADOS = ((-1, "E"), (1, "D"))
+
+
+def pinos(p, cx, cy, z, nx, ny, passo, m, r=0.14):
+    """Pinos de LEGO num topo plano, todos numa peça só."""
+    bm = bmesh.new()
+    for i in range(nx):
+        for j in range(ny):
+            x = cx + (i - (nx - 1) / 2) * passo
+            y = cy + (j - (ny - 1) / 2) * passo
+            bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=10, radius1=r, radius2=r,
+                                  depth=0.12, matrix=Matrix.Translation((x, y, z + 0.06)))
+    return p._add("Pinos", bm, m)
+
+
+def dobrar(ob, dobradica, eixo, graus):
+    """Gira uma peça já criada em volta de uma dobradiça (para cascas, pétalas...)."""
+    ob.data.transform(Matrix.Translation(dobradica) @ Matrix.Rotation(math.radians(graus), 4, Vector(eixo))
+                      @ Matrix.Translation(-Vector(dobradica)))
+
+
+def pe_humano(p, lado, x, pele, tam=(0.8, 1.3, 0.38), y=-0.2):
+    p.caixa(f"Pe_{lado}", tam, (x, y, tam[2] / 2), pele)
+    frente = y - tam[1] / 2
+    for k in range(5):
+        dx = (k - 2) * tam[0] * 0.19 * (-1 if x < 0 else 1)
+        d = 0.24 if k == 0 else 0.17
+        p.bola(f"Dedo_{lado}", (d, d * 1.1, d), (x - dx, frente, tam[2] * 0.42), pele)
+
 
 def patapim(p):
-    pele, corpo = mat("Patapim_Madeira", (150, 110, 70)), mat("Patapim_Musgo", (110, 150, 70))
-    folha, folha2 = mat("Patapim_Folha", (80, 175, 60)), mat("Patapim_Folha_Escura", (55, 130, 45))
-    pernas(p, pele, sep=0.75, alt=0.75, r=0.12, pe_tam=(0.65, 1.0, 0.28))
-    p.caixa("Corpo", (1.0, 0.8, 0.85), (0, 0, 1.4), corpo)
-    bracos(p, pele, 0.5, 1.65, comp=0.75, r=0.1, abre=65)
-    p.caixa("Cabeca", (2.1, 1.7, 1.75), (0, 0, 2.65), pele)
-    p.cil("Nariz", 0.24, 1.3, (0, -1.4, 2.45), mat("Patapim_Nariz", (175, 128, 82)), rot=(90, 0, 0), r2=0.3)
-    p.bola("Ponta_Nariz", 0.62, (0, -2.05, 2.45), mat("Patapim_Nariz", (175, 128, 82)))
-    for i, (x, y, r) in enumerate([(-0.6, -0.2, 10), (0.1, 0.1, -15), (0.7, -0.1, 25), (-0.2, 0.5, 40), (0.5, 0.5, -30)]):
-        p.caixa("Folha", (0.8, 0.8, 0.45), (x, y, 3.65 + (i % 2) * 0.15), folha if i % 2 else folha2, rot=(0, 0, r))
-    p.olhos(3.05, -0.86, 0.95)
-    p.boca(1.95, -0.86, 0.9, alt=0.28, lingua=True)
+    pele, nariz = mat("Patapim_Pele", (228, 175, 135)), mat("Patapim_Nariz", (214, 140, 112))
+    musgo, musgo2 = mat("Patapim_Musgo", (78, 112, 42)), mat("Patapim_Musgo_Claro", (122, 156, 62))
+    casca, rosto = mat("Patapim_Casca", (100, 72, 44)), mat("Patapim_Rosto", (196, 150, 108))
+    for s, lado in LADOS:
+        pe_humano(p, lado, s * 0.55, pele, tam=(0.85, 1.4, 0.4), y=-0.3)
+        p.cil(f"Raiz_Perna_{lado}", 0.15, 0.95, (s * 0.45, 0, 0.85), casca, rot=(0, -s * 8, 0), seg=8)
+        p.cil(f"Raiz_{lado}", 0.07, 0.6, (s * 0.75, 0.1, 0.55), casca, rot=(0, s * 35, 0), seg=6)
+    p.caixa("Tronco", (1.2, 0.9, 1.05), (0, 0, 1.75), casca)
+    for x, y, z, r in ((-0.35, -0.47, 1.9, 10), (0.4, -0.47, 1.55, -15), (0.5, 0.3, 2.0, 30), (-0.55, 0.2, 1.4, -5)):
+        p.caixa("Musgo", (0.5, 0.25, 0.4), (x, y, z), musgo2, rot=(0, r, 0))
+    bracos(p, casca, 0.6, 2.1, comp=0.95, r=0.09, abre=40, mao=casca)
+    p.caixa("Cabeca", (2.0, 1.7, 1.8), (0, 0, 3.1), musgo)
+    p.caixa("Rosto", (1.45, 0.3, 1.25), (0, -0.78, 3.05), rosto)
+    for i, (x, y, r) in enumerate([(-0.65, -0.3, 15), (0.0, 0.0, -20), (0.65, -0.2, 35), (-0.3, 0.5, 50), (0.45, 0.5, -10)]):
+        p.caixa("Cabelo_Musgo", (0.75, 0.75, 0.45), (x, y, 4.05 + (i % 2) * 0.12), musgo2 if i % 2 else musgo, rot=(0, 0, r))
+    for x, z, w in ((0, 2.25, 1.7), (-0.55, 2.05, 0.5), (0.5, 2.0, 0.55), (0.0, 1.95, 0.6)):
+        p.caixa("Barba", (w, 0.55, 0.55), (x, -0.62, z), musgo2)
+    p.cil("Nariz", 0.36, 0.95, (0, -1.15, 2.85), nariz, rot=(-35, 0, 0), r2=0.24, seg=10)
+    p.bola("Ponta_Nariz", (0.8, 0.7, 0.75), (0, -1.38, 2.42), nariz)
+    p.olhos(3.35, -0.95, 0.75, d=0.5)
 
 
 def larila(p):
-    pele, cacto = mat("Larila_Elefante", (170, 160, 150)), mat("Larila_Cacto", (120, 170, 90))
-    sandalia, espinho = mat("Larila_Sandalia", (150, 95, 50)), mat("Larila_Espinho", (245, 240, 200))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Sandalia_{lado}", (0.6, 0.9, 0.12), (s * 0.35, -0.08, 0.06), sandalia, bev=0.03)
-        p.cil(f"Perna_{lado}", 0.22, 0.55, (s * 0.35, 0, 0.38), pele, seg=10)
-        p.caixa(f"Tira_{lado}", (0.5, 0.12, 0.12), (s * 0.35, -0.3, 0.18), sandalia, bev=0.03)
-    p.cil("Corpo_Cacto", 0.6, 1.2, (0, 0, 1.2), cacto, seg=8)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Braco_{lado}", (0.5, 0.35, 0.3), (s * 0.75, 0, 1.25), cacto)
-        p.caixa(f"Braco_Sobe_{lado}", (0.3, 0.35, 0.6), (s * 0.95, 0, 1.55), cacto)
-    for i in range(8):
-        a = math.radians(i * 45 + 22)
-        p.cone("Espinho", 0.05, 0.25, (math.sin(a) * 0.62, math.cos(a) * 0.62, 1.0 + (i % 2) * 0.35), espinho,
-               rot=(math.degrees(-math.cos(a) * 1.57), math.degrees(math.sin(a) * 1.57), 0))
-    p.bola("Cabeca", (2.1, 1.75, 1.85), (0, 0, 2.65), pele)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Orelha_{lado}", 0.8, 0.12, (s * 1.15, 0.15, 2.75), pele, rot=(90, 0, s * 20), seg=10)
-        p.cil(f"Orelha_Dentro_{lado}", 0.55, 0.06, (s * 1.12, 0.06, 2.75), mat("Larila_Rosa", (235, 160, 165)), rot=(90, 0, s * 20), seg=10)
-    p.cil("Tromba", 0.24, 0.8, (0, -0.95, 2.15), pele, rot=(30, 0, 0), r2=0.2)
-    p.cil("Tromba_Ponta", 0.2, 0.5, (0, -1.25, 1.75), pele, rot=(-25, 0, 0), r2=0.17)
-    p.cil("Relogio", 0.38, 0.1, (1.05, -0.35, 1.95), BRANCO(), rot=(90, 0, 0), seg=14)
-    p.anel("Relogio_Aro", 0.38, 0.06, (1.05, -0.35, 1.95), mat("Larila_Relogio", (220, 50, 50)), rot=(90, 0, 0))
-    p.caixa("Ponteiro", (0.05, 0.04, 0.28), (1.05, -0.42, 2.05), PRETO(), bev=0.01)
-    p.olhos(3.0, -0.75, 0.85, d=0.58)
+    cacto, cacto2 = mat("Larila_Cacto", (112, 162, 72)), mat("Larila_Cacto_Escuro", (78, 124, 50))
+    espinho, sandalia = mat("Larila_Espinho", (242, 236, 200)), mat("Larila_Sandalia", (140, 92, 50))
+    tira = mat("Larila_Tira", (98, 60, 30))
+    for s, lado in LADOS:
+        x = s * 0.45
+        p.caixa(f"Sandalia_{lado}", (0.8, 1.05, 0.14), (x, -0.1, 0.07), sandalia, bev=0.04)
+        p.cil(f"Pata_{lado}", 0.33, 0.85, (x, 0, 0.56), cacto, seg=10)
+        p.caixa(f"Tira_{lado}", (0.74, 0.16, 0.16), (x, -0.32, 0.3), tira, bev=0.04)
+        p.caixa(f"Tira_Cruzada_{lado}", (0.16, 0.7, 0.14), (x, -0.05, 0.42), tira, rot=(25, 0, 0), bev=0.04)
+        for k in (-1, 0, 1):
+            p.bola(f"Unha_{lado}", (0.16, 0.08, 0.12), (x + k * 0.18, -0.34, 0.2), espinho)
+    p.caixa("Corpo", (1.55, 1.25, 1.6), (0, 0, 1.75), cacto)
+    for x in (-0.5, 0.0, 0.5):
+        p.caixa("Gomo", (0.1, 0.06, 1.5), (x, -0.64, 1.75), cacto2, bev=0.0)
+    bracos(p, cacto, 0.75, 2.3, comp=0.85, r=0.2, abre=22)
+    p.bola("Cabeca", (2.0, 1.8, 1.8), (0, 0, 3.25), cacto)
+    for s, lado in LADOS:
+        orelha = p.caixa(f"Orelha_{lado}", (0.16, 1.1, 1.3), (s * 1.12, 0.15, 3.25), cacto2, rot=(0, 0, s * -25))
+        for k in (-0.25, 0.25):
+            p.caixa(f"Gomo_Orelha_{lado}", (0.18, 0.05, 1.0), (s * 1.12 + k * 0.1, -0.1 + k, 3.25), cacto, rot=(0, 0, s * -25), bev=0.0)
+    p.cil("Tromba", 0.27, 0.9, (0, -0.95, 2.7), cacto, rot=(-15, 0, 0), r2=0.22, seg=10)
+    p.cil("Tromba_Ponta", 0.2, 0.55, (0, -1.15, 2.1), cacto, rot=(25, 0, 0), r2=0.17, seg=10)
+    for x, y, z in ((-0.55, -0.66, 2.2), (0.55, -0.66, 2.2), (-0.25, -0.66, 1.45), (0.25, -0.66, 1.45), (-0.55, -0.66, 1.2),
+                    (0.55, -0.66, 1.6), (-0.6, -0.55, 3.75), (0.6, -0.55, 3.75), (0.0, -0.3, 4.1), (-0.85, -0.2, 3.0), (0.85, -0.2, 3.0)):
+        p.cone("Espinho", 0.05, 0.22, (x, y - 0.08, z), espinho, rot=(90, 0, 0), seg=6)
+    # Despertador ao lado.
+    rel = mat("Larila_Relogio", (220, 60, 50))
+    p.cil("Relogio", 0.45, 0.32, (1.55, -0.1, 0.62), rel, rot=(90, 0, 0), seg=16)
+    p.cil("Relogio_Mostrador", 0.36, 0.05, (1.55, -0.27, 0.62), BRANCO(), rot=(90, 0, 0), seg=16)
+    p.caixa("Ponteiro", (0.05, 0.04, 0.26), (1.55, -0.31, 0.7), PRETO(), bev=0.01)
+    p.caixa("Ponteiro_2", (0.2, 0.04, 0.05), (1.62, -0.31, 0.62), PRETO(), bev=0.01)
+    for s in (-1, 1):
+        p.bola("Sino", (0.3, 0.3, 0.22), (1.55 + s * 0.28, -0.1, 1.05), OURO())
+        p.cil("Pe_Relogio", 0.05, 0.2, (1.55 + s * 0.28, -0.1, 0.1), PRETO(), seg=6)
+    p.olhos(3.45, -0.82, 0.8, d=0.52)
 
 
 def bananini(p):
-    banana, macaco = mat("Bananini_Banana", (255, 220, 60)), mat("Bananini_Macaco", (110, 80, 50))
-    rosto = mat("Bananini_Rosto", (232, 190, 140))
-    pernas(p, macaco, sep=0.6, alt=0.5, r=0.14, pe=rosto, pe_tam=(0.5, 0.75, 0.25))
-    p.cil("Banana", 0.55, 1.4, (0, 0, 1.35), banana, r2=0.7, seg=8)
-    p.cil("Banana_Ponta", 0.15, 0.25, (0, 0, 0.55), mat("Bananini_Talo", (90, 70, 30)), seg=8)
+    banana, dentro = mat("Bananini_Banana", (255, 214, 50)), mat("Bananini_Casca_Dentro", (250, 238, 170))
+    talo, pelo = mat("Bananini_Talo", (95, 70, 35)), mat("Bananini_Macaco", (118, 138, 56))
+    rosto = mat("Bananini_Rosto", (226, 186, 146))
+    p.cil("Talo", 0.18, 0.25, (0, 0, 0.12), talo, seg=8)
+    p.cil("Banana", 0.5, 1.1, (0, 0, 0.8), banana, r2=0.64, seg=8)
     for i in range(4):
-        a = i * 90 + 45
-        x, y = math.sin(math.radians(a)) * 0.85, math.cos(math.radians(a)) * 0.85
-        p.caixa("Casca", (0.6, 0.15, 1.1), (x, y, 2.05), banana, rot=(0, 0, -a), bev=0.05)
-        p.partes[-1].data.transform(Matrix.Translation((x, y, 1.6)) @ Matrix.Rotation(math.radians(30), 4, Vector((math.cos(math.radians(a)), -math.sin(math.radians(a)), 0))) @ Matrix.Translation((-x, -y, -1.6)))
-    p.bola("Cabeca", (1.9, 1.65, 1.75), (0, 0, 2.75), macaco)
-    p.bola("Rosto", (1.35, 0.8, 1.15), (0, -0.55, 2.6), rosto)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.bola(f"Orelha_{lado}", (0.3, 0.55, 0.55), (s * 1.0, 0, 2.8), macaco)
-        p.bola(f"Orelha_Dentro_{lado}", (0.2, 0.4, 0.4), (s * 1.06, -0.06, 2.8), rosto)
-    bracos(p, macaco, 0.5, 1.85, comp=0.7, r=0.11, abre=50, mao=rosto)
-    p.olhos(2.95, -0.88, 0.7, d=0.55)
-    p.boca(2.3, -0.95, 0.75, alt=0.24, lingua=False)
-
-
-def cappuccina(p):
-    rosa, xicara = mat("Cappuccina_Tutu", (255, 170, 200)), mat("Cappuccina_Xicara", (245, 240, 232))
-    cafe, espuma = mat("Cappuccina_Cafe", (120, 80, 50)), mat("Cappuccina_Espuma", (235, 205, 165))
-    pele = mat("Cappuccina_Pele", (240, 200, 170))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Sapatilha_{lado}", 0.18, 0.35, (s * 0.25, 0, 0.18), rosa, rot=(180, 0, 0), seg=8)
-        p.cil(f"Perna_{lado}", 0.1, 0.9, (s * 0.25, 0, 0.75), pele, seg=8)
-    p.cil("Tutu", 1.05, 0.2, (0, 0, 1.2), rosa, r2=0.85, seg=16)
-    p.cil("Tutu_2", 0.85, 0.16, (0, 0, 1.36), mat("Cappuccina_Tutu_Claro", (255, 205, 225)), r2=0.6, seg=16)
-    p.cil("Corpo", 0.35, 0.55, (0, 0, 1.65), rosa, r2=0.3, seg=10)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Braco_{lado}", 0.08, 0.95, (s * 0.65, 0, 2.15), pele, rot=(0, -s * 50, 0), seg=8)
-    p.cil("Pires", 1.0, 0.1, (0, 0, 1.97), xicara, seg=16)
-    p.cil("Xicara", 0.75, 1.35, (0, 0, 2.7), xicara, r2=0.98, seg=16)
-    p.cil("Cafe", 0.9, 0.08, (0, 0, 3.33), cafe, seg=16)
-    p.bola("Espuma", (1.25, 1.25, 0.4), (0, 0, 3.4), espuma, seg=(16, 8))
-    p.bola("Coracao", (0.35, 0.35, 0.12), (0, -0.1, 3.58), cafe)
-    p.anel("Alca", 0.32, 0.09, (1.05, 0, 2.75), xicara, rot=(90, 0, 0))
-    p.olhos(2.85, -0.84, 0.75, d=0.55)
-    p.bola("Bochecha_E", (0.3, 0.1, 0.18), (-0.6, -0.88, 2.45), rosa)
-    p.bola("Bochecha_D", (0.3, 0.1, 0.18), (0.6, -0.88, 2.45), rosa)
-    p.boca(2.42, -0.86, 0.35, alt=0.22, dentes=False, lingua=True)
-
-
-def tralalero(p):
-    azul, barriga = mat("Tralalero_Pele", (80, 160, 230)), mat("Tralalero_Barriga", (240, 245, 250))
-    tenis, sola = mat("Tralalero_Tenis", (40, 90, 255)), BRANCO()
-    for i, x in enumerate((-0.5, 0.0, 0.5)):
-        y = 0.25 if i == 1 else 0.0
-        p.caixa("Sola", (0.42, 0.75, 0.1), (x, y - 0.1, 0.05), sola, bev=0.03)
-        p.caixa("Tenis", (0.4, 0.7, 0.3), (x, y - 0.1, 0.23), tenis)
-        p.cil("Perna", 0.1, 0.55, (x, y, 0.62), azul, seg=8)
-    p.bola("Corpo", (1.85, 1.55, 2.6), (0, 0, 2.15), azul)
-    p.bola("Barriga", (1.3, 0.7, 1.9), (0, -0.48, 1.95), barriga)
-    p.cone("Barbatana", 0.6, 1.0, (0, 0.15, 3.65), azul, rot=(0, 0, 0), seg=3, esc=(0.35, 1.3, 1))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Nadadeira_{lado}", 0.35, 0.8, (s * 1.05, 0, 1.9), azul, rot=(0, s * 120, 0), seg=3, esc=(1, 0.35, 1))
-    p.cone("Rabo", 0.45, 0.9, (0, 0.95, 1.0), azul, rot=(-60, 0, 0), seg=3, esc=(1, 0.3, 1))
-    p.olhos(2.95, -0.62, 1.0, d=0.6)
-    p.boca(2.1, -0.75, 1.0, alt=0.42, presas=True)
-
-
-def bombardiro(p):
-    aviao, croc = mat("Bombardiro_Aviao", (90, 110, 80)), mat("Bombardiro_Croco", (60, 140, 60))
-    barriga = mat("Bombardiro_Barriga", (200, 210, 140))
-    for x in (-0.6, 0.6):
-        p.cil("Roda", 0.28, 0.2, (x, -0.2, 0.28), BORRACHA(), rot=(0, 90, 0), seg=12)
-        p.caixa("Trem", (0.1, 0.1, 0.4), (x, -0.2, 0.6), PRATA())
-    p.caixa("Fuselagem", (1.3, 2.4, 1.1), (0, 0.3, 1.25), aviao)
-    p.caixa("Asas", (5.0, 1.0, 0.16), (0, 0.2, 1.3), aviao, bev=0.06)
-    p.caixa("Cauda", (0.15, 0.7, 0.9), (0, 1.35, 2.0), aviao)
-    p.caixa("Estabilizador", (1.6, 0.5, 0.12), (0, 1.35, 1.6), aviao)
-    for s in (-1, 1):
-        p.cil("Motor", 0.22, 0.6, (s * 1.6, -0.2, 1.2), PRATA(), rot=(90, 0, 0), seg=10)
-        p.caixa("Helice", (0.9, 0.05, 0.12), (s * 1.6, -0.55, 1.2), PRETO(), rot=(0, 30, 0), bev=0.02)
-        p.cil("Bomba", 0.17, 0.6, (s * 1.0, 0.1, 0.95), PRETO(), rot=(90, 0, 0), seg=10)
-    p.caixa("Cabeca", (1.9, 1.6, 1.5), (0, -0.55, 2.35), croc)
-    p.caixa("Focinho", (1.45, 1.3, 0.45), (0, -1.75, 2.0), croc)
-    p.caixa("Queixo", (1.35, 1.2, 0.3), (0, -1.65, 1.62), barriga)
-    for i in range(5):
-        x = -0.55 + i * 0.275
-        p.cone("Dente", 0.08, 0.22, (x, -2.3, 1.75), DENTE(), rot=(180, 0, 45))
-    p.bola("Narina_E", 0.12, (-0.25, -2.4, 2.22), PRETO())
-    p.bola("Narina_D", 0.12, (0.25, -2.4, 2.22), PRETO())
-    for s in (-1, 1):
-        p.bola("Calombo", (0.75, 0.7, 0.6), (s * 0.45, -0.3, 3.05), croc)
-    p.olhos(2.75, -1.36, 0.9, d=0.58)
-    p.caixa("Oculos_Aviador", (1.7, 0.12, 0.14), (0, -1.38, 3.2), mat("Bombardiro_Couro", (110, 70, 40)), bev=0.03)
+        a = math.radians(i * 90 + 45)
+        x, y = math.sin(a) * 0.62, -math.cos(a) * 0.62
+        c = p.caixa("Casca", (0.62, 0.14, 1.2), (x, y, 0.8), banana, rot=(0, 0, math.degrees(-a)), bev=0.05)
+        dobrar(c, (x, y, 1.35), (math.cos(a), math.sin(a), 0), 28)
+        d = p.caixa("Casca_Dentro", (0.5, 0.06, 1.05), (x * 0.9, y * 0.9, 0.85), dentro, rot=(0, 0, math.degrees(-a)), bev=0.02)
+        dobrar(d, (x, y, 1.35), (math.cos(a), math.sin(a), 0), 28)
+        ponta = p.caixa("Casca_Ponta", (0.5, 0.15, 0.15), (x, y, 0.22), talo, rot=(0, 0, math.degrees(-a)), bev=0.04)
+        dobrar(ponta, (x, y, 1.35), (math.cos(a), math.sin(a), 0), 28)
+    p.caixa("Peito", (1.15, 0.9, 0.9), (0, 0, 1.75), pelo)
+    p.caixa("Barriga", (0.7, 0.1, 0.6), (0, -0.46, 1.7), rosto)
+    for s, lado in LADOS:
+        p.cil(f"Braco_{lado}", 0.15, 0.9, (s * 0.75, -0.2, 1.55), pelo, rot=(25, -s * 30, 0), seg=8)
+        p.bola(f"Mao_{lado}", (0.35, 0.35, 0.3), (s * 0.95, -0.45, 1.2), rosto)
+    p.bola("Cabeca", (1.8, 1.6, 1.7), (0, 0, 2.95), pelo)
+    p.caixa("Testa", (1.5, 0.4, 0.35), (0, -0.6, 3.35), pelo)
+    p.bola("Rosto", (1.3, 0.7, 1.2), (0, -0.55, 2.85), rosto)
+    p.bola("Focinho", (0.95, 0.55, 0.6), (0, -0.85, 2.5), rosto)
+    p.bola("Narina_E", 0.08, (-0.12, -1.12, 2.62), PRETO())
+    p.bola("Narina_D", 0.08, (0.12, -1.12, 2.62), PRETO())
+    for s, lado in LADOS:
+        p.bola(f"Orelha_{lado}", (0.3, 0.5, 0.55), (s * 0.95, 0, 3.0), rosto)
+    p.olhos(3.02, -0.95, 0.62, d=0.5)
+    p.boca(2.35, -1.1, 0.5, alt=0.14, dentes=False)
 
 
 def ambalabu(p):
-    sapo, pele = mat("Ambalabu_Sapo", (95, 175, 70)), mat("Ambalabu_Pele", (232, 185, 145))
-    pneu = BORRACHA()
-    pernas(p, pele, sep=0.6, alt=0.85, r=0.13, pe=mat("Ambalabu_Sapato", (60, 40, 30)), pe_tam=(0.45, 0.75, 0.25))
-    p.anel("Pneu", 0.68, 0.32, (0, 0, 1.55), pneu, rot=(90, 0, 0), n=16)
-    p.cil("Calota", 0.42, 0.3, (0, 0, 1.55), PRATA(), rot=(90, 0, 0), seg=12)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Braco_{lado}", 0.09, 0.6, (s * 1.0, 0, 1.45), sapo, rot=(0, s * 40, 0), seg=8)
-        p.bola(f"Mao_{lado}", (0.35, 0.25, 0.2), (s * 1.2, 0, 1.2), sapo)
-    p.bola("Cabeca", (2.4, 1.7, 1.3), (0, 0, 2.75), sapo)
-    p.bola("Barriga_Cabeca", (1.9, 1.2, 0.7), (0, -0.25, 2.45), mat("Ambalabu_Papo", (200, 225, 140)))
+    sapo, papo = mat("Ambalabu_Sapo", (92, 172, 62)), mat("Ambalabu_Papo", (205, 222, 120))
+    pele, pneu = mat("Ambalabu_Pele", (232, 186, 148)), BORRACHA()
+    for s, lado in LADOS:
+        pe_humano(p, lado, s * 0.35, pele, tam=(0.45, 0.8, 0.26), y=-0.12)
+        p.cil(f"Perna_{lado}", 0.14, 1.0, (s * 0.35, 0, 0.75), pele, seg=10)
+        p.bola(f"Joelho_{lado}", 0.32, (s * 0.35, -0.02, 0.75), pele)
+    p.anel("Pneu", 0.72, 0.36, (0, 0, 1.95), pneu, rot=(90, 0, 0), n=18)
+    for i in range(18):
+        a = math.radians(i * 20)
+        p.caixa("Cravo_Pneu", (0.2, 0.62, 0.12), (math.cos(a) * 1.08, 0, 1.95 + math.sin(a) * 1.08), pneu, rot=(0, -math.degrees(a) + 90, 0), bev=0.03)
+    p.cil("Calota", 0.42, 0.34, (0, 0, 1.95), PRATA(), rot=(90, 0, 0), seg=12)
+    p.cil("Calota_Furo", 0.15, 0.36, (0, 0, 1.95), PRETO(), rot=(90, 0, 0), seg=10)
+    p.bola("Cabeca", (2.4, 1.8, 1.15), (0, 0.05, 3.3), sapo)
+    p.bola("Papo", (2.0, 1.4, 0.6), (0, -0.2, 3.0), papo)
     for s in (-1, 1):
-        p.bola("Palpebra", (0.85, 0.8, 0.75), (s * 0.55, -0.25, 3.3), sapo)
-    p.olhos(3.35, -0.62, 1.1, d=0.62)
-    p.caixa("Boca", (1.8, 0.2, 0.14), (0, -0.82, 2.6), mat("Ambalabu_Boca", (200, 60, 80)), bev=0.05)
+        p.bola("Palpebra", (0.85, 0.8, 0.8), (s * 0.6, -0.25, 3.75), sapo)
+    p.olhos(3.82, -0.62, 1.2, d=0.62)
+    p.caixa("Boca", (1.9, 0.18, 0.1), (0, -0.85, 3.12), mat("Ambalabu_Boca", (190, 55, 75)), bev=0.04)
+    for s in (-1, 1):
+        p.caixa("Canto_Boca", (0.3, 0.18, 0.1), (s * 1.0, -0.75, 3.18), mat("Ambalabu_Boca", (190, 55, 75)), rot=(0, s * -30, s * 30), bev=0.04)
+
+
+def cappuccina(p):
+    rosa, rosa2 = mat("Cappuccina_Tutu", (255, 168, 200)), mat("Cappuccina_Tutu_Claro", (255, 210, 228))
+    xicara, cafe = mat("Cappuccina_Xicara", (246, 242, 236)), mat("Cappuccina_Cafe", (125, 82, 50))
+    espuma, pele = mat("Cappuccina_Espuma", (238, 210, 170)), mat("Cappuccina_Pele", (242, 202, 172))
+    p.cone("Sapatilha_E", 0.17, 0.4, (-0.22, 0, 0.2), rosa, rot=(180, 0, 0), seg=8)
+    p.cil("Perna_E", 0.1, 1.05, (-0.22, 0, 0.9), pele, seg=8)
+    p.cil("Perna_D", 0.1, 0.8, (0.35, -0.2, 0.95), pele, rot=(-30, -25, 0), seg=8)
+    p.cone("Sapatilha_D", 0.15, 0.35, (0.55, -0.45, 0.55), rosa, rot=(150, -25, 0), seg=8)
+    p.cil("Tutu", 1.15, 0.2, (0, 0, 1.45), rosa, r2=0.9, seg=16)
+    p.cil("Tutu_2", 0.95, 0.18, (0, 0, 1.6), rosa2, r2=0.6, seg=16)
+    p.cil("Corpete", 0.32, 0.65, (0, 0, 1.95), rosa, r2=0.36, seg=10)
+    for s, lado in LADOS:
+        p.cil(f"Braco_{lado}", 0.08, 0.9, (s * 0.7, 0, 2.1), pele, rot=(0, s * 75, 0), seg=8)
+        p.cil(f"Antebraco_{lado}", 0.07, 1.4, (s * 1.25, 0, 2.85), pele, rot=(0, -s * 12, 0), seg=8)
+        p.bola(f"Mao_{lado}", 0.2, (s * 1.12, 0, 3.55), pele)
+    p.cil("Pires", 1.0, 0.1, (0, 0, 2.33), xicara, seg=16)
+    p.cil("Xicara", 0.72, 1.3, (0, 0, 3.0), xicara, r2=0.95, seg=16)
+    p.cil("Cafe", 0.88, 0.08, (0, 0, 3.62), cafe, seg=16)
+    p.bola("Espuma", (1.2, 1.2, 0.35), (0, 0, 3.67), espuma, seg=(16, 8))
+    p.bola("Coracao", (0.35, 0.35, 0.1), (0, -0.1, 3.84), cafe)
+    p.anel("Alca", 0.3, 0.09, (1.02, 0, 3.05), xicara, rot=(90, 0, 0))
+    p.olhos(3.15, -0.83, 0.72, d=0.5)
+    for s in (-1, 1):
+        p.bola("Bochecha", (0.28, 0.08, 0.16), (s * 0.58, -0.84, 2.82), rosa)
+    p.bola("Boca", (0.32, 0.12, 0.16), (0, -0.84, 2.72), mat("Cappuccina_Batom", (220, 50, 90)))
 
 
 def trippi(p):
-    camarao, faixa = mat("Trippi_Camarao", (255, 140, 110)), mat("Trippi_Faixa", (255, 205, 185))
-    gato, focinho = mat("Trippi_Gato", (190, 180, 170)), mat("Trippi_Focinho", (240, 235, 230))
-    for i in range(4):
-        x = -0.45 + i * 0.3
-        p.cil("Patinha", 0.06, 0.5, (x, -0.1, 0.3), camarao, rot=(15, 0, 0), seg=6)
-    for i, (w, z, y) in enumerate([(1.3, 0.75, 0.0), (1.15, 1.2, 0.12), (1.0, 1.6, 0.28)]):
-        p.caixa("Segmento", (w, 0.95, 0.42), (0, y, z), camarao, rot=(-10 * i, 0, 0))
-        p.caixa("Listra", (w + 0.02, 0.97, 0.08), (0, y, z + 0.2), faixa, rot=(-10 * i, 0, 0), bev=0.02)
-    p.cone("Leque", 0.6, 0.6, (0, 0.85, 0.5), camarao, rot=(-110, 0, 0), seg=4, esc=(1.4, 0.2, 1))
-    p.bola("Cabeca", (2.0, 1.6, 1.65), (0, 0, 2.6), gato)
-    p.bola("Focinho", (0.9, 0.5, 0.55), (0, -0.72, 2.3), focinho)
-    p.bola("Nariz", (0.25, 0.15, 0.18), (0, -0.98, 2.45), mat("Trippi_Nariz", (240, 120, 150)))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Orelha_{lado}", 0.42, 0.6, (s * 0.62, 0, 3.45), gato, rot=(0, s * 12, 45))
+    camarao, faixa = mat("Trippi_Camarao", (255, 128, 88)), mat("Trippi_Faixa", (255, 188, 150))
+    gato, listra = mat("Trippi_Gato", (236, 140, 58)), mat("Trippi_Listra", (186, 92, 34))
+    focinho, rosa = mat("Trippi_Focinho", (250, 240, 225)), mat("Trippi_Rosa", (240, 130, 150))
+    segs = [((1.15, 0.6, 0.95), 0.3, 1.45, 0), ((1.05, 0.55, 0.9), 0.82, 1.5, -6), ((0.95, 0.5, 0.82), 1.3, 1.42, -18),
+            ((0.82, 0.45, 0.7), 1.72, 1.22, -35), ((0.68, 0.4, 0.58), 2.02, 0.95, -55)]
+    for tam, y, z, r in segs:
+        p.caixa("Segmento", tam, (0, y, z), camarao, rot=(r, 0, 0))
+        p.caixa("Listra", (tam[0] + 0.03, 0.1, tam[2] + 0.03), (0, y + tam[1] / 2 - 0.05, z), faixa, rot=(r, 0, 0), bev=0.02)
+    p.cone("Leque", 0.6, 0.55, (0, 2.3, 0.6), camarao, rot=(-140, 0, 0), seg=4, esc=(1.5, 0.25, 1))
+    for i, y in enumerate((0.15, 0.6, 1.05, 1.45)):
+        for s in (-1, 1):
+            p.cil("Patinha", 0.06, 0.85, (s * 0.3, y - 0.05, 0.45), camarao, rot=(10, s * 6, 0), seg=6)
+    p.cil("Patinha_Frente", 0.07, 0.9, (-0.3, -0.5, 0.45), camarao, rot=(10, -10, 0), seg=6)
+    p.cil("Patinha_Frente", 0.07, 0.9, (0.3, -0.5, 0.45), camarao, rot=(10, 10, 0), seg=6)
+    p.bola("Cabeca", (1.75, 1.5, 1.5), (0, -0.55, 1.95), gato)
+    for k in (-1, 0, 1):
+        p.caixa("Listra_Gato", (0.12, 0.9, 0.08), (k * 0.3, -0.5, 2.68), listra, rot=(0, k * 20, 0), bev=0.02)
+    p.bola("Focinho", (0.95, 0.5, 0.6), (0, -1.22, 1.65), focinho)
+    p.bola("Nariz", (0.22, 0.12, 0.15), (0, -1.47, 1.82), rosa)
+    for s, lado in LADOS:
+        p.cone(f"Orelha_{lado}", 0.38, 0.55, (s * 0.55, -0.5, 2.75), gato, rot=(0, s * 15, 45))
+        p.cone(f"Orelha_Dentro_{lado}", 0.22, 0.38, (s * 0.55, -0.62, 2.7), rosa, rot=(0, s * 15, 45))
         for k in (-1, 1):
-            p.caixa(f"Bigode_{lado}", (0.7, 0.03, 0.03), (s * 0.75, -0.85, 2.35 + k * 0.08), PRETO(), rot=(0, s * k * 12, 0), bev=0.0)
-        p.cil(f"Antena_{lado}", 0.04, 1.3, (s * 0.35, -0.1, 3.85), camarao, rot=(-20, s * 25, 0), seg=6)
-    p.olhos(2.85, -0.7, 0.85, d=0.6)
-    p.boca(2.05, -0.75, 0.45, alt=0.18, dentes=False)
+            p.caixa(f"Bigode_{lado}", (0.75, 0.03, 0.03), (s * 0.75, -1.3, 1.68 + k * 0.08), PRETO(), rot=(0, s * k * 12, 0), bev=0.0)
+        p.cil(f"Antena_{lado}", 0.035, 2.4, (s * 0.35, 0.3, 3.4), camarao, rot=(-40, s * 12, 0), seg=6)
+    p.olhos(2.15, -1.2, 0.7, d=0.52)
+    p.boca(1.4, -1.3, 0.35, alt=0.12, dentes=False)
 
 
 def frigo(p):
-    geladeira, camelo = mat("Frigo_Geladeira", (235, 240, 245)), mat("Frigo_Camelo", (200, 160, 100))
-    bota = mat("Frigo_Bota", (110, 70, 40))
-    pernas(p, camelo, sep=0.85, alt=0.6, r=0.14, pe=bota, pe_tam=(0.5, 0.7, 0.35))
-    p.caixa("Geladeira", (1.45, 1.05, 1.7), (0, 0, 1.75), geladeira)
-    p.caixa("Divisao", (1.47, 1.07, 0.05), (0, 0, 2.15), mat("Frigo_Junta", (160, 170, 180)), bev=0.0)
-    p.caixa("Puxador", (0.08, 0.1, 0.6), (0.55, -0.56, 1.6), PRATA(), bev=0.02)
-    p.caixa("Puxador_2", (0.08, 0.1, 0.3), (0.55, -0.56, 2.35), PRATA(), bev=0.02)
-    p.bola("Corcova", (0.9, 0.8, 0.7), (-0.3, 0.3, 2.65), camelo)
-    p.bola("Corcova_2", (0.75, 0.7, 0.55), (0.35, 0.35, 2.6), camelo)
-    p.cil("Pescoco", 0.25, 0.6, (0, -0.35, 2.8), camelo, seg=10)
-    p.caixa("Cabeca", (1.6, 1.4, 1.35), (0, -0.4, 3.55), camelo)
-    p.caixa("Focinho", (1.1, 0.6, 0.65), (0, -1.3, 3.2), mat("Frigo_Focinho", (225, 190, 135)))
-    p.bola("Narina_E", 0.12, (-0.25, -1.6, 3.35), PRETO())
-    p.bola("Narina_D", 0.12, (0.25, -1.6, 3.35), PRETO())
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.bola(f"Orelha_{lado}", (0.4, 0.2, 0.25), (s * 0.85, -0.2, 4.1), camelo, rot=(0, s * 30, 0))
-    p.olhos(3.85, -1.1, 0.75, d=0.55)
-    p.caixa("Boca", (0.7, 0.15, 0.08), (0, -1.6, 3.0), BOCA(), bev=0.03)
+    geladeira, camelo = mat("Frigo_Geladeira", (240, 242, 245)), mat("Frigo_Camelo", (205, 160, 100))
+    focinho, bota = mat("Frigo_Focinho", (225, 190, 135)), mat("Frigo_Bota", (120, 75, 40))
+    for s, lado in LADOS:
+        x = s * 0.4
+        p.caixa(f"Sola_{lado}", (0.62, 1.0, 0.12), (x, -0.15, 0.06), PRETO(), bev=0.04)
+        p.caixa(f"Bota_{lado}", (0.58, 0.95, 0.4), (x, -0.15, 0.3), bota)
+        p.caixa(f"Cano_{lado}", (0.46, 0.5, 0.55), (x, 0.05, 0.75), bota)
+        p.cil(f"Perna_{lado}", 0.12, 0.5, (x, 0.05, 1.2), camelo, seg=8)
+    p.caixa("Geladeira", (1.4, 1.15, 2.3), (0, 0, 2.55), geladeira)
+    p.caixa("Divisao", (1.42, 0.05, 0.05), (0, -0.58, 3.05), mat("Frigo_Junta", (160, 170, 180)), bev=0.0)
+    p.caixa("Puxador", (0.08, 0.12, 0.7), (0.5, -0.62, 2.3), PRATA(), bev=0.02)
+    p.caixa("Puxador_2", (0.08, 0.12, 0.35), (0.5, -0.62, 3.3), PRATA(), bev=0.02)
+    pinos(p, 0.35, 0.3, 3.7, 2, 2, 0.35, geladeira)
+    p.cil("Pescoco", 0.28, 1.3, (-0.2, -0.55, 4.15), camelo, rot=(20, 0, 0), seg=10)
+    p.caixa("Cabeca", (1.1, 1.5, 0.95), (-0.2, -1.2, 4.85), camelo)
+    p.caixa("Focinho", (0.95, 0.55, 0.7), (-0.2, -2.05, 4.68), focinho)
+    p.caixa("Labio", (0.9, 0.35, 0.2), (-0.2, -2.08, 4.32), focinho)
+    p.bola("Narina_E", 0.11, (-0.42, -2.34, 4.85), PRETO())
+    p.bola("Narina_D", 0.11, (0.02, -2.34, 4.85), PRETO())
+    for s, lado in LADOS:
+        p.bola(f"Orelha_{lado}", (0.35, 0.18, 0.22), (-0.2 + s * 0.6, -0.7, 5.3), camelo, rot=(0, s * 30, 0))
+    p.olhos(5.15, -1.98, 0.62, d=0.46, x0=-0.2)
+
+
+def tralalero(p):
+    azul, barriga = mat("Tralalero_Pele", (112, 150, 188)), mat("Tralalero_Barriga", (240, 244, 248))
+    tenis, sola = mat("Tralalero_Tenis", (40, 105, 230)), BRANCO()
+    for x, y in ((-0.38, -0.45), (0.38, -0.45), (0.0, 0.95)):
+        p.caixa("Sola", (0.5, 0.95, 0.12), (x, y - 0.12, 0.06), sola, bev=0.04)
+        p.caixa("Tenis", (0.46, 0.88, 0.32), (x, y - 0.12, 0.26), tenis)
+        p.caixa("Faixa_Tenis", (0.48, 0.45, 0.08), (x, y - 0.05, 0.3), sola, rot=(20, 0, 0), bev=0.02)
+        p.cil("Perna", 0.13, 0.95, (x, y, 0.85), azul, seg=8)
+    p.bola("Corpo", (1.35, 3.3, 1.35), (0, 0.25, 1.85), azul, seg=(14, 10))
+    p.bola("Barriga", (1.15, 2.9, 0.8), (0, 0.05, 1.6), barriga, seg=(14, 10))
+    p.bola("Focinho", (1.05, 1.0, 0.85), (0, -1.35, 1.95), azul)
+    p.cone("Barbatana", 0.55, 0.9, (0, 0.1, 2.8), azul, rot=(-25, 0, 0), seg=3, esc=(0.3, 1.3, 1))
+    p.cone("Cauda_Cima", 0.4, 1.1, (0, 2.1, 2.3), azul, rot=(-45, 0, 0), seg=3, esc=(0.25, 1, 1))
+    p.cone("Cauda_Baixo", 0.3, 0.7, (0, 2.0, 1.45), azul, rot=(-140, 0, 0), seg=3, esc=(0.25, 1, 1))
+    for s, lado in LADOS:
+        p.cone(f"Nadadeira_{lado}", 0.35, 0.85, (s * 0.85, -0.3, 1.5), azul, rot=(-20, s * 110, 0), seg=3, esc=(1, 0.3, 1))
+        for k in range(3):
+            p.caixa(f"Guelra_{lado}", (0.04, 0.05, 0.35), (s * 0.66, -0.75 + k * 0.15, 1.9), mat("Tralalero_Guelra", (80, 110, 140)), bev=0.0)
+    p.olhos(2.3, -1.2, 0.75, d=0.5)
+    p.boca(1.62, -1.72, 0.8, alt=0.3, presas=True)
 
 
 def glorbo(p):
-    casca, polpa = mat("Glorbo_Casca", (60, 150, 60)), mat("Glorbo_Polpa", (235, 75, 85))
-    listra, croc = mat("Glorbo_Listra", (30, 95, 35)), mat("Glorbo_Croco", (85, 160, 70))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Pe_{lado}", (0.6, 0.8, 0.25), (s * 0.6, -0.15, 0.13), croc)
+    casca, listra = mat("Glorbo_Melancia", (70, 160, 62)), mat("Glorbo_Listra", (30, 92, 34))
+    croc, barriga = mat("Glorbo_Croco", (88, 150, 64)), mat("Glorbo_Mandibula", (206, 214, 140))
+    for x, y in ((-0.8, -0.5), (0.8, -0.5), (-0.8, 1.1), (0.8, 1.1)):
+        p.cil("Perna", 0.24, 0.6, (x, y, 0.4), croc, seg=10)
+        p.caixa("Pe", (0.55, 0.7, 0.2), (x, y - 0.15, 0.1), croc)
         for k in (-1, 0, 1):
-            p.cone(f"Garra_{lado}", 0.06, 0.18, (s * 0.6 + k * 0.17, -0.6, 0.1), DENTE(), rot=(90, 0, 0))
-        p.cil(f"Perna_{lado}", 0.2, 0.4, (s * 0.6, 0, 0.42), croc, seg=10)
-    p.bola("Melancia", (2.4, 2.1, 2.1), (0, 0.1, 1.65), casca, seg=(16, 10))
-    for a in (0, 36, 72, 108, 144):
-        p.bola("Listra", (0.16, 2.14, 2.14), (0, 0.1, 1.65), listra, rot=(0, 0, a), seg=(16, 10))
-    p.bola("Polpa", (2.05, 0.5, 1.8), (0, -0.82, 1.65), polpa, seg=(16, 10))
-    p.bola("Borda_Branca", (2.25, 0.45, 1.98), (0, -0.74, 1.65), mat("Glorbo_Borda", (240, 245, 220)), seg=(16, 10))
-    for x, z in ((-0.7, 1.15), (0.7, 1.15), (-0.35, 0.95), (0.35, 0.95), (-0.85, 1.6), (0.85, 1.6)):
-        p.bola("Semente", (0.12, 0.08, 0.2), (x, -1.05, z), PRETO())
-    p.cone("Rabo", 0.4, 1.4, (0, 1.4, 0.7), croc, rot=(-75, 0, 0), seg=6)
-    p.olhos(2.1, -1.0, 0.9, d=0.62)
-    p.boca(1.4, -1.05, 0.9, alt=0.28, presas=True)
+            p.cone("Garra", 0.06, 0.2, (x + k * 0.17, y - 0.55, 0.08), DENTE(), rot=(90, 0, 0), seg=6)
+    p.bola("Melancia", (2.3, 2.6, 2.1), (0, 0.3, 1.6), casca, seg=(16, 12))
+    for a in range(0, 180, 30):
+        p.bola("Listra", (0.18, 2.64, 2.14), (0, 0.3, 1.6), listra, rot=(0, a, 0), seg=(16, 12))
+    p.cone("Rabo", 0.45, 1.7, (0, 2.2, 0.85), croc, rot=(-80, 0, 0), seg=6)
+    p.caixa("Cabeca", (1.35, 1.2, 1.0), (0, -1.05, 2.2), croc)
+    p.caixa("Focinho", (1.05, 1.3, 0.45), (0, -2.1, 2.0), croc)
+    p.caixa("Mandibula", (1.0, 1.25, 0.3), (0, -2.0, 1.62), barriga)
+    for i in range(5):
+        x = -0.4 + i * 0.2
+        p.cone("Dente", 0.06, 0.2, (x, -2.68, 1.85), DENTE(), rot=(180, 0, 45))
+    p.bola("Narina_E", 0.1, (-0.2, -2.72, 2.25), PRETO())
+    p.bola("Narina_D", 0.1, (0.2, -2.72, 2.25), PRETO())
+    for s in (-1, 1):
+        p.bola("Calombo", (0.6, 0.6, 0.55), (s * 0.35, -1.25, 2.72), croc)
+    p.olhos(2.78, -1.5, 0.72, d=0.48)
 
 
 def cocofanto(p):
-    coco, elefante = mat("Cocofanto_Coco", (115, 78, 48)), mat("Cocofanto_Elefante", (150, 150, 162))
-    fibra, marfim = mat("Cocofanto_Fibra", (85, 55, 35)), mat("Cocofanto_Marfim", (250, 245, 225))
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Pata_{lado}", 0.3, 0.55, (s * 0.55, 0, 0.28), elefante, seg=10)
+    coco, fibra = mat("Cocofanto_Coco", (112, 72, 40)), mat("Cocofanto_Fibra", (80, 50, 28))
+    polpa, elefante = mat("Cocofanto_Polpa", (250, 246, 232)), mat("Cocofanto_Elefante", (150, 138, 130))
+    marfim, rosa = mat("Cocofanto_Marfim", (250, 245, 225)), mat("Cocofanto_Rosa", (230, 165, 170))
+    for x, y in ((-0.7, -0.5), (0.7, -0.5), (-0.7, 1.15), (0.7, 1.15)):
+        p.cil("Pata", 0.33, 0.85, (x, y, 0.42), elefante, seg=10)
         for k in (-1, 0, 1):
-            p.bola(f"Unha_{lado}", (0.14, 0.08, 0.12), (s * 0.55 + k * 0.15, -0.3, 0.1), marfim)
-    p.bola("Coco", (2.0, 1.9, 1.8), (0, 0.05, 1.35), coco, seg=(12, 8))
-    for i in range(10):
-        a = math.radians(i * 36)
-        p.caixa("Fibra", (0.25, 0.05, 0.05), (math.sin(a) * 0.9, math.cos(a) * 0.85, 1.35 + (i % 3 - 1) * 0.35), fibra,
-                rot=(0, 30 * (i % 2 * 2 - 1), -math.degrees(a)), bev=0.0)
-    p.bola("Cabeca", (2.0, 1.7, 1.7), (0, -0.2, 2.75), elefante)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Orelha_{lado}", 0.85, 0.12, (s * 1.2, 0.05, 2.85), elefante, rot=(90, 0, s * 25), seg=10)
-        p.cil(f"Orelha_Dentro_{lado}", 0.6, 0.06, (s * 1.16, -0.03, 2.85), mat("Cocofanto_Rosa", (230, 165, 170)), rot=(90, 0, s * 25), seg=10)
-        p.cone(f"Presa_{lado}", 0.1, 0.6, (s * 0.4, -1.05, 2.05), marfim, rot=(70, 0, s * 15), seg=8)
-    p.cil("Tromba", 0.26, 0.9, (0, -1.1, 2.3), elefante, rot=(25, 0, 0), r2=0.2)
-    p.cil("Tromba_Ponta", 0.2, 0.5, (0, -1.45, 1.85), elefante, rot=(-30, 0, 0), r2=0.18)
-    p.olhos(3.1, -0.95, 0.85, d=0.56)
+            p.bola("Unha", (0.14, 0.08, 0.12), (x + k * 0.16, y - 0.32, 0.1), marfim)
+    p.bola("Coco", (2.1, 2.4, 1.9), (0, 0.35, 1.7), coco, seg=(14, 10))
+    for i in range(16):
+        a = math.radians(i * 22.5)
+        p.caixa("Fibra", (0.35, 0.05, 0.05), (math.sin(a) * 1.03, 0.35 + math.cos(a) * 1.18, 1.7 + (i % 3 - 1) * 0.45), fibra,
+                rot=(0, 25 * (i % 2 * 2 - 1), -math.degrees(a)), bev=0.0)
+    p.anel("Polpa", 0.98, 0.07, (0, -0.68, 1.75), polpa, rot=(90, 0, 0))
+    p.bola("Cabeca", (1.6, 1.4, 1.5), (0, -1.05, 2.5), elefante)
+    for s, lado in LADOS:
+        p.cil(f"Orelha_{lado}", 0.75, 0.12, (s * 1.0, -0.75, 2.6), elefante, rot=(90, 0, s * 30), seg=10)
+        p.cil(f"Orelha_Dentro_{lado}", 0.52, 0.06, (s * 0.97, -0.82, 2.6), rosa, rot=(90, 0, s * 30), seg=10)
+        p.cone(f"Presa_{lado}", 0.09, 0.6, (s * 0.35, -1.85, 1.95), marfim, rot=(70, 0, s * 15), seg=8)
+    p.cil("Tromba", 0.24, 0.9, (0, -1.85, 2.15), elefante, rot=(-20, 0, 0), r2=0.2, seg=10)
+    p.cil("Tromba_Ponta", 0.19, 0.5, (0, -2.0, 1.55), elefante, rot=(25, 0, 0), r2=0.16, seg=10)
+    p.olhos(2.8, -1.68, 0.7, d=0.48)
+
+
+def bombardiro(p):
+    aviao, croc = mat("Bombardiro_Aviao", (108, 118, 92)), mat("Bombardiro_Croco", (74, 140, 62))
+    barriga, vidro = mat("Bombardiro_Mandibula", (200, 210, 140)), mat("Bombardiro_Vidro", (120, 180, 220), rough=0.1)
+    for x in (-0.7, 0.7):
+        p.cil("Roda", 0.3, 0.22, (x, -0.1, 0.3), BORRACHA(), rot=(0, 90, 0), seg=12)
+        p.caixa("Trem", (0.1, 0.1, 0.55), (x, -0.1, 0.75), PRATA())
+    p.cil("Roda_Cauda", 0.15, 0.12, (0, 2.2, 0.55), BORRACHA(), rot=(0, 90, 0), seg=10)
+    p.caixa("Fuselagem", (1.15, 3.4, 1.05), (0, 0.6, 1.45), aviao)
+    p.caixa("Cabine", (0.85, 0.7, 0.35), (0, -0.35, 2.05), vidro, bev=0.08)
+    p.caixa("Asas", (5.6, 1.1, 0.16), (0, 0.45, 1.55), aviao, bev=0.06)
+    pinos(p, 0, 0.45, 1.63, 8, 1, 0.65, aviao, r=0.13)
+    p.caixa("Estabilizador", (2.0, 0.55, 0.12), (0, 2.15, 1.75), aviao)
+    p.caixa("Leme", (0.12, 0.7, 1.0), (0, 2.2, 2.25), aviao)
+    for s in (-1, 1):
+        x = s * 1.6
+        p.cil("Motor", 0.28, 1.0, (x, 0.0, 1.45), aviao, rot=(90, 0, 0), seg=12)
+        p.cone("Cubo_Helice", 0.16, 0.3, (x, -0.65, 1.45), PRATA(), rot=(90, 0, 0), seg=10)
+        for k in range(3):
+            p.caixa("Pa_Helice", (0.14, 0.05, 0.6), (x, -0.6, 1.45), PRETO(), bev=0.02)
+            dobrar(p.partes[-1], (x, -0.6, 1.45), (0, 1, 0), k * 120)
+        p.cil("Bomba", 0.18, 0.7, (s * 0.85, 0.5, 1.15), PRETO(), rot=(90, 0, 0), seg=10)
+        p.cone("Bomba_Ponta", 0.18, 0.25, (s * 0.85, 0.02, 1.15), PRETO(), rot=(90, 0, 0), seg=10)
+    p.caixa("Cabeca", (1.3, 1.1, 1.05), (0, -1.45, 1.65), croc)
+    p.caixa("Focinho", (0.95, 1.5, 0.38), (0, -2.65, 1.55), croc)
+    p.caixa("Mandibula", (0.9, 1.45, 0.25), (0, -2.55, 1.2), barriga)
+    for i in range(6):
+        y = -2.0 - i * 0.2
+        for s in (-1, 1):
+            p.cone("Dente", 0.05, 0.16, (s * 0.42, y, 1.36), DENTE(), rot=(180, 0, 45), seg=4)
+    p.bola("Narina_E", 0.09, (-0.18, -3.35, 1.76), PRETO())
+    p.bola("Narina_D", 0.09, (0.18, -3.35, 1.76), PRETO())
+    for k in range(3):
+        p.caixa("Escama", (0.25, 0.25, 0.15), (0, -1.1 + k * 0.35, 2.2), croc, rot=(0, 0, 45))
+    for s in (-1, 1):
+        p.bola("Calombo", (0.5, 0.5, 0.45), (s * 0.35, -1.75, 2.12), croc)
+    p.olhos(2.22, -1.98, 0.7, d=0.45)
 
 
 def gusini(p):
-    jato, ganso = mat("Gusini_Jato", (110, 120, 100)), mat("Gusini_Ganso", (242, 242, 242))
+    ganso, jato = mat("Gusini_Ganso", (244, 244, 244)), mat("Gusini_Jato", (130, 140, 150), metal=0.5)
     bico, fogo = mat("Gusini_Bico", (255, 150, 30)), mat("Gusini_Fogo", (255, 120, 20), emit=4.0)
-    for x in (-0.5, 0.5):
-        p.cil("Roda", 0.22, 0.18, (x, 0.1, 0.22), BORRACHA(), rot=(0, 90, 0), seg=10)
-        p.caixa("Trem", (0.08, 0.08, 0.35), (x, 0.1, 0.5), PRATA())
-    p.caixa("Fuselagem", (1.2, 2.3, 0.95), (0, 0.4, 1.05), jato)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Asa_{lado}", (2.0, 1.1, 0.12), (s * 1.4, 0.55, 1.05), jato, rot=(0, s * -8, s * 22), bev=0.04)
-        p.cil(f"Missil_{lado}", 0.12, 0.9, (s * 1.5, 0.3, 0.85), BRANCO(), rot=(90, 0, 0), seg=8)
-        p.cone(f"Missil_Ponta_{lado}", 0.12, 0.25, (s * 1.5, -0.27, 0.85), mat("Gusini_Vermelho", (220, 40, 40)), rot=(90, 0, 0), seg=8)
-        p.cil(f"Turbina_{lado}", 0.25, 0.5, (s * 0.38, 1.6, 1.05), PRATA(), rot=(90, 0, 0), seg=10)
-        p.cone(f"Fogo_{lado}", 0.2, 0.5, (s * 0.38, 2.05, 1.05), fogo, rot=(-90, 0, 0), seg=8)
-    p.caixa("Leme", (0.12, 0.6, 0.8), (0, 1.35, 1.8), jato)
-    p.cil("Pescoco", 0.28, 1.0, (0, -0.25, 1.85), ganso, rot=(-15, 0, 0), seg=10)
-    p.bola("Cabeca", (1.75, 1.55, 1.55), (0, -0.45, 2.85), ganso)
-    p.caixa("Bico", (0.8, 0.85, 0.28), (0, -1.45, 2.65), bico, bev=0.1)
-    p.caixa("Bico_Baixo", (0.65, 0.7, 0.16), (0, -1.38, 2.42), mat("Gusini_Bico_Escuro", (225, 115, 20)), bev=0.06)
-    p.caixa("Capacete", (1.2, 1.1, 0.25), (0, -0.25, 3.6), jato, bev=0.1)
-    p.olhos(3.12, -1.12, 0.78, d=0.55)
+    for s, lado in LADOS:
+        p.cil(f"Perna_{lado}", 0.08, 0.7, (s * 0.35, 0.2, 0.45), bico, seg=6)
+        p.cone(f"Pe_{lado}", 0.32, 0.12, (s * 0.35, 0.0, 0.06), bico, seg=3, rot=(0, 0, 90))
+    p.bola("Corpo", (1.35, 2.5, 1.25), (0, 0.45, 1.35), ganso, seg=(14, 10))
+    p.cone("Rabo", 0.4, 0.6, (0, 1.75, 1.6), ganso, rot=(-70, 0, 0), seg=6)
+    for s, lado in LADOS:
+        asa = p.caixa(f"Asa_{lado}", (2.1, 1.1, 0.12), (s * 1.55, 0.55, 1.45), jato, rot=(0, s * -6, s * 25), bev=0.05)
+        p.cil(f"Turbina_{lado}", 0.24, 0.9, (s * 0.95, 0.75, 1.0), jato, rot=(90, 0, 0), seg=10)
+        p.cone(f"Fogo_{lado}", 0.2, 0.6, (s * 0.95, 1.5, 1.0), fogo, rot=(-90, 0, 0), seg=8)
+        p.cil(f"Missil_{lado}", 0.1, 0.9, (s * 1.9, 0.4, 1.28), BRANCO(), rot=(90, 0, 0), seg=8)
+        p.cone(f"Missil_Ponta_{lado}", 0.1, 0.25, (s * 1.9, -0.17, 1.28), mat("Gusini_Vermelho", (220, 40, 40)), rot=(90, 0, 0), seg=8)
+    for s in (-1, 1):
+        p.caixa("Leme", (0.1, 0.6, 0.7), (s * 0.3, 1.6, 2.05), jato, rot=(0, s * 15, 0))
+    p.cil("Pescoco", 0.24, 1.4, (0, -0.85, 2.15), ganso, rot=(25, 0, 0), seg=10)
+    p.bola("Cabeca", (1.2, 1.3, 1.1), (0, -1.25, 2.95), ganso)
+    p.caixa("Bico", (0.55, 0.85, 0.24), (0, -2.15, 2.82), bico, bev=0.08)
+    p.caixa("Bico_Baixo", (0.48, 0.7, 0.14), (0, -2.08, 2.64), mat("Gusini_Bico_Escuro", (225, 115, 20)), bev=0.05)
+    p.olhos(3.15, -1.78, 0.58, d=0.45)
 
 
 def svinino(p):
-    porco, bomba = mat("Svinino_Porco", (255, 170, 190)), mat("Svinino_Bomba", (55, 55, 65))
-    focinho, faisca = mat("Svinino_Focinho", (255, 140, 165)), mat("Svinino_Faisca", (255, 220, 60), emit=6.0)
-    for x, y in ((-0.45, -0.25), (0.45, -0.25), (-0.45, 0.35), (0.45, 0.35)):
-        p.cil("Pata", 0.16, 0.45, (x, y, 0.3), porco, seg=8)
-        p.cil("Casco", 0.17, 0.12, (x, y, 0.06), PRETO(), seg=8)
-    p.bola("Corpo", (1.5, 1.4, 1.05), (0, 0.05, 0.95), porco)
-    for s in (-1, 1):
-        p.caixa("Aleta", (0.08, 0.6, 0.6), (s * 0.3, 0.8, 1.05), PRATA(), rot=(0, 0, s * 25))
-    p.bola("Cabeca_Bomba", 2.0, (0, 0, 2.35), bomba, seg=(16, 10))
-    p.anel("Faixa", 0.98, 0.07, (0, 0, 2.35), mat("Svinino_Faixa", (200, 40, 40)), rot=(0, 0, 0))
-    p.cil("Bocal", 0.28, 0.25, (0, 0, 3.4), PRATA(), seg=10)
-    p.cil("Pavio", 0.06, 0.45, (0.1, 0, 3.7), mat("Svinino_Pavio", (200, 180, 150)), rot=(0, 25, 0), seg=6)
-    p.bola("Faisca", 0.32, (0.2, 0, 3.95), faisca, seg=(8, 6))
-    p.cil("Focinho", 0.38, 0.35, (0, -0.95, 2.05), focinho, rot=(90, 0, 0), seg=12)
-    p.bola("Narina_E", (0.1, 0.06, 0.14), (-0.13, -1.13, 2.05), PRETO())
-    p.bola("Narina_D", (0.1, 0.06, 0.14), (0.13, -1.13, 2.05), PRETO())
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Orelha_{lado}", 0.3, 0.45, (s * 0.7, 0, 3.25), porco, rot=(15, s * 30, 0))
-    p.olhos(2.65, -0.8, 0.85, d=0.55)
-    p.boca(1.65, -0.85, 0.5, alt=0.16, dentes=False)
+    porco, granada = mat("Svinino_Porco", (250, 168, 182)), mat("Svinino_Granada", (70, 76, 66), metal=0.4)
+    focinho, metal = mat("Svinino_Focinho", (238, 132, 152)), PRATA()
+    for x, y in ((-0.55, -0.4), (0.55, -0.4), (-0.55, 1.0), (0.55, 1.0)):
+        p.cil("Pata", 0.18, 0.65, (x, y, 0.38), porco, seg=8)
+        p.cil("Casco", 0.19, 0.14, (x, y, 0.07), PRETO(), seg=8)
+    p.caixa("Granada", (1.55, 2.1, 1.45), (0, 0.3, 1.4), granada, bev=0.32)
+    for i in range(3):
+        for k in range(2):
+            y, z = -0.35 + i * 0.65, 1.1 + k * 0.6
+            for s in (-1, 1):
+                p.caixa("Gomo", (0.1, 0.5, 0.45), (s * 0.78, y, z), granada, bev=0.05)
+            p.caixa("Gomo", (0.45, 0.5, 0.1), (-0.3 + k * 0.6, y, 2.13), granada, bev=0.05)
+    p.cil("Espoleta", 0.25, 0.35, (0, 0.95, 2.3), metal, seg=10)
+    p.caixa("Alavanca", (0.25, 1.2, 0.08), (0, 0.6, 2.45), metal, rot=(-12, 0, 0), bev=0.03)
+    p.anel("Argola", 0.2, 0.04, (0.35, 1.0, 2.4), metal, rot=(0, 90, 0), n=12)
+    p.anel("Rabo", 0.15, 0.06, (0, 1.42, 1.6), porco, rot=(90, 0, 0), n=12)
+    p.bola("Cabeca", (1.45, 1.25, 1.35), (0, -1.0, 1.6), porco)
+    p.cil("Focinho", 0.32, 0.3, (0, -1.68, 1.45), focinho, rot=(90, 0, 0), seg=12)
+    p.bola("Narina_E", (0.09, 0.06, 0.13), (-0.11, -1.84, 1.45), PRETO())
+    p.bola("Narina_D", (0.09, 0.06, 0.13), (0.11, -1.84, 1.45), PRETO())
+    for s, lado in LADOS:
+        p.cone(f"Orelha_{lado}", 0.3, 0.45, (s * 0.5, -0.9, 2.35), porco, rot=(25, s * 35, 0))
+    p.olhos(1.95, -1.55, 0.62, d=0.45)
 
 
 def udin(p):
-    laranja, pele = mat("Udin_Roupa", (255, 150, 40)), mat("Udin_Pele", (240, 200, 160))
-    tambor, couro = mat("Udin_Tambor", (210, 40, 50), rough=0.25), mat("Udin_Couro", (250, 240, 215))
-    pernas(p, mat("Udin_Calca", (60, 70, 130)), sep=0.6, alt=0.55, r=0.15, pe=PRETO(), pe_tam=(0.45, 0.7, 0.25))
-    p.caixa("Corpo", (1.2, 0.85, 1.0), (0, 0, 1.25), laranja)
-    p.cil("Tambor", 0.55, 0.55, (0, -0.75, 1.15), tambor, seg=14)
-    p.cil("Pele_Tambor", 0.52, 0.05, (0, -0.75, 1.45), couro, seg=14)
-    p.anel("Aro", 0.55, 0.05, (0, -0.75, 1.42), OURO(), n=16)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cil(f"Braco_{lado}", 0.13, 0.6, (s * 0.65, -0.3, 1.45), laranja, rot=(60, -s * 20, 0), seg=8)
-        p.bola(f"Mao_{lado}", 0.3, (s * 0.55, -0.6, 1.62), pele)
-        p.cil(f"Baqueta_{lado}", 0.04, 0.8, (s * 0.45, -0.75, 1.85), mat("Udin_Baqueta", (225, 190, 130)), rot=(-40, s * 25, 0), seg=6)
-    p.bola("Cabeca", (2.1, 1.85, 2.0), (0, 0, 2.75), pele)
-    p.bola("Gorro", (2.15, 1.9, 1.3), (0, 0.05, 3.35), laranja)
-    p.cil("Gorro_Barra", 1.05, 0.25, (0, 0.03, 3.25), mat("Udin_Gorro_Barra", (230, 120, 25)), seg=16)
-    p.bola("Pompom", 0.5, (0, 0.05, 4.05), couro)
-    p.caixa("Bigode", (1.0, 0.25, 0.18), (0, -0.95, 2.45), mat("Udin_Bigode", (90, 55, 30)))
-    p.bola("Nariz", (0.35, 0.3, 0.3), (0, -0.98, 2.68), mat("Udin_Nariz", (235, 170, 140)))
-    p.olhos(3.0, -0.8, 0.8, d=0.56)
-    p.bola("Boca", (0.55, 0.25, 0.42), (0, -0.88, 2.1), BOCA())
-    p.bola("Lingua", (0.32, 0.15, 0.18), (0, -0.98, 2.0), LINGUA())
-    p.cone("Estrela_Secreta", 0.25, 0.08, (0.75, -0.55, 3.75), mat("Udin_Brilho", (255, 235, 120), emit=5.0), rot=(90, 0, 0), seg=5)
+    laranja, laranja2 = mat("Udin_Laranja", (255, 140, 22)), mat("Udin_Laranja_Escura", (230, 110, 15))
+    folha, talo = mat("Udin_Folha", (70, 150, 50)), mat("Udin_Talo", (95, 70, 35))
+    for s, lado in LADOS:
+        x = s * 0.5
+        p.caixa(f"Tenis_{lado}", (0.55, 0.95, 0.35), (x, -0.12, 0.22), BRANCO())
+        p.caixa(f"Sola_{lado}", (0.58, 0.98, 0.1), (x, -0.12, 0.05), PRETO(), bev=0.03)
+        p.cil(f"Canela_{lado}", 0.2, 0.6, (x, 0, 0.65), laranja, seg=10)
+        p.bola(f"Coxa_{lado}", (0.65, 0.65, 0.9), (x, 0, 1.15), laranja)
+    p.bola("Laranja", (2.4, 2.2, 2.4), (0, 0, 2.55), laranja, seg=(16, 12))
+    for i in range(10):
+        a = math.radians(i * 36 + 10)
+        p.bola("Poro", 0.12, (math.sin(a) * 1.0, -math.cos(a) * 0.95, 2.55 + (i % 3 - 1) * 0.6), laranja2, seg=(6, 4))
+    p.cil("Talo", 0.08, 0.3, (0, 0, 3.8), talo, seg=6)
+    p.bola("Folha", (0.7, 0.3, 0.12), (0.35, 0, 3.85), folha, rot=(0, -20, 0))
+    for s, lado in LADOS:
+        p.bola(f"Ombro_{lado}", (0.7, 0.7, 0.7), (s * 1.25, 0, 2.6), laranja)
+        p.bola(f"Biceps_{lado}", (0.95, 0.65, 0.65), (s * 1.75, 0, 2.7), laranja)
+        p.cil(f"Antebraco_{lado}", 0.24, 0.85, (s * 2.15, 0, 3.15), laranja, rot=(0, -s * 10, 0), seg=10)
+        p.bola(f"Punho_{lado}", 0.58, (s * 2.2, 0, 3.6), laranja2)
+    p.olhos(2.95, -1.0, 0.75, d=0.5, bravo=True)
+    p.bola("Nariz", (0.4, 0.35, 0.35), (0, -1.15, 2.6), laranja2)
+    p.boca(2.15, -1.08, 0.75, alt=0.25)
 
 
 # ---------------------------------------------------------------- os 5 chefes
 
 def sahur(p):
-    madeira, casca = mat("Sahur_Madeira", (150, 100, 60)), mat("Sahur_Casca", (105, 68, 40))
-    anel = mat("Sahur_Anel", (215, 170, 115))
-    pernas(p, madeira, sep=0.7, alt=0.6, r=0.11, pe=casca, pe_tam=(0.45, 0.65, 0.22))
-    p.caixa("Tronco", (1.6, 1.3, 2.7), (0, 0, 2.15), madeira)
-    for x in (-0.55, -0.15, 0.3, 0.65):
-        p.caixa("Casca", (0.12, 1.34, 2.5), (x, 0, 2.1), casca, bev=0.03)
-    p.caixa("Topo", (1.45, 1.15, 0.08), (0, 0, 3.5), anel, bev=0.02)
-    p.anel("Anel_Madeira", 0.3, 0.04, (0, 0, 3.55), casca, n=12)
-    # Coroa de ouro
-    p.caixa("Coroa", (1.7, 1.4, 0.3), (0, 0, 3.65), OURO(), bev=0.05)
-    for x in (-0.6, -0.2, 0.2, 0.6):
-        p.cone("Coroa_Ponta", 0.18, 0.5, (x, -0.55, 4.05), OURO(), seg=4)
-        p.cone("Coroa_Ponta", 0.18, 0.5, (x, 0.55, 4.05), OURO(), seg=4)
-    for x in (-0.4, 0.4):
-        p.bola("Joia", (0.22, 0.1, 0.22), (x, -0.73, 3.65), mat("Joia_Vermelha", (230, 20, 40), emit=1.5))
-    bracos(p, madeira, 0.8, 2.3, comp=0.8, r=0.1, abre=60, mao=casca)
-    # Taco com pregos na mão direita
-    p.cil("Taco", 0.1, 2.4, (1.55, -0.3, 2.35), mat("Sahur_Taco", (190, 140, 85)), rot=(0, -25, 0), r2=0.24, seg=10)
-    for k in range(4):
-        z = 2.6 + k * 0.28
-        x = 1.55 - math.sin(math.radians(25)) * (z - 2.35)
-        p.cone("Prego", 0.05, 0.3, (x + 0.22, -0.3, z), PRATA(), rot=(0, 90, 0), seg=6)
-    p.olhos(2.85, -0.66, 0.8, d=0.68)
-    p.boca(1.85, -0.66, 1.0, alt=0.42, presas=True)
+    madeira, escura = mat("Sahur_Madeira", (206, 138, 78)), mat("Sahur_Madeira_Escura", (160, 100, 55))
+    taco = mat("Sahur_Taco", (178, 120, 66))
+    for s, lado in LADOS:
+        p.cil(f"Perna_{lado}", 0.12, 0.95, (s * 0.35, 0, 0.55), madeira, seg=8)
+        p.caixa(f"Pe_{lado}", (0.35, 0.6, 0.18), (s * 0.35, -0.12, 0.09), madeira)
+    p.cil("Tronco", 0.72, 3.0, (0, 0, 2.5), madeira, seg=14)
+    p.cil("Topo", 0.66, 0.06, (0, 0, 4.02), mat("Sahur_Anel", (232, 186, 130)), seg=14)
+    p.anel("Anel_Madeira", 0.35, 0.04, (0, 0, 4.04), escura, n=12)
+    for z in (1.4, 1.9):
+        p.anel("Veio", 0.73, 0.025, (0, 0, z), escura, n=14)
+    p.cil("Braco_E", 0.08, 1.4, (-0.85, 0, 2.55), madeira, rot=(0, 15, 0), seg=8)
+    p.bola("Mao_E", 0.25, (-1.03, 0, 1.88), madeira)
+    p.cil("Braco_D", 0.08, 1.0, (0.95, -0.1, 2.75), madeira, rot=(0, -50, 0), seg=8)
+    p.bola("Mao_D", 0.25, (1.33, -0.2, 2.42), madeira)
+    mao, ang = Vector((1.33, -0.2, 2.42)), math.radians(18)
+    eixo = Vector((math.sin(ang), 0, math.cos(ang)))
+    c = mao + eixo * 1.0
+    p.cil("Taco", 0.09, 2.6, (c.x, c.y, c.z), taco, rot=(0, 18, 0), r2=0.24, seg=10)
+    normal = Vector((math.cos(ang), 0, -math.sin(ang)))
+    for t in (1.5, 1.75, 2.0):
+        q = mao + eixo * t + normal * 0.25
+        p.cone("Prego", 0.04, 0.25, (q.x, q.y, q.z), PRATA(), rot=(0, 90 + 18, 0), seg=6)
+    p.olhos(3.35, -0.72, 0.62, d=0.55)
+    p.cil("Nariz", 0.1, 0.3, (0, -0.8, 2.95), madeira, rot=(90, 0, 0), seg=8)
+    p.boca(2.55, -0.72, 0.85, alt=0.3, rot=(0, 0, 0))
 
 
 def assassino(p):
-    xicara, cafe = mat("Assassino_Xicara", (70, 40, 30)), mat("Assassino_Cafe", (40, 22, 15))
-    ninja, armadura = mat("Assassino_Ninja", (30, 30, 38)), mat("Assassino_Armadura", (120, 125, 140), metal=0.7)
-    lamina, faixa = mat("Assassino_Lamina", (225, 230, 240), rough=0.1, metal=0.9), mat("Assassino_Faixa", (200, 25, 30))
-    pernas(p, ninja, sep=0.6, alt=0.6, r=0.14, pe=ninja, pe_tam=(0.45, 0.7, 0.22))
-    p.caixa("Corpo", (1.1, 0.8, 1.0), (0, 0, 1.3), ninja)
-    p.caixa("Peitoral", (1.2, 0.3, 0.75), (0, -0.4, 1.4), armadura)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.bola(f"Ombreira_{lado}", (0.6, 0.65, 0.4), (s * 0.7, 0, 1.78), armadura)
-        p.cone(f"Ombreira_Espinho_{lado}", 0.1, 0.3, (s * 0.8, 0, 2.05), PRATA(), seg=6)
-    bracos(p, ninja, 0.6, 1.65, comp=0.75, r=0.12, abre=55)
-    # Espadas: uma em cada mão.
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Espada_{lado}", (0.1, 0.05, 1.7), (s * 1.35, -0.15, 1.8), lamina, rot=(0, s * -20, 0), bev=0.02)
-        p.caixa(f"Guarda_{lado}", (0.35, 0.15, 0.08), (s * 1.18, -0.15, 1.05), OURO(), rot=(0, s * -20, 0), bev=0.02)
-    p.cil("Pires", 1.05, 0.1, (0, 0, 2.0), xicara, seg=16)
-    p.cil("Xicara", 0.8, 1.4, (0, 0, 2.75), xicara, r2=1.02, seg=16)
-    p.cil("Cafe", 0.95, 0.08, (0, 0, 3.4), cafe, seg=16)
-    p.anel("Alca", 0.33, 0.1, (1.1, 0, 2.8), xicara, rot=(90, 0, 0))
-    p.cil("Mascara", 0.94, 0.42, (0, 0, 3.0), ninja, seg=16)
-    p.caixa("Faixa_Ponta", (0.15, 0.7, 0.12), (0.25, 1.15, 3.0), faixa, rot=(20, 0, 10))
-    p.caixa("Faixa_Ponta", (0.15, 0.7, 0.12), (-0.15, 1.1, 2.9), faixa, rot=(35, 0, -10))
-    p.anel("Faixa", 0.98, 0.05, (0, 0, 3.24), faixa, n=16)
-    p.olhos(3.0, -0.92, 0.75, d=0.55)
-    p.boca(2.4, -0.88, 0.7, alt=0.3, presas=True)
+    copo, luva = mat("Assassino_Copo", (240, 228, 205)), mat("Assassino_Luva", (196, 104, 44))
+    tampa, ninja = mat("Assassino_Tampa", (35, 30, 30)), mat("Assassino_Ninja", (28, 28, 34))
+    lamina = mat("Assassino_Lamina", (225, 230, 240), rough=0.1, metal=0.9)
+    placa = mat("Assassino_Placa", (175, 180, 190), rough=0.25, metal=0.8)
+    for s, lado in LADOS:
+        p.cil(f"Perna_{lado}", 0.09, 0.9, (s * 0.32, 0, 0.6), ninja, seg=8)
+        p.caixa(f"Pe_{lado}", (0.32, 0.55, 0.18), (s * 0.32, -0.1, 0.09), ninja)
+    p.cil("Copo", 0.68, 2.1, (0, 0, 2.1), copo, r2=0.9, seg=18)
+    p.cil("Luva", 0.77, 0.65, (0, 0, 1.75), luva, r2=0.84, seg=18)
+    p.cil("Tampa", 0.95, 0.14, (0, 0, 3.2), tampa, seg=18)
+    p.cil("Tampa_Domo", 0.88, 0.3, (0, 0, 3.42), tampa, r2=0.68, seg=18)
+    p.cil("Bico_Tampa", 0.12, 0.08, (0.3, -0.35, 3.6), PRETO(), seg=8)
+    p.cil("Bandana", 0.89, 0.32, (0, 0, 2.82), ninja, r2=0.91, seg=18)
+    p.caixa("Placa_Ninja", (0.62, 0.1, 0.28), (0, -0.9, 2.82), placa, bev=0.04)
+    p.caixa("Risco_Placa", (0.3, 0.04, 0.05), (0, -0.96, 2.82), PRETO(), bev=0.0)
+    p.caixa("Bandana_Ponta", (0.14, 0.75, 0.12), (0.2, 1.2, 2.75), ninja, rot=(25, 0, 12))
+    p.caixa("Bandana_Ponta", (0.14, 0.7, 0.12), (-0.15, 1.15, 2.65), ninja, rot=(40, 0, -12))
+    for s, lado in LADOS:
+        p.cil(f"Braco_{lado}", 0.08, 1.0, (s * 1.05, -0.1, 2.0), ninja, rot=(0, -s * 55, 0), seg=8)
+        p.bola(f"Mao_{lado}", 0.22, (s * 1.45, -0.15, 1.72), ninja)
+        lam = p.caixa(f"Katana_{lado}", (0.09, 0.04, 1.8), (s * 1.45, -0.15, 2.7), lamina, bev=0.02)
+        dobrar(lam, (s * 1.45, -0.15, 1.72), (0, 1, 0), s * 20)
+        gua = p.caixa(f"Guarda_{lado}", (0.32, 0.18, 0.06), (s * 1.45, -0.15, 1.82), OURO(), bev=0.02)
+        dobrar(gua, (s * 1.45, -0.15, 1.72), (0, 1, 0), s * 20)
+        cab = p.caixa(f"Cabo_{lado}", (0.09, 0.09, 0.4), (s * 1.45, -0.15, 1.62), ninja, bev=0.02)
+        dobrar(cab, (s * 1.45, -0.15, 1.72), (0, 1, 0), s * 20)
+    p.olhos(2.38, -0.83, 0.72, d=0.5)
+    p.boca(2.0, -0.85, 0.55, alt=0.16, presas=True)
 
 
 def cacto(p):
-    cacto, hipo = mat("Cacto_Cacto", (90, 160, 80)), mat("Cacto_Hipopotamo", (165, 135, 160))
-    espinho, armadura = mat("Cacto_Espinho", (245, 240, 200)), mat("Cacto_Armadura", (95, 70, 50), rough=0.6)
-    pernas(p, hipo, sep=0.85, alt=0.45, r=0.25, pe=hipo, pe_tam=(0.6, 0.75, 0.25))
-    p.cil("Corpo", 0.65, 1.6, (0, 0, 1.45), cacto, seg=8)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.caixa(f"Braco_{lado}", (0.7, 0.4, 0.35), (s * 0.95, 0, 1.6), cacto)
-        p.caixa(f"Braco_Sobe_{lado}", (0.4, 0.4, 1.4), (s * 1.2, 0, 2.3), cacto)
-        p.bola(f"Flor_{lado}", (0.35, 0.35, 0.2), (s * 1.2, 0, 3.05), mat("Cacto_Flor", (255, 90, 160)))
-        p.caixa(f"Ombreira_{lado}", (0.6, 0.6, 0.25), (s * 0.7, 0, 2.2), armadura, rot=(0, s * 20, 0))
-        for k in (-1, 1):
-            p.cone(f"Ombreira_Cravo_{lado}", 0.08, 0.3, (s * 0.75, k * 0.18, 2.4), PRATA(), seg=6)
+    verde, verde2 = mat("Cacto_Cacto", (88, 152, 70)), mat("Cacto_Cacto_Escuro", (60, 115, 48))
+    hipo, hipo2 = mat("Cacto_Hipopotamo", (140, 122, 132)), mat("Cacto_Focinho", (172, 148, 158))
+    espinho, sandalia = mat("Cacto_Espinho", (245, 240, 200)), mat("Cacto_Sandalia", (140, 92, 50))
+    for s, lado in LADOS:
+        x = s * 0.42
+        p.caixa(f"Sandalia_{lado}", (0.7, 0.95, 0.14), (x, -0.1, 0.07), sandalia, bev=0.04)
+        p.cil(f"Pata_{lado}", 0.3, 0.45, (x, 0, 0.36), hipo, seg=10)
+        p.caixa(f"Tira_{lado}", (0.66, 0.16, 0.16), (x, -0.28, 0.32), mat("Cacto_Tira", (98, 60, 30)), bev=0.04)
+    p.cil("Corpo", 0.8, 3.0, (0, 0, 2.05), verde, seg=10)
+    p.bola("Topo", (1.6, 1.6, 0.9), (0, 0, 3.55), verde)
     for i in range(10):
-        a = math.radians(i * 36 + 18)
-        p.cone("Espinho", 0.05, 0.3, (math.sin(a) * 0.66, math.cos(a) * 0.66, 0.9 + (i % 3) * 0.4), espinho,
-               rot=(math.degrees(-math.cos(a) * 1.57), math.degrees(math.sin(a) * 1.57), 0))
-    p.caixa("Cinto", (1.45, 1.4, 0.2), (0, 0, 1.2), armadura, rot=(0, 15, 0), bev=0.05)
-    p.caixa("Cabeca", (2.1, 1.7, 1.4), (0, -0.1, 3.0), hipo)
-    p.caixa("Focinho", (1.9, 0.9, 0.9), (0, -1.05, 2.7), mat("Cacto_Focinho", (190, 160, 180)))
-    p.bola("Narina_E", (0.2, 0.1, 0.12), (-0.45, -1.52, 3.0), PRETO())
-    p.bola("Narina_D", (0.2, 0.1, 0.12), (0.45, -1.52, 3.0), PRETO())
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Presa_{lado}", 0.13, 0.5, (s * 0.65, -1.45, 2.65), DENTE(), seg=6)
-        p.cone(f"Chifre_{lado}", 0.2, 0.9, (s * 0.75, 0, 4.05), mat("Cacto_Chifre", (240, 230, 200)), rot=(0, s * 30, 0), seg=8)
-        p.bola(f"Orelha_{lado}", (0.35, 0.2, 0.3), (s * 0.95, 0.2, 3.75), hipo)
-    p.olhos(3.75, -0.85, 0.85, d=0.62)
-    p.boca(2.35, -1.5, 1.4, alt=0.25, dentes=False)
+        a = math.radians(i * 36)
+        p.caixa("Gomo", (0.08, 0.08, 2.9), (math.sin(a) * 0.8, math.cos(a) * 0.8, 2.05), verde2, bev=0.0)
+    for i in range(14):
+        a = math.radians(i * 51 + 10)
+        z = 0.9 + (i * 0.37) % 2.6
+        if abs(math.degrees(a) % 360 - 180) < 40 and z > 2.2:
+            continue
+        p.cone("Espinho", 0.04, 0.25, (math.sin(a) * 0.86, -math.cos(a) * 0.86, z), espinho,
+               rot=(90, 0, math.degrees(a)), seg=6)
+    for s, lado in LADOS:
+        p.caixa(f"Braco_{lado}", (0.7, 0.45, 0.42), (s * 1.0, 0, 2.0), verde)
+        p.caixa(f"Braco_Sobe_{lado}", (0.45, 0.45, 1.2), (s * 1.25, 0, 2.6), verde)
+        p.bola(f"Braco_Topo_{lado}", (0.45, 0.45, 0.3), (s * 1.25, 0, 3.2), verde)
+    p.caixa("Cabeca", (1.4, 1.0, 1.1), (0, -0.7, 3.05), hipo)
+    p.caixa("Focinho", (1.55, 0.75, 0.8), (0, -1.3, 2.8), hipo2)
+    p.bola("Narina_E", (0.2, 0.12, 0.1), (-0.4, -1.5, 3.2), PRETO())
+    p.bola("Narina_D", (0.2, 0.12, 0.1), (0.4, -1.5, 3.2), PRETO())
+    for s, lado in LADOS:
+        p.bola(f"Orelha_{lado}", (0.3, 0.18, 0.25), (s * 0.6, -0.5, 3.7), hipo)
+        p.cone(f"Presa_{lado}", 0.1, 0.35, (s * 0.55, -1.62, 2.65), DENTE(), seg=6)
+    p.olhos(3.58, -1.05, 0.68, d=0.48)
+    p.boca(2.5, -1.68, 1.2, alt=0.16, dentes=False)
 
 
 def toasterino(p):
-    inox, rino = mat("Toasterino_Inox", (190, 195, 205), rough=0.2, metal=0.85), mat("Toasterino_Rino", (150, 150, 160))
-    torrada, crosta = mat("Toasterino_Torrada", (235, 190, 110)), mat("Toasterino_Crosta", (150, 90, 40))
-    neon, chifre = mat("Toasterino_Neon", (255, 110, 20), emit=5.0), mat("Toasterino_Chifre", (240, 232, 210))
-    ciano = mat("Toasterino_Tech", (40, 230, 255), emit=4.0)
-    for x, y in ((-0.6, -0.3), (0.6, -0.3), (-0.6, 0.4), (0.6, 0.4)):
-        p.cil("Pata", 0.25, 0.55, (x, y, 0.28), rino, seg=10)
-    p.caixa("Torradeira", (2.0, 1.4, 1.5), (0, 0.05, 1.3), inox)
+    lata, cromo = mat("Toasterino_Torradeira", (222, 214, 196), rough=0.2, metal=0.5), PRATA()
+    rino, chifre = mat("Toasterino_Rino", (142, 142, 152)), mat("Toasterino_Chifre", (240, 232, 210))
+    torrada, crosta = mat("Toasterino_Torrada", (236, 192, 112)), mat("Toasterino_Crosta", (150, 90, 40))
+    for x, y in ((-0.65, -0.3), (0.65, -0.3), (-0.65, 0.85), (0.65, 0.85)):
+        p.cil("Pata", 0.26, 0.6, (x, y, 0.3), rino, seg=10)
+    p.caixa("Torradeira", (2.0, 1.6, 1.5), (0, 0.3, 1.35), lata, bev=0.28)
+    p.caixa("Faixa_Cromo", (2.04, 1.64, 0.14), (0, 0.3, 0.9), cromo, bev=0.05)
     for s in (-1, 1):
-        p.caixa("Faixa_Tech", (0.05, 1.42, 0.1), (s * 1.0, 0.05, 1.0), ciano, bev=0.0)
-        p.caixa("Fenda", (0.3, 1.0, 0.06), (s * 0.4, 0.15, 2.05), neon, bev=0.0)
-        p.caixa("Torrada", (0.22, 0.9, 0.9), (s * 0.4, 0.15, 2.4), torrada, bev=0.05)
-        p.caixa("Torrada_Crosta", (0.24, 0.92, 0.12), (s * 0.4, 0.15, 2.82), crosta, bev=0.03)
-    p.caixa("Alavanca", (0.15, 0.3, 0.1), (1.08, 0.3, 1.6), PRETO())
-    p.cil("Antena", 0.04, 0.6, (-0.8, 0.5, 2.3), PRETO(), seg=6)
-    p.bola("Antena_Luz", 0.18, (-0.8, 0.5, 2.65), ciano)
-    p.caixa("Cabeca", (1.8, 1.5, 1.45), (0, -0.85, 2.45), rino)
-    p.caixa("Focinho", (1.3, 0.8, 0.85), (0, -1.75, 2.2), rino)
-    p.cone("Chifre", 0.3, 1.0, (0, -2.0, 3.0), chifre, rot=(-20, 0, 0), seg=8)
-    p.cone("Chifre_2", 0.17, 0.45, (0, -1.6, 3.0), chifre, rot=(-10, 0, 0), seg=8)
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Orelha_{lado}", 0.2, 0.4, (s * 0.7, -0.5, 3.3), rino, rot=(0, s * 25, 0))
-        p.caixa(f"Placa_{lado}", (0.25, 1.2, 1.0), (s * 1.0, -0.85, 2.45), inox, bev=0.06)
-    p.caixa("Visor", (1.6, 0.12, 0.12), (0, -1.62, 3.32), ciano, bev=0.03)
-    p.olhos(2.9, -1.6, 0.85, d=0.58)
-    p.boca(1.95, -2.18, 1.0, alt=0.25, presas=True)
+        p.caixa("Fenda", (0.3, 1.1, 0.06), (s * 0.42, 0.35, 2.1), PRETO(), bev=0.0)
+        p.caixa("Torrada", (0.24, 1.0, 0.85), (s * 0.42, 0.35, 2.45), torrada, bev=0.06)
+        p.caixa("Torrada_Crosta", (0.26, 1.04, 0.12), (s * 0.42, 0.35, 2.9), crosta, bev=0.04)
+    p.cil("Botao", 0.18, 0.12, (1.04, 0.5, 1.6), PRETO(), rot=(0, 90, 0), seg=12)
+    p.caixa("Alavanca", (0.18, 0.15, 0.35), (1.05, 0.0, 1.7), PRETO())
+    p.caixa("Cabeca", (1.35, 1.2, 1.2), (0, -0.85, 1.75), rino)
+    p.caixa("Focinho", (1.15, 0.75, 0.75), (0, -1.65, 1.5), rino)
+    p.cone("Chifre", 0.28, 1.05, (0, -1.85, 2.3), chifre, rot=(20, 0, 0), seg=8)
+    p.cone("Chifre_2", 0.15, 0.4, (0, -1.25, 2.45), chifre, rot=(10, 0, 0), seg=8)
+    p.bola("Narina_E", 0.09, (-0.25, -2.04, 1.55), PRETO())
+    p.bola("Narina_D", 0.09, (0.25, -2.04, 1.55), PRETO())
+    for s, lado in LADOS:
+        p.cone(f"Orelha_{lado}", 0.18, 0.4, (s * 0.55, -0.6, 2.5), rino, rot=(0, s * 25, 0))
+    p.olhos(2.08, -1.42, 0.85, d=0.42)
+    p.boca(1.25, -2.04, 0.8, alt=0.2, presas=True)
 
 
 def saturnita(p):
-    planeta, mancha = mat("Saturnita_Planeta", (245, 245, 240)), PRETO()
-    aneis, jeans = mat("Saturnita_Anel", (235, 185, 110)), mat("Saturnita_Jeans", (60, 90, 170))
-    asa, estrela = mat("Saturnita_Asa", (130, 70, 230), emit=1.5), mat("Saturnita_Estrela", (255, 230, 90), emit=5.0)
-    pernas(p, jeans, sep=0.7, alt=0.8, r=0.15, pe=mat("Saturnita_Tenis", (230, 40, 60)), pe_tam=(0.45, 0.75, 0.3))
-    p.bola("Planeta", 2.4, (0, 0, 2.35), planeta, seg=(18, 12))
-    for x, y, z, t in ((-0.7, -0.75, 2.9, 0.7), (0.8, -0.6, 1.8, 0.6), (-0.95, -0.35, 1.6, 0.5), (0.9, 0.3, 3.0, 0.7), (0.0, 0.9, 2.5, 0.8)):
-        v = Vector((x, y, z - 2.35)).normalized()
-        p.bola("Mancha", (t, 0.15, t * 0.8), (v.x * 1.17, v.y * 1.17, 2.35 + v.z * 1.17), mancha,
-               rot=(0, 0, math.degrees(math.atan2(v.x, -v.y))))
-    p.anel("Anel", 1.85, 0.13, (0, 0, 2.15), aneis, rot=(14, -8, 0), n=28)
-    p.anel("Anel_2", 2.2, 0.07, (0, 0, 2.15), mat("Saturnita_Anel_2", (200, 130, 70)), rot=(14, -8, 0), n=28)
-    p.caixa("Focinho", (1.2, 0.5, 0.75), (0, -1.15, 1.9), mat("Saturnita_Focinho", (255, 170, 185)))
-    p.bola("Narina_E", (0.15, 0.08, 0.12), (-0.25, -1.42, 1.95), PRETO())
-    p.bola("Narina_D", (0.15, 0.08, 0.12), (0.25, -1.42, 1.95), PRETO())
-    for s, lado in ((-1, "E"), (1, "D")):
-        p.cone(f"Chifre_{lado}", 0.15, 0.75, (s * 0.85, 0, 3.75), mat("Saturnita_Chifre", (240, 225, 180)), rot=(0, s * 35, 0), seg=8)
-        p.bola(f"Orelha_{lado}", (0.55, 0.2, 0.3), (s * 1.25, 0, 3.15), planeta, rot=(0, s * 25, 0))
-        for k in range(3):
-            p.caixa(f"Asa_{lado}", (1.5 - k * 0.3, 0.08, 0.35), (s * (1.5 + k * 0.1), 0.6, 3.0 - k * 0.4), asa,
-                    rot=(0, s * (-35 + k * 22), 0), bev=0.04)
-        bracos(p, planeta, 1.1, 2.1, comp=0.6, r=0.12, abre=70) if s == 1 else None
-    for i in range(5):
-        a = math.radians(-50 + i * 25)
-        p.cone("Estrela", 0.15, 0.4, (math.sin(a) * 0.9, 0.0, 3.55 + math.cos(a) * 0.35), estrela, rot=(0, math.degrees(a), 0), seg=4)
-    p.olhos(2.75, -1.05, 0.9, d=0.62)
-    p.boca(1.45, -1.05, 0.7, alt=0.22, presas=True)
+    planeta, faixa = mat("Saturnita_Planeta", (214, 224, 204)), mat("Saturnita_Faixa", (190, 204, 184))
+    aneis, aneis2 = mat("Saturnita_Anel", (232, 188, 112)), mat("Saturnita_Anel_2", (196, 132, 72))
+    pele, vaca = mat("Saturnita_Pe", (232, 182, 142)), mat("Saturnita_Vaca", (248, 248, 246))
+    for s, lado in LADOS:
+        pe_humano(p, lado, s * 0.55, pele, tam=(0.8, 1.35, 0.4), y=-0.3)
+        p.cil(f"Tornozelo_{lado}", 0.22, 0.5, (s * 0.5, 0, 0.55), pele, seg=10)
+    p.bola("Planeta", 2.4, (0, 0, 1.85), planeta, seg=(18, 12))
+    for z in (-0.45, 0.4):
+        r = math.sqrt(1.2 ** 2 - z ** 2) * 2 + 0.04
+        p.bola("Faixa", (r, r, 0.22), (0, 0, 1.85 + z), faixa, seg=(18, 6))
+    p.anel("Anel", 1.85, 0.12, (0, 0, 1.85), aneis, rot=(12, -8, 0), n=28)
+    p.anel("Anel_2", 2.2, 0.07, (0, 0, 1.85), aneis2, rot=(12, -8, 0), n=28)
+    p.bola("Cabeca", (1.35, 1.15, 1.15), (0, -0.55, 3.25), vaca)
+    for x, y, z, t in ((-0.4, -1.05, 3.55, 0.45), (0.45, -0.95, 3.0, 0.35), (0.55, -0.4, 3.7, 0.4)):
+        p.bola("Mancha", (t, 0.12, t * 0.8), (x, y, z), PRETO())
+    p.caixa("Focinho", (0.85, 0.45, 0.5), (0, -1.15, 2.95), mat("Saturnita_Focinho", (255, 172, 186)))
+    p.bola("Narina_E", (0.12, 0.06, 0.1), (-0.2, -1.4, 3.0), PRETO())
+    p.bola("Narina_D", (0.12, 0.06, 0.1), (0.2, -1.4, 3.0), PRETO())
+    for s, lado in LADOS:
+        p.cone(f"Chifre_{lado}", 0.1, 0.5, (s * 0.5, -0.45, 3.95), mat("Saturnita_Chifre", (240, 225, 180)), rot=(0, s * 35, 0), seg=8)
+        p.bola(f"Orelha_{lado}", (0.55, 0.18, 0.25), (s * 0.8, -0.45, 3.5), vaca, rot=(0, s * 25, 0))
+    p.olhos(3.45, -1.05, 0.55, d=0.42)
 
 
 # Ordem e dados vindos de src/shared/Config.luau (BRAINROTS e BIOMAS).
@@ -911,10 +1026,14 @@ def main():
     cam.data.lens = 38
     cam.location = (0, -40, 30)
     olhar_para(cam, (0, 11.5, 3.0))
+    for p in personagens:
+        p.raiz.rotation_euler.z = math.radians(-28)
     cena.render.filepath = os.path.join(renders, "apresentacao.png")
     bpy.ops.render.render(write_still=True)
     print("RENDER apresentacao", flush=True)
 
+    for p in personagens:
+        p.raiz.rotation_euler.z = 0
     # Um render de cada, com os outros escondidos.
     cena.render.resolution_x = cena.render.resolution_y = 1024
     cam.data.lens = 50
@@ -926,10 +1045,11 @@ def main():
             q.col.hide_render = q is not p
         base = p.raiz.location
         centro = base + (p.min + p.max) / 2
-        tam = max(p.max.z, p.max.x - p.min.x) * 1.15
+        tam = max(p.max.z, p.max.x - p.min.x, p.max.y - p.min.y) * 1.1
         dist = tam / (2 * math.tan(math.atan(18 / 50))) + (p.max.y - p.min.y) / 2
         ang = math.radians(12)
-        cam.location = centro + Vector((0.0, -dist * math.cos(ang), dist * math.sin(ang)))
+        giro = math.radians(32)
+        cam.location = centro + Vector((-math.sin(giro) * dist * math.cos(ang), -math.cos(giro) * dist * math.cos(ang), dist * math.sin(ang)))
         olhar_para(cam, centro)
         cena.render.filepath = os.path.join(renders, f"{p.id}.png")
         bpy.ops.render.render(write_still=True)
