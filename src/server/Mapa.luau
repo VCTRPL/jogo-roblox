@@ -104,33 +104,18 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 		pastaBase.Name = `Base{i}`
 		pastaBase.Parent = pasta
 
-		-- cor de cada base: o piso é uma placa de Lego clarinha nessa cor, com
-		-- uma borda mais escura em volta, e as lanternas dos cantos (Decoracao)
+		-- o piso é de grama, igual ao chão do mapa (Decoracao); a cor de cada
+		-- base fica nas lanternas, faixa e bandeiras (Decoracao)
 		local matiz = (i - 1) / 6
 		local piso = parte({
 			Name = "Piso",
 			Size = Vector3.new(Mapa.TAMANHO_BASE, 1, Mapa.TAMANHO_BASE),
 			Position = Vector3.new(x, 0.5, lado * Mapa.Z_BASES),
-			Color = Color3.fromHSV(matiz, 0.18, 0.97),
-			Material = Enum.Material.Plastic,
+			Color = Color3.fromRGB(125, 195, 90),
+			Material = Enum.Material.Grass,
 			Parent = pastaBase,
 		})
 		piso:SetAttribute("CorBase", Color3.fromHSV(matiz, 0.4, 0.85))
-		local borda = Color3.fromHSV(matiz, 0.45, 0.7)
-		local meio = Mapa.TAMANHO_BASE / 2
-		for _, eixo in { Vector3.xAxis, Vector3.zAxis } do
-			for _, s in { -1, 1 } do
-				local comprido = Mapa.TAMANHO_BASE + 6
-				parte({
-					Name = "Borda",
-					Size = if eixo == Vector3.xAxis then Vector3.new(3, 0.9, comprido) else Vector3.new(comprido, 0.9, 3),
-					Position = Vector3.new(x, 0.45, lado * Mapa.Z_BASES) + eixo * s * (meio + 1.5),
-					Color = borda,
-					Material = Enum.Material.Plastic,
-					Parent = pastaBase,
-				})
-			end
-		end
 		table.insert(bases, { piso = piso, centro = Vector3.new(x, 1, lado * Mapa.Z_BASES), lado = lado, pasta = pastaBase })
 	end
 	-- caminho de pedra da estrada até a entrada de cada base

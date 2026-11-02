@@ -26,8 +26,6 @@ export type Base = {
 	info: Mapa.InfoBase,
 	dono: Player?,
 	vagas: { CFrame }, -- todas as vagas que a base pode ter (com o máximo de renascimentos)
-	pisosVaga: { Part }, -- a plataforma de cada vaga
-	placasVaga: { TextLabel }, -- o cadeado das vagas que o dono ainda não liberou
 	itens: { [number]: ItemNaBase },
 	trancadaAte: number,
 	spawn: CFrame,
@@ -104,25 +102,14 @@ function Bases.capacidade(base: Base): number
 	return Config.vagas(if base.dono then Dados.valor(base.dono, "Renascimentos") else 0)
 end
 
--- Vaga liberada fica colorida; a que falta renascer fica apagada com cadeado.
-local function atualizarVagas(base: Base)
-	local capacidade = Bases.capacidade(base)
-	for vaga, piso in base.pisosVaga do
-		local liberada = vaga <= capacidade
-		piso.Color = if liberada then Color3.fromRGB(90, 200, 255) else Color3.fromRGB(70, 70, 80)
-		piso.Material = if liberada then Enum.Material.Neon else Enum.Material.SmoothPlastic
-		piso.Transparency = if liberada then 0.35 else 0.55
-		local placa = base.placasVaga[vaga]
-		placa.Text = if vaga > Config.VAGAS_POR_BASE then `🔒 Renascer {vaga - Config.VAGAS_POR_BASE}x` else "🔒"
-		local gui = placa.Parent :: BillboardGui
-		gui.Enabled = base.dono ~= nil and not liberada
-	end
-end
-
 local function atualizarPlaca(base: Base)
-	atualizarVagas(base)
 	if base.dono then
-		base.textoPlaca.Text = `Base de {base.dono.DisplayName}\n${Config.formatar(Bases.renda(base))}/s`
+		local ocupadas = 0
+		for _ in base.itens do
+			ocupadas += 1
+		end
+		base.textoPlaca.Text =
+			`Base de {base.dono.DisplayName}\n${Config.formatar(Bases.renda(base))}/s\n🥚 {ocupadas}/{Bases.capacidade(base)} vagas`
 	else
 		base.textoPlaca.Text = "Base livre"
 	end
@@ -255,8 +242,6 @@ local function criarBase(info: Mapa.InfoBase): Base
 	-- As duas primeiras fileiras ficam no fundo da base; as vagas ganhas
 	-- renascendo vão enchendo fileiras na frente, entre o spawn e a estrada.
 	local vagas = {}
-	local pisosVaga = {}
-	local placasVaga = {}
 	local colunas = math.ceil(Config.VAGAS_POR_BASE / 2)
 	for i = 0, Config.VAGAS_POR_BASE + Config.RENASCER.vagasMaximo - 1 do
 		local coluna = i % colunas
@@ -265,21 +250,6 @@ local function criarBase(info: Mapa.InfoBase): Base
 		local z = if linha < 2 then 4 + linha * 15 else -14 - (linha - 2) * 12
 		local pos = topo + Vector3.new(x, 0, lado * z)
 		table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
-		local piso = Instance.new("Part")
-		piso.Name = "Vaga"
-		piso.Anchored = true
-		piso.CanCollide = false
-		piso.CanQuery = false
-		piso.CanTouch = false
-		piso.Size = Vector3.new(7, 0.2, 7)
-		piso.Position = pos + Vector3.new(0, 0.05, 0)
-		piso.Parent = info.pasta
-		table.insert(pisosVaga, piso)
-		local placa = Mapa.placa(piso, "🔒", 2, 130)
-		local gui = placa.Parent :: BillboardGui
-		gui.MaxDistance = 60
-		gui.Enabled = false
-		table.insert(placasVaga, placa)
 	end
 
 	-- Tranca: quatro paredes de campo de força em volta da base, altas demais
@@ -360,8 +330,6 @@ local function criarBase(info: Mapa.InfoBase): Base
 		info = info,
 		dono = nil,
 		vagas = vagas,
-		pisosVaga = pisosVaga,
-		placasVaga = placasVaga,
 		itens = {},
 		trancadaAte = 0,
 		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
