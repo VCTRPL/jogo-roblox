@@ -1893,14 +1893,14 @@ local function chafariz(pasta: Instance, centro: Vector3)
 	-- tanque: borda de pedra e água
 	for _, giro in { 0, math.pi / 4 } do
 		parte({ Name = "Tanque", Size = Vector3.new(14, 1.6, 14), CFrame = CFrame.new(centro + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, giro, 0), Color = PEDRA, Parent = pasta })
-		parte({ Name = "Agua", Size = Vector3.new(12, 0.3, 12), CFrame = CFrame.new(centro + Vector3.new(0, 2.05, 0)) * CFrame.Angles(0, giro, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
+		parte({ Name = "AguaChafariz", Size = Vector3.new(12, 0.3, 12), CFrame = CFrame.new(centro + Vector3.new(0, 2.05, 0)) * CFrame.Angles(0, giro, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
 	end
 	-- coluna com duas bacias
 	parte({ Name = "Coluna", Size = Vector3.new(2, 7, 2), Position = centro + Vector3.new(0, 5, 0), Color = PEDRA_CLARA, Parent = pasta })
 	for i, tamanho in { 6, 3.6 } do
 		local y = 4.5 + i * 2.6
 		parte({ Name = "Bacia", Size = Vector3.new(tamanho, 0.8, tamanho), Position = centro + Vector3.new(0, y, 0), Color = PEDRA, Parent = pasta })
-		parte({ Name = "Agua", Size = Vector3.new(tamanho - 0.8, 0.2, tamanho - 0.8), Position = centro + Vector3.new(0, y + 0.45, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
+		parte({ Name = "AguaChafariz", Size = Vector3.new(tamanho - 0.8, 0.2, tamanho - 0.8), Position = centro + Vector3.new(0, y + 0.45, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
 	end
 	local bico = parte({ Name = "Bico", Size = Vector3.new(1, 1, 1), Position = centro + Vector3.new(0, 10.6, 0), Color = Color3.fromRGB(255, 215, 80), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = pasta })
 	local jato = Instance.new("ParticleEmitter")
