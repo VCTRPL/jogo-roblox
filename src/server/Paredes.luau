@@ -16,6 +16,9 @@ local TRECHO = 8 -- comprimento de cada pedaço de parede
 -- As paredes são montadas com uns 15-20 de altura e depois esticadas para
 -- ficarem da altura das montanhas (que não existem do lado dos biomas).
 local ESTICAR = 2.4
+-- Na Praia a parede fica baixa (um quebra-mar) para dar para ver o mar do
+-- lado de fora (Cenario); a barreira invisível continua alta.
+local ESTICAR_ESTILO = { praia = 0.5 }
 
 local aleatorio = Random.new(777)
 
@@ -149,13 +152,13 @@ local ESTILOS: { [string]: Montador } = {
 
 -- Estica o pedaço de parede na altura. Peças grossas crescem; enfeites
 -- finos (musgo, conchas, faixas de neon, luzes) mantêm o tamanho e só sobem.
-local function esticar(trecho: Instance)
+local function esticar(trecho: Instance, fator: number)
 	for _, p in trecho:GetChildren() do
 		if p:IsA("BasePart") then
 			local base = p.Position.Y - p.Size.Y / 2
-			local altura = if p.Size.Y >= 2 then p.Size.Y * ESTICAR else p.Size.Y
+			local altura = if p.Size.Y >= 2 then p.Size.Y * fator else p.Size.Y
 			p.Size = Vector3.new(p.Size.X, altura, p.Size.Z)
-			p.Position = Vector3.new(p.Position.X, base * ESTICAR + altura / 2, p.Position.Z)
+			p.Position = Vector3.new(p.Position.X, base * fator + altura / 2, p.Position.Z)
 		end
 	end
 end
@@ -186,7 +189,7 @@ function Paredes.construir(biomas: { Mapa.InfoBioma })
 			while x < final do
 				local trecho = Instance.new("Folder")
 				montar(trecho, x, z, lado)
-				esticar(trecho)
+				esticar(trecho, ESTICAR_ESTILO[info.config.estilo] or ESTICAR)
 				for _, p in trecho:GetChildren() do
 					p.Parent = pasta
 				end

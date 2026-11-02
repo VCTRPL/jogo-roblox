@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Biblioteca = require(script.Parent.Biblioteca)
 local Blocos = require(script.Parent.Blocos)
+local Cenario = require(script.Parent.Cenario)
 local Mapa = require(script.Parent.Mapa)
 local Montanhas = require(script.Parent.Montanhas)
 local Paredes = require(script.Parent.Paredes)
@@ -427,6 +428,17 @@ local function decorarBase(info: Mapa.InfoBase)
 		parte({ Name = "Tocha", Size = Vector3.new(1, 1, 1), Position = ponto(x * (ENTRADA + 1.3), -meio - 1.8) + Vector3.new(0, 7, 0), Color = cor:Lerp(Color3.new(1, 1, 1), 0.3), Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
 	end
 	parte({ Name = "Viga", Size = Vector3.new(ENTRADA * 2 + 6, 1.4, 1.8), Position = ponto(0, -meio) + Vector3.new(0, 10.4, 0), Color = MADEIRA_ESCURA, Material = Enum.Material.Wood, Parent = pasta })
+	-- faixa na cor da base pendurada na viga
+	parte({ Name = "Faixa", Size = Vector3.new(ENTRADA * 2 - 1, 2.2, 0.3), Position = ponto(0, -meio - 1.05) + Vector3.new(0, 8.6, 0), Color = cor, CanCollide = false, CanQuery = false, Parent = pasta })
+
+	-- mastros com bandeiras na cor da base nos cantos do fundo, para ver de
+	-- longe de quem é cada base
+	for _, x in { -meio, meio } do
+		local pe = ponto(x - math.sign(x) * 3, meio - 3)
+		parte({ Name = "Mastro", Size = Vector3.new(0.6, 26, 0.6), Position = pe + Vector3.new(0, 13, 0), Color = Color3.fromRGB(235, 235, 240), Material = Enum.Material.Metal, Parent = pasta })
+		parte({ Name = "Bandeira", Size = Vector3.new(6, 4, 0.3), Position = pe + Vector3.new(-math.sign(x) * 3.3, 23.5, 0), Color = cor, CanCollide = false, CanQuery = false, Parent = pasta })
+		parte({ Name = "PontaMastro", Size = Vector3.new(1, 1, 1), Position = pe + Vector3.new(0, 26.5, 0), Color = Color3.fromRGB(255, 210, 60), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = pasta })
+	end
 end
 
 -- Túnel de trem no começo da estrada, de concreto, entrando na montanha
@@ -1159,6 +1171,16 @@ local function decorarEstrada(pasta: Instance, biomas: { Mapa.InfoBioma })
 		-- linha branca contínua da borda
 		parte({ Name = "LinhaBorda", Size = Vector3.new(b - a, 0.06, 0.35), Position = Vector3.new((a + b) / 2, 1.04, lado * 5.9), Color = Color3.fromRGB(245, 245, 245), Material = Enum.Material.SmoothPlastic, CanCollide = false, CastShadow = false, Parent = pasta })
 	end
+	-- calçada dos dois lados (da boca do túnel até o arco da Selva), com
+	-- juntas mais escuras a cada 8 studs e canteiros de flores na beirada
+	local c0 = TUNEL_BOCA + 2
+	for _, lado in { -1, 1 } do
+		parte({ Name = "Calcada", Size = Vector3.new(b - c0, 1, 5), Position = Vector3.new((c0 + b) / 2, 0.55, lado * 10.5), Color = Color3.fromRGB(200, 196, 188), Material = Enum.Material.Concrete, Parent = pasta })
+		parte({ Name = "GuiaCalcada", Size = Vector3.new(b - c0, 1, 0.8), Position = Vector3.new((c0 + b) / 2, 0.6, lado * 13.4), Color = Color3.fromRGB(150, 146, 140), Material = Enum.Material.Concrete, Parent = pasta })
+		for x = c0 + 8, b - 4, 8 do
+			parte({ Name = "Junta", Size = Vector3.new(0.3, 0.05, 5), Position = Vector3.new(x, 1.07, lado * 10.5), Color = Color3.fromRGB(165, 160, 152), Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false, Parent = pasta })
+		end
+	end
 	-- faixa dupla amarela tracejada no meio
 	for x = a + 6, b - 4, 9 do
 		for _, z in { -0.35, 0.35 } do
@@ -1690,9 +1712,11 @@ local function decorarEspaco(info: Mapa.InfoBioma)
 	})
 end
 
--- Transição entre um bioma e o próximo: um chão de blocos de parede a
--- parede que vai misturando o piso dos dois como pixels (perto de um, quase
--- tudo dele; no meio, metade de cada). Depois do último bioma, só o piso dele.
+-- Transição entre um bioma e o próximo: um chão de parede a parede que vai
+-- misturando o piso dos dois como pixels (perto de um, quase tudo dele; no
+-- meio, metade de cada). Embaixo é uma laje só do primeiro piso; os pixels
+-- do segundo ficam por cima, finos e sem colisão (blocos vizinhos na mesma
+-- coluna viram um só). Depois do último bioma, só o piso dele.
 local BLOCO_TRANSICAO = 5
 local function transicoes(pasta: Instance, biomas: { Mapa.InfoBioma })
 	for i, info in biomas do
@@ -1714,26 +1738,57 @@ local function transicoes(pasta: Instance, biomas: { Mapa.InfoBioma })
 		local ate = if proximo then proximo.centro.X - Mapa.TAMANHO_BIOMA / 2 else Mapa.FIM_ESTRADA + 14
 		local pisoA = info.pasta:FindFirstChild("Piso") :: BasePart
 		local pisoB = if proximo then proximo.pasta:FindFirstChild("Piso") :: BasePart else pisoA
+		local largura = Mapa.Z_PAREDE * 2
+		parte({
+			Name = "Transicao",
+			Size = Vector3.new(ate - de, 1.3, largura),
+			Position = Vector3.new((de + ate) / 2, info.centro.Y - 0.6, 0),
+			Color = pisoA.Color,
+			Material = pisoA.Material,
+			Parent = pasta,
+		})
+		if pisoB == pisoA then
+			continue
+		end
 		local colunas = math.max(1, math.round((ate - de) / BLOCO_TRANSICAO))
 		local passo = (ate - de) / colunas
-		local largura = Mapa.Z_PAREDE * 2
 		local linhas = math.round(largura / BLOCO_TRANSICAO)
 		local passoZ = largura / linhas
+		local topo = info.centro.Y + 0.05
 		for c = 0, colunas - 1 do
 			local t = (c + 0.5) / colunas
 			local chance = t * t * (3 - 2 * t) -- suave nas pontas
-			for l = 0, linhas - 1 do
-				local piso = if aleatorio:NextNumber() < chance then pisoB else pisoA
-				parte({
-					Name = "Transicao",
-					Size = Vector3.new(passo, 1.3, passoZ),
-					Position = Vector3.new(de + (c + 0.5) * passo, info.centro.Y - 0.6, -largura / 2 + (l + 0.5) * passoZ),
-					Color = escurecer(piso.Color, aleatorio:NextNumber(0, 0.08)),
-					Material = piso.Material,
-					Parent = pasta,
-				})
+			local comeco: number? = nil
+			for l = 0, linhas do
+				local doB = l < linhas and aleatorio:NextNumber() < chance
+				if doB and not comeco then
+					comeco = l
+				elseif not doB and comeco then
+					parte({
+						Name = "Pixel",
+						Size = Vector3.new(passo, 0.12, (l - comeco) * passoZ),
+						Position = Vector3.new(de + (c + 0.5) * passo, topo + 0.06, -largura / 2 + (comeco + l) / 2 * passoZ),
+						Color = escurecer(pisoB.Color, aleatorio:NextNumber(0, 0.08)),
+						Material = pisoB.Material,
+						CanCollide = false,
+						CanQuery = false,
+						CanTouch = false,
+						CastShadow = false,
+						Parent = pasta,
+					})
+					comeco = nil
+				end
 			end
 		end
+	end
+end
+
+-- Praças com chafariz entre as bases, perto da estrada (dos dois lados).
+local RAIO_PRACA = 14
+local PRACAS = {}
+for _, x in { -Mapa.ESPACO_BASES / 2, Mapa.ESPACO_BASES / 2 } do
+	for _, z in { -1, 1 } do
+		table.insert(PRACAS, Vector3.new(x, 0.05, z * 36))
 	end
 end
 
@@ -1752,6 +1807,11 @@ local function livreBases(p: Vector3, folga: number?): boolean
 	end
 	if p.X < Mapa.TUNEL_BOCA + 30 and math.abs(p.Z) < 48 then
 		return false -- túnel da entrada
+	end
+	for _, praca in PRACAS do
+		if distanciaPlana(p, praca) < RAIO_PRACA + 3 + f then
+			return false -- praça do chafariz
+		end
 	end
 	local frente = Mapa.Z_BASES - Mapa.TAMANHO_BASE / 2
 	for i = -1, 1 do
@@ -1820,6 +1880,49 @@ local function canteiro(pasta: Instance, centro: Vector3)
 	end
 end
 
+-- Praça redonda (de blocos) com um chafariz de três andares no meio,
+-- água azul, um jato subindo e quatro bancos virados para ele.
+local function chafariz(pasta: Instance, centro: Vector3)
+	local PEDRA_CLARA = Color3.fromRGB(215, 210, 200)
+	local PEDRA = Color3.fromRGB(175, 170, 162)
+	local AGUA = Color3.fromRGB(70, 175, 235)
+	-- piso da praça: dois quadrados girados viram um octógono
+	for _, giro in { 0, math.pi / 4 } do
+		parte({ Name = "PisoPraca", Size = Vector3.new(RAIO_PRACA * 2, 0.4, RAIO_PRACA * 2), CFrame = CFrame.new(centro + Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, giro, 0), Color = PEDRA_CLARA, Parent = pasta })
+	end
+	-- tanque: borda de pedra e água
+	for _, giro in { 0, math.pi / 4 } do
+		parte({ Name = "Tanque", Size = Vector3.new(14, 1.6, 14), CFrame = CFrame.new(centro + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, giro, 0), Color = PEDRA, Parent = pasta })
+		parte({ Name = "Agua", Size = Vector3.new(12, 0.3, 12), CFrame = CFrame.new(centro + Vector3.new(0, 2.05, 0)) * CFrame.Angles(0, giro, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
+	end
+	-- coluna com duas bacias
+	parte({ Name = "Coluna", Size = Vector3.new(2, 7, 2), Position = centro + Vector3.new(0, 5, 0), Color = PEDRA_CLARA, Parent = pasta })
+	for i, tamanho in { 6, 3.6 } do
+		local y = 4.5 + i * 2.6
+		parte({ Name = "Bacia", Size = Vector3.new(tamanho, 0.8, tamanho), Position = centro + Vector3.new(0, y, 0), Color = PEDRA, Parent = pasta })
+		parte({ Name = "Agua", Size = Vector3.new(tamanho - 0.8, 0.2, tamanho - 0.8), Position = centro + Vector3.new(0, y + 0.45, 0), Color = AGUA, Material = Enum.Material.Glass, Transparency = 0.2, CanCollide = false, CanQuery = false, Parent = pasta })
+	end
+	local bico = parte({ Name = "Bico", Size = Vector3.new(1, 1, 1), Position = centro + Vector3.new(0, 10.6, 0), Color = Color3.fromRGB(255, 215, 80), Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, Parent = pasta })
+	local jato = Instance.new("ParticleEmitter")
+	jato.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	jato.Color = ColorSequence.new(Color3.fromRGB(190, 235, 255))
+	jato.Size = NumberSequence.new(0.5, 0.2)
+	jato.Transparency = NumberSequence.new(0.2, 1)
+	jato.Lifetime = NumberRange.new(1, 1.4)
+	jato.Rate = 25
+	jato.Speed = NumberRange.new(8, 10)
+	jato.SpreadAngle = Vector2.new(12, 12)
+	jato.Acceleration = Vector3.new(0, -14, 0)
+	jato.EmissionDirection = Enum.NormalId.Top
+	jato.Parent = bico
+	-- bancos e luminárias em volta
+	for i = 0, 3 do
+		local direcao = CFrame.Angles(0, i * math.pi / 2 + math.pi / 4, 0).LookVector
+		banco(pasta, centro + direcao * (RAIO_PRACA - 3), -direcao)
+		luminariaJardim(pasta, centro + CFrame.Angles(0, i * math.pi / 2, 0).LookVector * (RAIO_PRACA - 1.5))
+	end
+end
+
 -- Área das bases: árvores, arbustos, pedras, canteiros, luminárias nos
 -- caminhos e bancos. Nos biomas não vai nada (eles têm a própria decoração
 -- e as paredes; uma árvore ali atravessava a parede).
@@ -1848,6 +1951,10 @@ local function decorarArredores(pasta: Instance)
 	espalhar(minimo, maximo, 70, livreBases, function(p)
 		canteiro(pasta, p)
 	end)
+
+	for _, praca in PRACAS do
+		chafariz(pasta, praca)
+	end
 
 	-- luminárias dos dois lados de cada caminho e um banco no meio dele
 	local frente = Mapa.Z_BASES - Mapa.TAMANHO_BASE / 2
@@ -2215,6 +2322,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	decorarEstrada(pasta, biomas)
 	Montanhas.construir()
 	Paredes.construir(biomas)
+	Cenario.construir(biomas)
 	decorarArredores(pasta)
 	for _, info in bases do
 		decorarBase(info)
@@ -2241,7 +2349,7 @@ function Decoracao.construir(bases: { Mapa.InfoBase }, biomas: { Mapa.InfoBioma 
 	pasta.Parent = Workspace
 
 	-- tudo no estilo Lego (o que for criado depois nessas pastas também)
-	for _, nome in { "Mapa", "Decoracao", "Montanhas", "Paredes" } do
+	for _, nome in { "Mapa", "Decoracao", "Montanhas", "Paredes", "Cenario" } do
 		local raiz = Workspace:FindFirstChild(nome)
 		if raiz then
 			Blocos.vigiar(raiz)
