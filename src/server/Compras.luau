@@ -99,7 +99,7 @@ local function processar(recibo): Enum.ProductPurchaseDecision
 
 	-- Grava o prêmio e o recibo juntos antes de confirmar para o Roblox.
 	local base = Bases.doJogador(player)
-	local salvou = teste or (base ~= nil and Dados.salvar(player, Bases.itens(base)))
+	local salvou = teste or (base ~= nil and Dados.salvar(player, Bases.itens(base), Bases.renda(base)))
 
 	entregarPendentes(player)
 	Avisos.efeitoPara(player, "OvoRobux", { chave = ovo.chave, itens = sorteados })

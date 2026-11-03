@@ -7,6 +7,18 @@ Config.TEMPO_TRANCA = 60 -- segundos que a base fica trancada
 Config.TEMPO_NINHOS = 180 -- segundos para os ninhos ganharem ovos novos
 Config.SALVAR_DADOS = true
 
+-- Farm AFK: enquanto o jogador está fora do jogo, a base continua rendendo
+-- (pela renda por segundo que ele tinha quando saiu). Ao voltar, o dinheiro
+-- aparece numa pilha na base para ele coletar.
+--   maximoHoras: no máximo quantas horas fora contam
+--   porcentagem: quanto da renda normal ele ganha fora (1 = 100%)
+--   minimoSegundos: fora por menos que isso não gera pilha
+Config.FARM_OFFLINE = {
+	maximoHoras = 12,
+	porcentagem = 1,
+	minimoSegundos = 60,
+}
+
 -- Velocidade: o atributo principal. A velocidade de andar cresce cada vez
 -- mais devagar: VELOCIDADE_BASE + VELOCIDADE_FATOR * ln(1 + Velocidade / VELOCIDADE_ESCALA),
 -- até VELOCIDADE_MAXIMA. Exemplos: 0 → 16, 150 → 35, 600 → 52, 2K → 68, 6K → 83.

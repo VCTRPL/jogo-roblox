@@ -304,6 +304,22 @@ local function vendeu(dados)
 	letreiro(centro, { { "VENDIDO!", DOURADO }, { `+${Config.formatar(dados.ganho or 0)}`, VERDE } })
 end
 
+-- Coletou a pilha de dinheiro do farm AFK.
+local function coletou(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local centro = centroEm(posicao + Vector3.new(0, 3, 0), 3)
+	explodir(centro, ColorSequence.new(VERDE, DOURADO), 70, {
+		Speed = NumberRange.new(14, 28),
+		Acceleration = Vector3.new(0, -35, 0),
+		Drag = 1,
+	})
+	onda(posicao, DOURADO, 18)
+	letreiro(centro, { { "COLETADO!", DOURADO }, { `+${Config.formatar(dados.ganho or 0)}`, VERDE } })
+end
+
 -- Pegou um ovo do ninho ou de uma base.
 local function pegou(dados)
 	local posicao: Vector3 = dados.posicao
@@ -498,6 +514,7 @@ local efeitos: { [string]: (any) -> () } = {
 	Tacada = tacada,
 	Chocou = chocou,
 	Vendeu = vendeu,
+	Coletou = coletou,
 	Pegou = pegou,
 	Derrubado = derrubado,
 	EsteiraNova = esteiraNova,

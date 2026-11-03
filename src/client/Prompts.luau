@@ -20,6 +20,7 @@ local CORES = {
 	{ "Melhorar", Color3.fromRGB(255, 215, 80), Color3.fromRGB(235, 140, 30) },
 	{ "Trancar", Color3.fromRGB(255, 170, 80), Color3.fromRGB(220, 90, 30) },
 	{ "Vender", Color3.fromRGB(255, 235, 110), Color3.fromRGB(60, 190, 80) },
+	{ "Coletar", Color3.fromRGB(255, 235, 110), Color3.fromRGB(60, 190, 80) },
 }
 local PADRAO = { "", Color3.fromRGB(120, 240, 130), Color3.fromRGB(30, 165, 80) }
 -- Ações com ícone (o nome do desenho em Icones.luau é a palavra da ação).

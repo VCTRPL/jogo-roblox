@@ -14,6 +14,7 @@ local Mochila = require(script.Mochila)
 local Modelos = require(script.Modelos)
 local Ninhos = require(script.Ninhos)
 local Passes = require(script.Passes)
+local Pilha = require(script.Pilha)
 local Ranking = require(script.Ranking)
 local Renascer = require(script.Renascer)
 local Taco = require(script.Taco)
@@ -60,7 +61,7 @@ Compras.iniciar()
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)
 	if base then
-		Dados.salvar(player, Bases.itens(base))
+		Dados.salvar(player, Bases.itens(base), Bases.renda(base))
 	end
 end
 
@@ -99,6 +100,9 @@ local function aoEntrar(player: Player)
 	end
 
 	Avisos.enviar(player, "Pegue ovos brainrot nos ninhos e leve para a sua base! Cuidado com o Tung Tung Tung Sahur!")
+
+	-- farm AFK: a pilha de dinheiro que a base rendeu enquanto ele estava fora
+	Pilha.entrar(player, base)
 end
 
 Players.PlayerAdded:Connect(aoEntrar)
@@ -109,6 +113,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	Carregar.perder(player)
 	salvar(player)
+	Pilha.sair(player)
 	Ranking.sair(player)
 	Compras.sair(player)
 	Dados.esquecer(player)

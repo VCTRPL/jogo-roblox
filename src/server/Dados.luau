@@ -41,6 +41,10 @@ local pendentes: { [Player]: { any } } = {}
 local mochila: { [Player]: { any } } = {}
 -- PurchaseIds de compras com Robux já entregues.
 local compras: { [Player]: { string } } = {}
+-- Pilha de dinheiro do farm AFK que ainda está na base esperando ser coletada.
+local pilha: { [Player]: number } = {}
+-- Quanto da pilha veio desta vez (para o aviso) e quanto tempo ficou fora.
+local offline: { [Player]: { ganho: number, segundos: number } } = {}
 
 local function chave(player: Player): string
 	return `jogador_{player.UserId}`
@@ -156,6 +160,20 @@ function Dados.carregar(player: Player): { any }
 
 	player:SetAttribute("Pendentes", #pendentes[player])
 
+	-- Farm AFK: a base rendeu enquanto ele estava fora. Soma com a pilha que
+	-- ele deixou sem coletar da última vez.
+	local guardado = numero(salvo.pilha, 0)
+	local ganho, segundos = 0, 0
+	local farm = Config.FARM_OFFLINE
+	if typeof(salvo.saidaEm) == "number" and typeof(salvo.rendaOffline) == "number" then
+		segundos = math.clamp(os.time() - salvo.saidaEm, 0, farm.maximoHoras * 3600)
+		if segundos >= farm.minimoSegundos then
+			ganho = numero(numero(salvo.rendaOffline, 0) * segundos * farm.porcentagem, 0)
+		end
+	end
+	pilha[player] = math.min(guardado + ganho, MAXIMO)
+	offline[player] = { ganho = ganho, segundos = segundos }
+
 	compras[player] = {}
 	if typeof(salvo.compras) == "table" then
 		for _, id in salvo.compras do
@@ -168,8 +186,9 @@ function Dados.carregar(player: Player): { any }
 	return if typeof(salvo.itens) == "table" then salvo.itens else {}
 end
 
--- Salva tudo. Devolve true se gravou no DataStore.
-function Dados.salvar(player: Player, itens: { any }): boolean
+-- Salva tudo. "renda" é o dinheiro por segundo da base agora (para o farm
+-- AFK). Devolve true se gravou no DataStore.
+function Dados.salvar(player: Player, itens: { any }, renda: number): boolean
 	local dinheiro = stat(player, "Dinheiro")
 	local velocidade = stat(player, "Velocidade")
 	if not store or not dinheiro or not velocidade or not podeSalvar[player] then
@@ -186,11 +205,19 @@ function Dados.salvar(player: Player, itens: { any }): boolean
 			roubos = Dados.valor(player, "Roubos"),
 			renascimentos = Dados.valor(player, "Renascimentos"),
 			nivelEsteira = player:GetAttribute("NivelEsteira"),
+			nivelTrilha = player:GetAttribute("NivelTrilha") or 0,
+			trilha = player:GetAttribute("TrilhaEquipada") or 0,
 			itens = itens,
 			estatisticas = estatisticas,
 			pendentes = pendentes[player],
+			mochila = mochila[player],
 			compras = compras[player],
 			indice = Dados.indice(player),
+			-- farm AFK: quanto rendia por segundo e quando foi a última vez
+			-- que estava no jogo (o autosave também atualiza, caso o servidor caia)
+			rendaOffline = numero(renda, 0),
+			saidaEm = os.time(),
+			pilha = pilha[player] or 0,
 		}, { player.UserId })
 	end)
 	if not ok then
@@ -204,6 +231,8 @@ function Dados.esquecer(player: Player)
 	pendentes[player] = nil
 	mochila[player] = nil
 	compras[player] = nil
+	pilha[player] = nil
+	offline[player] = nil
 end
 
 -- nome: "Dinheiro", "Velocidade", "Roubos" ou "Renascimentos"
@@ -312,6 +341,29 @@ function Dados.registrarCompra(player: Player, compraId: string)
 	while #lista > MAX_COMPRAS do
 		table.remove(lista, 1)
 	end
+end
+
+-- Farm AFK: quanto tem na pilha da base esperando ser coletado.
+function Dados.pilha(player: Player): number
+	return pilha[player] or 0
+end
+
+-- Esvazia a pilha e devolve quanto tinha.
+function Dados.esvaziarPilha(player: Player): number
+	local quantia = pilha[player] or 0
+	if pilha[player] then
+		pilha[player] = 0
+	end
+	return quantia
+end
+
+-- Quanto rendeu desta última vez fora e por quantos segundos.
+function Dados.offline(player: Player): (number, number)
+	local info = offline[player]
+	if not info then
+		return 0, 0
+	end
+	return info.ganho, info.segundos
 end
 
 return Dados
