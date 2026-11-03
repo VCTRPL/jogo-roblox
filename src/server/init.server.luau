@@ -58,11 +58,40 @@ Renascer.iniciar()
 Ranking.iniciar()
 Compras.iniciar()
 
+-- Quantos salvamentos estão gravando agora. Quando o servidor fecha (o
+-- último jogador saiu, ou o Stop do Studio), o BindToClose espera esses
+-- terminarem; senão o servidor desligava no meio do SetAsync do
+-- PlayerRemoving e a compra feita depois do último autosave se perdia.
+local salvandoAgora = 0
+
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)
-	if base then
-		Dados.salvar(player, Bases.itens(base), Bases.renda(base))
+	if not base then
+		return
 	end
+	salvandoAgora += 1
+	local ok, erro = pcall(Dados.salvar, player, Bases.itens(base), Bases.renda(base))
+	salvandoAgora -= 1
+	if not ok then
+		warn(`Erro ao salvar {player.Name}:`, erro)
+	end
+end
+
+-- Salva daqui a pouco (compras importantes, como trilhas e esteira). Junta
+-- várias mudanças seguidas num salvamento só, para não estourar o limite
+-- do DataStore.
+local agendado: { [Player]: boolean } = {}
+local function salvarLogo(player: Player)
+	if agendado[player] then
+		return
+	end
+	agendado[player] = true
+	task.delay(6, function()
+		agendado[player] = nil
+		if player.Parent ~= nil then
+			salvar(player)
+		end
+	end)
 end
 
 local function aoEntrar(player: Player)
@@ -83,6 +112,19 @@ local function aoEntrar(player: Player)
 	end
 	-- daqui para a frente, Brainrot novo avisa "Novo no Índice"
 	player:SetAttribute("BaseCarregada", true)
+	-- comprou ou trocou trilha, ou melhorou a esteira: salva logo
+	for _, atributo in { "NivelTrilha", "TrilhaEquipada", "NivelEsteira" } do
+		player:GetAttributeChangedSignal(atributo):Connect(function()
+			salvarLogo(player)
+		end)
+	end
+	if Dados.temStore() and not Dados.carregado(player) then
+		Avisos.enviar(
+			player,
+			"Não consegui carregar seu progresso salvo. Nada será salvo nesta partida; entre de novo.",
+			Color3.fromRGB(255, 90, 90)
+		)
+	end
 	-- ovos que estavam na mochila
 	Mochila.entrar(player)
 	-- ovos comprados com Robux que estavam esperando vaga
@@ -118,6 +160,7 @@ Players.PlayerRemoving:Connect(function(player)
 	Compras.sair(player)
 	Dados.esquecer(player)
 	Bases.liberar(player)
+	agendado[player] = nil
 end)
 
 -- Salva todo mundo a cada 2 minutos e quando o servidor fecha.
@@ -131,8 +174,19 @@ task.spawn(function()
 end)
 
 game:BindToClose(function()
+	local tarefas = 0
 	for _, player in Players:GetPlayers() do
-		salvar(player)
-		Ranking.gravar(player)
+		tarefas += 1
+		task.spawn(function()
+			salvar(player)
+			Ranking.gravar(player)
+			tarefas -= 1
+		end)
+	end
+	-- espera os salvamentos (estes e os do PlayerRemoving) terminarem;
+	-- o Roblox dá no máximo 30 segundos
+	local inicio = os.clock()
+	while (tarefas > 0 or salvandoAgora > 0) and os.clock() - inicio < 25 do
+		task.wait(0.1)
 	end
 end)
