@@ -6,6 +6,9 @@ Config.VAGAS_POR_BASE = 10
 Config.TEMPO_TRANCA = 60 -- segundos que a base fica trancada
 Config.TEMPO_NINHOS = 180 -- segundos para os ninhos ganharem ovos novos
 Config.SALVAR_DADOS = true
+-- UserIds de quem pode usar os comandos de admin (/dar, /salvar, /status).
+-- O dono do jogo já pode, não precisa pôr aqui.
+Config.ADMINS = {}
 
 -- Farm AFK: enquanto o jogador está fora do jogo, a base continua rendendo
 -- (pela renda por segundo que ele tinha quando saiu). Ao voltar, o dinheiro

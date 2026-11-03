@@ -1,7 +1,11 @@
 -- Script principal do servidor: liga todos os sistemas do jogo.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Config = require(ReplicatedStorage.Shared.Config)
+
+local Admin = require(script.Admin)
 local Avisos = require(script.Avisos)
 local Bases = require(script.Bases)
 local Carregar = require(script.Carregar)
@@ -64,18 +68,34 @@ Compras.iniciar()
 -- PlayerRemoving e a compra feita depois do último autosave se perdia.
 local salvandoAgora = 0
 
-local function salvar(player: Player)
+local function salvar(player: Player): boolean
 	local base = Bases.doJogador(player)
 	if not base then
-		return
+		return false
 	end
 	salvandoAgora += 1
-	local ok, erro = pcall(Dados.salvar, player, Bases.itens(base), Bases.renda(base))
+	local ok, resultado = pcall(Dados.salvar, player, Bases.itens(base), Bases.renda(base))
 	salvandoAgora -= 1
 	if not ok then
-		warn(`Erro ao salvar {player.Name}:`, erro)
+		warn(`Erro ao salvar {player.Name}:`, resultado)
+		return false
 	end
+	return resultado
 end
+
+Admin.iniciar({
+	dar = function(alvo: Player, quantia: number)
+		Dados.adicionar(alvo, "Dinheiro", quantia)
+	end,
+	salvar = salvar,
+	status = function(player: Player): string
+		local estado = if not Dados.temStore()
+			then "DESLIGADO (sem DataStore)"
+			elseif not Dados.carregado(player) then "DESLIGADO (falhou ao carregar)"
+			else "ligado"
+		return `Salvamento {estado} · ${Config.formatar(Dados.valor(player, "Dinheiro"))} · trilha {player:GetAttribute("NivelTrilha") or 0}`
+	end,
+})
 
 -- Salva daqui a pouco (compras importantes, como trilhas e esteira). Junta
 -- várias mudanças seguidas num salvamento só, para não estourar o limite
