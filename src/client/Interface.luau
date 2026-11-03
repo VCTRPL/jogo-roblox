@@ -4,6 +4,7 @@
 local Lighting = game:GetService("Lighting")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -12,6 +13,7 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Icones = require(script.Parent.Icones)
 local LojaOvos = require(script.Parent.LojaOvos)
+local LojaTrilhas = require(script.Parent.LojaTrilhas)
 local Ranking = require(script.Parent.Ranking)
 local Sons = require(script.Parent.Sons)
 local Ui = require(script.Parent.Ui)
@@ -143,7 +145,7 @@ atualizarInventario()
 local faixaCarga = criar("Frame", {
 	Name = "Carregando",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -26),
+	Position = UDim2.new(0.5, 0, 1, -100), -- acima da barra da mochila
 	Size = UDim2.fromOffset(420, 74),
 	BackgroundColor3 = BRANCO,
 	Visible = false,
@@ -763,6 +765,16 @@ LojaOvos.montar(painelLoja, conteudoLoja)
 
 local painelRanking, conteudoRanking = criarPainel("Ranking", "🏆 RANKING", Color3.fromRGB(255, 215, 80), Color3.fromRGB(240, 130, 30))
 Ranking.montar(painelRanking, conteudoRanking)
+
+-- Loja de trilhas (abre pelo botão da barraca no mapa) ------------------------
+
+local painelTrilhas, conteudoTrilhas = criarPainel("Trilhas", "✨ LOJA DE TRILHAS", Color3.fromRGB(255, 120, 255), Color3.fromRGB(110, 60, 230))
+LojaTrilhas.montar(conteudoTrilhas)
+ProximityPromptService.PromptTriggered:Connect(function(prompt)
+	if prompt:GetAttribute("AbreLoja") == "Trilhas" and aberto ~= painelTrilhas then
+		abrirPainel(painelTrilhas)
+	end
+end)
 
 -- Botões do lado direito ----------------------------------------------------
 

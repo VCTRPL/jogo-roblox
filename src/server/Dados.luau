@@ -37,6 +37,8 @@ local podeSalvar: { [Player]: boolean } = {}
 -- Inventário: ovos e Brainrots (comprados ou trazidos com a base cheia) que
 -- ainda não couberam na base. Entram sozinhos quando abre uma vaga.
 local pendentes: { [Player]: { any } } = {}
+-- Mochila: ovos trazidos para a base que o jogador ainda não pôs para chocar.
+local mochila: { [Player]: { any } } = {}
 -- PurchaseIds de compras com Robux já entregues.
 local compras: { [Player]: { string } } = {}
 
@@ -111,6 +113,11 @@ function Dados.carregar(player: Player): { any }
 
 	local nivel = numero(salvo.nivelEsteira, 1)
 	player:SetAttribute("NivelEsteira", math.clamp(nivel, 1, #Config.NIVEIS_ESTEIRA))
+	-- trilhas: quantas já comprou (sempre em ordem) e qual está usando
+	local nivelTrilha = math.clamp(numero(salvo.nivelTrilha, 0), 0, #Config.TRILHAS)
+	player:SetAttribute("NivelTrilha", nivelTrilha)
+	local equipada = if typeof(salvo.trilha) == "number" then math.floor(salvo.trilha) else nivelTrilha
+	player:SetAttribute("TrilhaEquipada", math.clamp(equipada, 0, nivelTrilha))
 
 	local estatisticas = if typeof(salvo.estatisticas) == "table" then salvo.estatisticas else {}
 	for _, nome in Dados.ESTATISTICAS do
@@ -127,6 +134,14 @@ function Dados.carregar(player: Player): { any }
 				and ((item.tipo == "brainrot" and Config.brainrot(item.id)) or (item.tipo == "ovo" and Config.ovo(item.id)))
 			if valido then
 				table.insert(pendentes[player], item)
+			end
+		end
+	end
+	mochila[player] = {}
+	if typeof(salvo.mochila) == "table" then
+		for _, item in salvo.mochila do
+			if typeof(item) == "table" and item.tipo == "ovo" and Config.ovo(item.id) and #mochila[player] < Config.MOCHILA_MAXIMO then
+				table.insert(mochila[player], item)
 			end
 		end
 	end
@@ -187,6 +202,7 @@ end
 function Dados.esquecer(player: Player)
 	podeSalvar[player] = nil
 	pendentes[player] = nil
+	mochila[player] = nil
 	compras[player] = nil
 end
 
@@ -275,6 +291,11 @@ function Dados.tirarPendente(player: Player): any?
 		player:SetAttribute("Pendentes", #lista)
 	end
 	return item
+end
+
+-- Ovos da mochila (Mochila.luau cria uma ferramenta para cada um).
+function Dados.mochila(player: Player): { any }
+	return mochila[player] or {}
 end
 
 -- Compras com Robux já entregues (pelo PurchaseId do recibo).

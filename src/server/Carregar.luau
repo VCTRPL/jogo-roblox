@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Bases = require(script.Parent.Bases)
 local Dados = require(script.Parent.Dados)
+local Mochila = require(script.Parent.Mochila)
 local Modelos = require(script.Parent.Modelos)
 local Velocidade = require(script.Parent.Velocidade)
 
@@ -158,26 +159,24 @@ local function verificarEntregas()
 		local minhaBase = Bases.doJogador(player)
 		local raiz = raizDe(player)
 		if minhaBase and raiz and Bases.dentro(minhaBase, raiz.Position) then
-			if Bases.vagaLivre(minhaBase) then
-				soltar(player)
-				entregou(player, carga, raiz.Position)
+			soltar(player)
+			entregou(player, carga, raiz.Position)
+			if carga.roubo then
+				Dados.adicionar(player, "Roubos", 1)
+			end
+			Avisos.som(player, "Entregou")
+			local nome = nomeDo(carga.item)
+			if carga.item.tipo == "ovo" and Mochila.adicionar(player, carga.item) then
+				-- ovo: vai para a mochila e o jogador decide quando chocar
+				Avisos.enviar(player, `🎒 {nome} foi para a sua mochila! Equipe e clique na base para chocar.`, VERDE)
+			elseif Bases.vagaLivre(minhaBase) then
 				Bases.colocar(minhaBase, carga.item)
-				Avisos.enviar(player, `{nomeDo(carga.item)} guardado na sua base!`, VERDE)
-				Avisos.som(player, "Entregou")
-				if carga.roubo then
-					Dados.adicionar(player, "Roubos", 1)
-				end
+				Avisos.enviar(player, `{nome} guardado na sua base!`, VERDE)
 			else
 				-- Base cheia: vai para o inventário (e entra na base quando
 				-- abrir vaga), para ele poder pegar outro ovo.
-				soltar(player)
-				entregou(player, carga, raiz.Position)
 				Dados.adicionarPendente(player, carga.item)
-				Avisos.enviar(player, `Base cheia! {nomeDo(carga.item)} foi para o seu inventário.`, Color3.fromRGB(255, 215, 80))
-				Avisos.som(player, "Entregou")
-				if carga.roubo then
-					Dados.adicionar(player, "Roubos", 1)
-				end
+				Avisos.enviar(player, `Base cheia! {nome} foi para o seu inventário.`, Color3.fromRGB(255, 215, 80))
 			end
 		end
 	end

@@ -28,6 +28,33 @@ Config.VENDA_SEGUNDOS = 60
 Config.FOLEGO_TEMPO = 30
 Config.FOLEGO_MAXIMO = 2
 
+-- Taco de beisebol: todo mundo começa com um. A tacada empurra e deixa tonto
+-- quem estiver na frente; quem estava carregando um ovo ou Brainrot deixa cair
+-- (o item volta para onde estava).
+Config.TACO = {
+	alcance = 8, -- studs na frente de quem bate
+	recarga = 1, -- segundos entre uma tacada e outra
+	tonto = 1.2, -- segundos parado depois de levar uma tacada
+	empurrao = 55, -- força do empurrão
+}
+
+-- Ovos levados para a base vão para a mochila; o jogador escolhe quando pôr
+-- para chocar. Quantos ovos cabem na mochila:
+Config.MOCHILA_MAXIMO = 20
+
+-- Trilhas da loja do mapa: compradas uma depois da outra. A melhor que o
+-- jogador tem multiplica a Velocidade ganha na esteira (a que está equipada é
+-- só a aparência, ele pode usar qualquer uma que já comprou).
+Config.TRILHAS = {
+	{ id = "Faisca", nome = "Trilha Faísca", preco = 1500, multiplicador = 1.1, cores = { Color3.fromRGB(255, 240, 120), Color3.fromRGB(255, 150, 40) } },
+	{ id = "Oceano", nome = "Trilha Oceano", preco = 20000, multiplicador = 1.25, cores = { Color3.fromRGB(120, 230, 255), Color3.fromRGB(30, 90, 255) } },
+	{ id = "Veneno", nome = "Trilha Veneno", preco = 150000, multiplicador = 1.5, cores = { Color3.fromRGB(190, 255, 90), Color3.fromRGB(40, 160, 60) } },
+	{ id = "Fogo", nome = "Trilha de Fogo", preco = 1000000, multiplicador = 2, cores = { Color3.fromRGB(255, 220, 80), Color3.fromRGB(255, 40, 20) } },
+	{ id = "Galaxia", nome = "Trilha Galáxia", preco = 12000000, multiplicador = 3, cores = { Color3.fromRGB(255, 120, 255), Color3.fromRGB(70, 40, 200) } },
+	{ id = "Arcoiris", nome = "Trilha Arco-íris", preco = 150000000, multiplicador = 5, arcoIris = true, cores = { Color3.fromRGB(255, 80, 80), Color3.fromRGB(80, 160, 255) } },
+	{ id = "Divina", nome = "Trilha Divina", preco = 2000000000, multiplicador = 10, cores = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 215, 90) } },
+}
+
 -- Renascer: zera dinheiro, Velocidade, esteira e a base, e em troca ganha
 -- para sempre mais renda e mais Velocidade na esteira.
 Config.RENASCER = {
@@ -230,6 +257,8 @@ Config.SONS = {
 	Rugido = { id = "rbxasset://sounds/swordlunge.wav", volume = 1, tom = 0.35 },
 	Passo = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.9, tom = 0.45 },
 	Comprou = { id = "rbxasset://sounds/victory.wav", volume = 0.6, tom = 1.25 },
+	Tacada = { id = "rbxasset://sounds/swordslash.wav", volume = 0.7, tom = 0.8 },
+	Acertou = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 1, tom = 1.4 },
 }
 
 -- Gamepasses. Crie cada um no Creator Dashboard (Monetização > Passes),
@@ -417,6 +446,12 @@ end
 
 function Config.multiplicadorEsteira(n: number): number
 	return 1 + n * Config.RENASCER.bonusEsteira
+end
+
+-- Multiplicador de quem já comprou "nivel" trilhas (0 = nenhuma).
+function Config.multiplicadorTrilha(nivel: number): number
+	local trilha = Config.TRILHAS[nivel]
+	return if trilha then trilha.multiplicador else 1
 end
 
 -- Vagas da base de quem já renasceu "n" vezes.

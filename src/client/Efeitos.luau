@@ -472,7 +472,30 @@ local function renasceu(dados)
 	letreiro(centro, { { "RENASCEU!", DOURADO } })
 end
 
+-- Levou uma tacada: o personagem é deste computador, então o empurrão é
+-- feito aqui. Cai de lado por um instante e a tela treme.
+local function tacada(dados)
+	local personagem = jogador.Character
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	if not raiz or not hum or raiz.Anchored then
+		return
+	end
+	local direcao: Vector3 = dados.direcao
+	hum.PlatformStand = true
+	raiz.AssemblyLinearVelocity = direcao * dados.forca + Vector3.new(0, dados.forca * 0.45, 0)
+	raiz.AssemblyAngularVelocity = direcao:Cross(Vector3.yAxis) * -8
+	Tremor.perto(raiz.Position, 0.8, 30, 0.35)
+	task.delay(math.min(dados.tempo, 1), function()
+		if hum.Parent then
+			hum.PlatformStand = false
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end)
+end
+
 local efeitos: { [string]: (any) -> () } = {
+	Tacada = tacada,
 	Chocou = chocou,
 	Vendeu = vendeu,
 	Pegou = pegou,

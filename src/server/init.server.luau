@@ -9,11 +9,14 @@ local Compras = require(script.Compras)
 local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
+local Mochila = require(script.Mochila)
 local Modelos = require(script.Modelos)
 local Ninhos = require(script.Ninhos)
 local Passes = require(script.Passes)
 local Ranking = require(script.Ranking)
 local Renascer = require(script.Renascer)
+local Taco = require(script.Taco)
+local Trilhas = require(script.Trilhas)
 local Velocidade = require(script.Velocidade)
 
 -- Todo mundo nasce na própria base: tira o SpawnLocation que vem no lugar
@@ -44,6 +47,9 @@ Passes.iniciar()
 Velocidade.iniciar()
 Bases.iniciar(infoBases)
 Carregar.iniciar()
+Taco.iniciar() -- antes da mochila, para o taco ser o primeiro da barra
+Mochila.iniciar()
+Trilhas.iniciar()
 Ninhos.iniciar(infoBiomas)
 Renascer.iniciar()
 Ranking.iniciar()
@@ -74,6 +80,8 @@ local function aoEntrar(player: Player)
 	end
 	-- daqui para a frente, Brainrot novo avisa "Novo no Índice"
 	player:SetAttribute("BaseCarregada", true)
+	-- ovos que estavam na mochila
+	Mochila.entrar(player)
 	-- ovos comprados com Robux que estavam esperando vaga
 	Compras.entrar(player)
 	Velocidade.atualizar(player)
