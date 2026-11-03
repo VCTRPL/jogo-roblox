@@ -1,5 +1,5 @@
 -- Biomas: ninhos com ovos, o guardião que persegue quem pega um ovo
--- e o bloqueio para quem não tem Velocidade suficiente.
+-- e o aviso para quem entra sem a Velocidade mínima.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -222,20 +222,24 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 		table.insert(bioma.ninhos, ninho)
 	end
 
-	-- placa de madeira logo depois da entrada, virada para quem chega
-	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 + 5, info.centro.Y, -11)
+	-- placa de madeira do lado de fora, na frente do arco com o nome do bioma
+	-- (do lado direito da passagem), virada para quem chega
+	-- antes do primeiro bioma é o gramado do mapa; nos outros, o chão de transição
+	local altura = if info.config == Config.BIOMAS[1] then 0.05 else info.centro.Y
+	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, altura, 13)
+	-- o poste fica atrás da placa (quem chega vem de -X), sem tampar o texto
 	Mapa.parte({
 		Name = "PostePlaca",
-		Size = Vector3.new(0.8, 5, 0.8),
-		Position = chao + Vector3.new(0, 2.5, 0),
+		Size = Vector3.new(0.8, 6, 0.8),
+		Position = chao + Vector3.new(0.7, 3, 0),
 		Color = Color3.fromRGB(105, 70, 42),
 		Material = Enum.Material.Wood,
 		Parent = info.pasta,
 	})
 	local placa = Mapa.parte({
 		Name = "Relogio",
-		Size = Vector3.new(7, 2.6, 0.5),
-		CFrame = CFrame.lookAt(chao + Vector3.new(0, 5, 0), chao + Vector3.new(-1, 5, 0)),
+		Size = Vector3.new(10, 3.6, 0.5),
+		CFrame = CFrame.lookAt(chao + Vector3.new(0, 6, 0), chao + Vector3.new(-1, 6, 0)),
 		Color = Color3.fromRGB(170, 120, 72),
 		Material = Enum.Material.WoodPlanks,
 		Parent = info.pasta,
@@ -343,8 +347,9 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 	)
 end
 
--- Quem não tem Velocidade suficiente é empurrado de volta para a entrada.
--- Também marca em que bioma cada um está (o cliente troca a música).
+-- Marca em que bioma cada um está (o cliente troca a música). Todo mundo
+-- pode entrar em qualquer bioma; quem entra sem a Velocidade mínima recebe
+-- um aviso de que o guardião corre mais que ele.
 local function verificarPortoes()
 	for _, player in Players:GetPlayers() do
 		local personagem = player.Character
@@ -353,29 +358,20 @@ local function verificarPortoes()
 			local onde = nil
 			for _, bioma in biomas do
 				if Mapa.dentroQuadrado(bioma.info.centro, Mapa.TAMANHO_BIOMA, raiz.Position) then
-					onde = bioma.info.config.nome
+					onde = bioma
 				end
 			end
-			if player:GetAttribute("Bioma") ~= onde then
-				player:SetAttribute("Bioma", onde)
-			end
-			-- o primeiro bioma trancado para essa pessoa barra a estrada inteira
-			-- dali para a frente (não dá para passar pelo lado)
-			for _, bioma in biomas do
-				local minimo = bioma.info.config.velocidadeMinima
-				local inicioBioma = bioma.info.centro.X - Mapa.TAMANHO_BIOMA / 2
-				local trancado = minimo > 0 and Dados.valor(player, "Velocidade") < minimo
-				if trancado and raiz.Position.X > inicioBioma - 0.5 and math.abs(raiz.Position.Z) < Mapa.Z_PAREDE + 12 then
-					personagem:PivotTo(CFrame.lookAt(bioma.info.entrada, bioma.info.entrada - Vector3.xAxis))
-					if os.clock() - (ultimoAvisoPortao[player] or 0) > 3 then
-						ultimoAvisoPortao[player] = os.clock()
-						Avisos.enviar(
-							player,
-							`Você precisa de {Config.formatar(minimo)} de Velocidade para entrar em {bioma.info.config.nome}!`,
-							VERMELHO
-						)
-					end
-					break
+			local nome = onde and onde.info.config.nome
+			if player:GetAttribute("Bioma") ~= nome then
+				player:SetAttribute("Bioma", nome)
+				local minimo = onde and onde.info.config.velocidadeMinima or 0
+				if minimo > Dados.valor(player, "Velocidade") and os.clock() - (ultimoAvisoPortao[player] or 0) > 10 then
+					ultimoAvisoPortao[player] = os.clock()
+					Avisos.enviar(
+						player,
+						`Cuidado! Com menos de {Config.formatar(minimo)} de Velocidade, o {onde.info.config.guardiao} te pega se você pegar um ovo!`,
+						VERMELHO
+					)
 				end
 			end
 		end

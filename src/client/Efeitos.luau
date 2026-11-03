@@ -1,18 +1,23 @@
 -- Efeitos visuais que o servidor pede (Remotes.Efeito). Tudo é criado só
 -- neste computador e some sozinho, então não pesa o servidor.
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local Sons = require(script.Parent.Sons)
+local Tremor = require(script.Parent.Tremor)
+local Ui = require(script.Parent.Ui)
 
 local Efeitos = {}
 
 local FAISCA = "rbxasset://textures/particles/sparkles_main.dds"
 local FUMACA = "rbxasset://textures/particles/smoke_main.dds"
+local CHOQUE = "rbxasset://textures/particles/explosion01_shockwave_main.dds"
 local DISTANCIA_MAXIMA = 260 -- longe disso ninguém vê, então nem cria
+local jogador = Players.LocalPlayer
 
 local ARCO_IRIS = ColorSequence.new({
 	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 70, 90)),
@@ -73,7 +78,44 @@ local function explodir(parent: BasePart, cores: ColorSequence, quantidade: numb
 		end
 	end
 	emissor.Parent = parent
-	emissor:Emit(quantidade)
+	emissor:Emit(math.max(1, math.floor(quantidade * Tremor.qualidade)))
+end
+
+-- Raios de luz saindo do centro em todas as direções, como um sol nascendo.
+local function estrela(posicao: Vector3, cor: Color3, quantos: number, comprimento: number)
+	for i = 1, quantos do
+		local angulo = i / quantos * math.pi * 2 + math.random() * 0.3
+		local direcao = Vector3.new(math.cos(angulo), (math.random() - 0.3) * 0.9, math.sin(angulo)).Unit
+		local olhar = CFrame.lookAt(posicao, posicao + direcao)
+		local raio = peca({
+			Name = "RaioEstrela",
+			Color = cor:Lerp(Color3.new(1, 1, 1), (i % 2) * 0.5),
+			Transparency = 0.1,
+			Size = Vector3.new(0.35, 0.35, 0.5),
+			CFrame = olhar,
+		})
+		local fim = comprimento * (0.7 + math.random() * 0.6)
+		TweenService:Create(raio, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Size = Vector3.new(0.05, 0.05, fim),
+			CFrame = olhar * CFrame.new(0, 0, -fim / 2),
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(raio, 0.5)
+	end
+end
+
+-- Onda de choque (um disco de textura virado para a câmera) que abre e some.
+local function choque(parent: BasePart, cor: Color3, tamanho: number)
+	explodir(parent, ColorSequence.new(cor), 1, {
+		Texture = CHOQUE,
+		Speed = NumberRange.new(0),
+		Drag = 0,
+		Acceleration = Vector3.zero,
+		RotSpeed = NumberRange.new(0),
+		Lifetime = NumberRange.new(0.45),
+		Transparency = NumberSequence.new(0, 1),
+		Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, tamanho) }),
+	})
 end
 
 -- Pedaços da casca do ovo voando para os lados (física só neste computador).
@@ -214,9 +256,16 @@ local function chocou(dados)
 	luz.Parent = centro
 	TweenService:Create(luz, TweenInfo.new(1), { Brightness = 0 }):Play()
 
-	if Config.nivelRaridade(dados.raridade) >= Config.nivelRaridade("Lendario") or mutacao.cor then
+	choque(centro, corRaridade:Lerp(Color3.new(1, 1, 1), 0.3), 14)
+	local nivel = Config.nivelRaridade(dados.raridade)
+	Tremor.perto(posicao, 0.15 + nivel * 0.08, 60)
+	if nivel >= Config.nivelRaridade("Epico") then
+		estrela(posicao + Vector3.new(0, 2, 0), corRaridade, 6 + nivel * 2, 6 + nivel * 2)
+	end
+	if nivel >= Config.nivelRaridade("Lendario") or mutacao.cor then
 		coluna(posicao, mutacao.cor or corRaridade)
 		task.delay(0.25, onda, posicao, corRaridade, 28)
+		task.delay(0.5, onda, posicao, Color3.new(1, 1, 1), 40)
 	end
 
 	local linhas = { { "NASCEU!", corRaridade } }
@@ -267,6 +316,103 @@ local function pegou(dados)
 		Speed = NumberRange.new(8, 16),
 	})
 	onda(posicao - Vector3.new(0, 2.5, 0), cor, 10)
+	choque(centro, cor, 9)
+	if dados.userId == jogador.UserId then
+		Tremor.soco(4)
+		Tremor.sacudir(0.12, 0.2)
+	end
+end
+
+-- Chegou na própria base com o que carregava: guardado (ou roubo completo!).
+local function entregou(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local cor = Config.CORES_RARIDADE[dados.raridade] or Color3.new(1, 1, 1)
+	local destaque = if dados.roubo then Color3.fromRGB(255, 90, 90) else DOURADO
+	local centro = centroEm(posicao + Vector3.new(0, 1, 0), 3)
+	explodir(centro, ColorSequence.new(cor, destaque), 40 + Config.nivelRaridade(dados.raridade) * 8, {
+		Speed = NumberRange.new(14, 28),
+	})
+	estrela(posicao, destaque, 10, 9)
+	onda(posicao - Vector3.new(0, 2.5, 0), cor, 18)
+	task.delay(0.12, onda, posicao - Vector3.new(0, 2.5, 0), destaque, 26)
+	choque(centro, destaque, 16)
+	letreiro(centro, { { if dados.roubo then "ROUBO COMPLETO!" else "GUARDADO!", destaque } })
+	if dados.userId == jogador.UserId then
+		Tremor.soco(-5)
+		Tremor.sacudir(0.25, 0.3)
+	end
+end
+
+-- Alguém arrancou um item de uma base: fumaça vermelha e "ROUBANDO!".
+local function roubou(dados)
+	local posicao: Vector3 = dados.posicao
+	if not perto(posicao) then
+		return
+	end
+	local vermelho = Color3.fromRGB(255, 60, 60)
+	local centro = centroEm(posicao + Vector3.new(0, 2, 0), 3)
+	explodir(centro, ColorSequence.new(vermelho, Color3.fromRGB(255, 200, 80)), 35, { Speed = NumberRange.new(10, 22) })
+	explodir(centro, ColorSequence.new(Color3.fromRGB(90, 30, 40)), 14, {
+		Texture = FUMACA,
+		LightEmission = 0,
+		Speed = NumberRange.new(4, 8),
+		Drag = 2,
+		Acceleration = Vector3.new(0, 3, 0),
+		Transparency = NumberSequence.new(0.2, 1),
+		Size = NumberSequence.new(2, 6),
+	})
+	choque(centro, vermelho, 14)
+	onda(posicao, vermelho, 16)
+	letreiro(centro, { { "ROUBANDO!", vermelho } })
+end
+
+-- Para o dono: a tela pisca vermelho e treme quando estão roubando a base.
+local telaAlarme = Ui.criar("ScreenGui", {
+	Name = "AlarmeRoubo",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 4,
+	Parent = jogador:WaitForChild("PlayerGui"),
+})
+local alarme = Ui.criar("Frame", {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(255, 30, 30),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Parent = telaAlarme,
+}, {
+	Ui.criar("UIGradient", {
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.5, 0.85),
+			NumberSequenceKeypoint.new(1, 0),
+		}),
+	}),
+})
+local function alarmeRoubo()
+	for i = 0, 2 do
+		task.delay(i * 0.35, function()
+			alarme.BackgroundTransparency = 0.2
+			TweenService:Create(alarme, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+		end)
+	end
+	Tremor.sacudir(0.35, 0.5)
+end
+
+-- O chefe rugiu: ondas de choque saindo dele e a câmera de quem está perto treme.
+local function rugido(posicao: Vector3)
+	if not perto(posicao) then
+		return
+	end
+	local centro = centroEm(posicao + Vector3.new(0, 3, 0), 2)
+	choque(centro, Color3.fromRGB(255, 120, 90), 40)
+	for i = 0, 2 do
+		task.delay(i * 0.15, onda, posicao - Vector3.new(0, 2, 0), Color3.fromRGB(255, 80 + i * 40, 60), 30 + i * 14)
+	end
+	Tremor.perto(posicao, 0.9, 90, 0.8)
 end
 
 -- O guardião pegou alguém: estrelinhas tontas e uma nuvem de poeira.
@@ -286,6 +432,8 @@ local function derrubado(dados)
 		Acceleration = Vector3.new(0, 2, 0),
 	})
 	letreiro(centro, { { "💫 PEGO!", Color3.fromRGB(255, 120, 120) } })
+	choque(centro, Color3.fromRGB(255, 220, 160), 12)
+	Tremor.perto(posicao, 0.6, 30, 0.4)
 end
 
 -- Esteira subiu de nível: ondas e coluna de luz na cor do nível novo.
@@ -300,6 +448,9 @@ local function esteiraNova(dados)
 	onda(posicao, cor, 22)
 	task.delay(0.15, onda, posicao, Color3.new(1, 1, 1), 30)
 	coluna(posicao, cor)
+	estrela(posicao + Vector3.new(0, 2, 0), cor, 14, 12)
+	explodir(centro, ColorSequence.new(cor, Color3.new(1, 1, 1)), 60, { Speed = NumberRange.new(16, 32) })
+	Tremor.perto(posicao, 0.4, 50)
 	letreiro(centro, { { `NÍVEL {dados.nivel}!`, cor }, { if nivel then Config.maiusculas(nivel.nome) else "", Color3.new(1, 1, 1) } })
 end
 
@@ -315,18 +466,50 @@ local function renasceu(dados)
 		task.delay(i * 0.18, onda, posicao, Color3.fromHSV(i / 4, 0.7, 1), 20 + i * 10)
 	end
 	coluna(posicao, Color3.fromRGB(255, 215, 80))
+	estrela(posicao + Vector3.new(0, 3, 0), DOURADO, 24, 20)
+	choque(centro, DOURADO, 50)
+	Tremor.perto(posicao, 0.7, 80, 0.6)
 	letreiro(centro, { { "RENASCEU!", DOURADO } })
 end
 
+-- Levou uma tacada: o personagem é deste computador, então o empurrão é
+-- feito aqui. Cai de lado por um instante e a tela treme.
+local function tacada(dados)
+	local personagem = jogador.Character
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = personagem and personagem:FindFirstChildOfClass("Humanoid")
+	if not raiz or not hum or raiz.Anchored then
+		return
+	end
+	local direcao: Vector3 = dados.direcao
+	hum.PlatformStand = true
+	raiz.AssemblyLinearVelocity = direcao * dados.forca + Vector3.new(0, dados.forca * 0.45, 0)
+	raiz.AssemblyAngularVelocity = direcao:Cross(Vector3.yAxis) * -8
+	Tremor.perto(raiz.Position, 0.8, 30, 0.35)
+	task.delay(math.min(dados.tempo, 1), function()
+		if hum.Parent then
+			hum.PlatformStand = false
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end)
+end
+
 local efeitos: { [string]: (any) -> () } = {
+	Tacada = tacada,
 	Chocou = chocou,
 	Vendeu = vendeu,
 	Pegou = pegou,
 	Derrubado = derrubado,
 	EsteiraNova = esteiraNova,
 	Renasceu = renasceu,
+	Entregou = entregou,
+	Roubou = roubou,
+	Alarme = alarmeRoubo,
 	Som = function(dados)
 		Sons.tocar(dados.nome, dados.posicao)
+		if dados.nome == "Rugido" and dados.posicao then
+			rugido(dados.posicao)
+		end
 	end,
 }
 

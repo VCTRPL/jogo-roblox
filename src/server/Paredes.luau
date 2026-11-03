@@ -13,6 +13,12 @@ local Paredes = {}
 
 local GROSSURA = 4
 local TRECHO = 8 -- comprimento de cada pedaço de parede
+-- As paredes são montadas com uns 15-20 de altura e depois esticadas para
+-- ficarem da altura das montanhas (que não existem do lado dos biomas).
+local ESTICAR = 2.4
+-- Na Praia a parede fica baixa (um quebra-mar) para dar para ver o mar do
+-- lado de fora (Cenario); a barreira invisível continua alta.
+local ESTICAR_ESTILO = { praia = 0.5 }
 
 local aleatorio = Random.new(777)
 
@@ -144,6 +150,19 @@ local ESTILOS: { [string]: Montador } = {
 	end,
 }
 
+-- Estica o pedaço de parede na altura. Peças grossas crescem; enfeites
+-- finos (musgo, conchas, faixas de neon, luzes) mantêm o tamanho e só sobem.
+local function esticar(trecho: Instance, fator: number)
+	for _, p in trecho:GetChildren() do
+		if p:IsA("BasePart") then
+			local base = p.Position.Y - p.Size.Y / 2
+			local altura = if p.Size.Y >= 2 then p.Size.Y * fator else p.Size.Y
+			p.Size = Vector3.new(p.Size.X, altura, p.Size.Z)
+			p.Position = Vector3.new(p.Position.X, base * fator + altura / 2, p.Position.Z)
+		end
+	end
+end
+
 -- Parede invisível bem alta ao longo da linha (ninguém pula por cima).
 local function barreira(pasta: Instance, de: number, ate: number, z: number)
 	bloco(pasta, "Barreira", Vector3.new(ate - de, 200, GROSSURA), Vector3.new((de + ate) / 2, 100, z), Color3.new(1, 1, 1), {
@@ -157,7 +176,7 @@ function Paredes.construir(biomas: { Mapa.InfoBioma })
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Paredes"
 
-	local inicio = Mapa.FIM_BASES
+	local inicio = Mapa.inicioBioma(1) -- começa no arco do primeiro bioma
 	local fim = Mapa.FIM_ESTRADA + 14
 	for i, info in biomas do
 		-- cada bioma cuida do trecho dele e da metade das estradas em volta
@@ -168,7 +187,13 @@ function Paredes.construir(biomas: { Mapa.InfoBioma })
 			local z = lado * (Mapa.Z_PAREDE + GROSSURA / 2)
 			local x = comeco + TRECHO / 2
 			while x < final do
-				montar(pasta, x, z, lado)
+				local trecho = Instance.new("Folder")
+				montar(trecho, x, z, lado)
+				esticar(trecho, ESTICAR_ESTILO[info.config.estilo] or ESTICAR)
+				for _, p in trecho:GetChildren() do
+					p.Parent = pasta
+				end
+				trecho:Destroy()
 				x += TRECHO
 			end
 		end

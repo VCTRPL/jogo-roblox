@@ -8,6 +8,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
 local Bases = require(script.Parent.Bases)
 local Dados = require(script.Parent.Dados)
+local Mochila = require(script.Parent.Mochila)
 local Modelos = require(script.Parent.Modelos)
 local Velocidade = require(script.Parent.Velocidade)
 
@@ -17,7 +18,6 @@ type Carga = {
 	item: Modelos.Item,
 	modelo: Model,
 	aoPerder: () -> (), -- devolve o item para onde ele estava
-	avisouCheia: boolean,
 	roubo: boolean, -- veio da base de outro jogador
 }
 
@@ -58,14 +58,14 @@ function Carregar.pegar(player: Player, item: Modelos.Item, aoPerder: () -> ()):
 	modelo.Parent = personagem
 	Modelos.grudar(modelo, raiz)
 
-	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, avisouCheia = false, roubo = false }
+	carregando[player] = { item = item, modelo = modelo, aoPerder = aoPerder, roubo = false }
 	Velocidade.definirPeso(player, Config.tamanho(item.tamanho).peso)
 	-- o cliente mostra a faixa "Carregando" e a seta até a base
 	local def = if item.tipo == "ovo" then Config.ovo(item.id) else Config.brainrot(item.id)
 	player:SetAttribute("Carregando", nomeDo(item))
 	player:SetAttribute("CorCarregando", Config.CORES_RARIDADE[def.raridade])
 	Avisos.som(nil, "Pegou", raiz.Position)
-	Avisos.efeito("Pegou", { posicao = raiz.Position, raridade = def.raridade })
+	Avisos.efeito("Pegou", { posicao = raiz.Position, raridade = def.raridade, userId = player.UserId })
 	return true
 end
 
@@ -118,6 +118,7 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 		return
 	end
 
+	local vagaCFrame = base.vagas[vaga]
 	local item = Bases.remover(base, vaga)
 	if not item then
 		return
@@ -133,9 +134,24 @@ local function tentarRoubar(ladrao: Player, base: Bases.Base, vaga: number)
 		return
 	end
 	carregando[ladrao].roubo = true
+	if vagaCFrame then
+		Avisos.efeito("Roubou", { posicao = vagaCFrame.Position, userId = ladrao.UserId })
+	end
+	Avisos.efeitoPara(dono, "Alarme", {})
 	Avisos.enviar(ladrao, `Você pegou {nomeDo(item)}! Leve para a sua base!`, VERDE)
 	Avisos.enviar(dono, `{ladrao.DisplayName} está roubando seu {nomeDo(item)}!`, VERMELHO)
 	Avisos.som(dono, "Roubando")
+end
+
+-- explosão de "guardado!" (ou "roubo completo!") que todo mundo por perto vê
+local function entregou(player: Player, carga: Carga, posicao: Vector3)
+	local def = if carga.item.tipo == "ovo" then Config.ovo(carga.item.id) else Config.brainrot(carga.item.id)
+	Avisos.efeito("Entregou", {
+		posicao = posicao,
+		raridade = def and def.raridade or "Comum",
+		roubo = carga.roubo,
+		userId = player.UserId,
+	})
 end
 
 local function verificarEntregas()
@@ -143,17 +159,24 @@ local function verificarEntregas()
 		local minhaBase = Bases.doJogador(player)
 		local raiz = raizDe(player)
 		if minhaBase and raiz and Bases.dentro(minhaBase, raiz.Position) then
-			if Bases.vagaLivre(minhaBase) then
-				soltar(player)
+			soltar(player)
+			entregou(player, carga, raiz.Position)
+			if carga.roubo then
+				Dados.adicionar(player, "Roubos", 1)
+			end
+			Avisos.som(player, "Entregou")
+			local nome = nomeDo(carga.item)
+			if carga.item.tipo == "ovo" and Mochila.adicionar(player, carga.item) then
+				-- ovo: vai para a mochila e o jogador decide quando chocar
+				Avisos.enviar(player, `🎒 {nome} foi para a sua mochila! Equipe e clique na base para chocar.`, VERDE)
+			elseif Bases.vagaLivre(minhaBase) then
 				Bases.colocar(minhaBase, carga.item)
-				Avisos.enviar(player, `{nomeDo(carga.item)} guardado na sua base!`, VERDE)
-				Avisos.som(player, "Entregou")
-				if carga.roubo then
-					Dados.adicionar(player, "Roubos", 1)
-				end
-			elseif not carga.avisouCheia then
-				carga.avisouCheia = true
-				Avisos.enviar(player, "Sua base está cheia!", VERMELHO)
+				Avisos.enviar(player, `{nome} guardado na sua base!`, VERDE)
+			else
+				-- Base cheia: vai para o inventário (e entra na base quando
+				-- abrir vaga), para ele poder pegar outro ovo.
+				Dados.adicionarPendente(player, carga.item)
+				Avisos.enviar(player, `Base cheia! {nome} foi para o seu inventário.`, Color3.fromRGB(255, 215, 80))
 			end
 		end
 	end

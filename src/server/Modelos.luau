@@ -504,6 +504,10 @@ function Modelos.criar(item: Item): Model
 	}
 	finalizar(modelo, def.id, tamanho.escala, linhas)
 	Modelos.prompt(modelo).ObjectText = nome
+	-- o cliente mostra a chegada na base e a aura dos raros
+	modelo:SetAttribute("Raridade", def.raridade)
+	modelo:SetAttribute("Mutacao", mutacao.nome)
+	CollectionService:AddTag(modelo, "Brainrot")
 	return modelo
 end
 
@@ -519,6 +523,31 @@ function Modelos.boneco(id: string, mutacao: string?): Model?
 		Blocos.aplicar(modelo)
 	end
 	return modelo
+end
+
+-- Um boneco limpo de cada Brainrot em ReplicatedStorage.FotosIndice, para o
+-- Índice do cliente mostrar dentro de um ViewportFrame (a "foto" do Brainrot).
+function Modelos.publicarIndice()
+	local pasta = Instance.new("Folder")
+	pasta.Name = "FotosIndice"
+	for _, def in Config.BRAINROTS do
+		local modelo = Modelos.boneco(def.id)
+		if modelo then
+			for _, objeto in modelo:GetDescendants() do
+				if objeto:IsA("ParticleEmitter") or objeto:IsA("LayerCollector") or objeto:IsA("ProximityPrompt") or objeto:IsA("Light") then
+					objeto:Destroy()
+				elseif objeto:IsA("BasePart") then
+					objeto.Anchored = true
+					objeto.CanCollide = false
+					objeto.CanQuery = false
+					objeto.CanTouch = false
+				end
+			end
+			modelo.Name = def.id
+			modelo.Parent = pasta
+		end
+	end
+	pasta.Parent = ReplicatedStorage
 end
 
 function Modelos.prompt(modelo: Model): ProximityPrompt

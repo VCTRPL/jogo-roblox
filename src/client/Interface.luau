@@ -4,12 +4,17 @@
 local Lighting = game:GetService("Lighting")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Icones = require(script.Parent.Icones)
+local LojaOvos = require(script.Parent.LojaOvos)
+local LojaTrilhas = require(script.Parent.LojaTrilhas)
+local Ranking = require(script.Parent.Ranking)
 local Sons = require(script.Parent.Sons)
 local Ui = require(script.Parent.Ui)
 
@@ -116,12 +121,31 @@ local function atualizarBarra(velocidade: number)
 	proximoAnterior = nome
 end
 
+-- Inventário: ovos e Brainrots esperando vaga na base -----------------------
+
+local seloInventario = criar("Frame", {
+	Name = "Inventario",
+	Position = UDim2.new(0, 14, 0.45, 124),
+	Size = UDim2.fromOffset(240, 42),
+	BackgroundColor3 = BRANCO,
+	Visible = false,
+	Parent = tela,
+}, { cantos(14), borda(CONTORNO, 3.5), gradiente(Color3.fromRGB(255, 200, 70), Color3.fromRGB(230, 120, 30)) })
+local textoInventario = texto({ Text = "", Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 1, -12), Parent = seloInventario })
+local function atualizarInventario()
+	local quantos = jogador:GetAttribute("Pendentes") or 0
+	seloInventario.Visible = quantos > 0
+	textoInventario.Text = `🎒 Inventário: {quantos} (esperando vaga)`
+end
+jogador:GetAttributeChangedSignal("Pendentes"):Connect(atualizarInventario)
+atualizarInventario()
+
 -- Faixa "Carregando" e trilha até a base ------------------------------------
 
 local faixaCarga = criar("Frame", {
 	Name = "Carregando",
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -26),
+	Position = UDim2.new(0.5, 0, 1, -100), -- acima da barra da mochila
 	Size = UDim2.fromOffset(420, 74),
 	BackgroundColor3 = BRANCO,
 	Visible = false,
@@ -302,6 +326,40 @@ local function criarPainel(nome: string, titulo: string, cima: Color3, baixo: Co
 	return painel, conteudo
 end
 
+-- Foto 3D do Brainrot: o boneco de blocos de ReplicatedStorage.FotosIndice
+-- (o servidor monta) dentro de um ViewportFrame. Quem ainda não teve o
+-- Brainrot vê só a silhueta preta. Se a foto não chegar, usa o bonequinho.
+local function fotoBrainrot(def, parent: Instance): ViewportFrame?
+	local fotos = ReplicatedStorage:WaitForChild("FotosIndice", 15)
+	local molde = fotos and fotos:WaitForChild(def.id, 5)
+	if not (molde and molde:IsA("Model")) then
+		return nil
+	end
+	local vista = criar("ViewportFrame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(1, -16, 0, 104),
+		BackgroundTransparency = 1,
+		Ambient = Color3.fromRGB(205, 205, 215),
+		LightColor = Color3.fromRGB(255, 250, 240),
+		LightDirection = Vector3.new(-1, -1.5, -1),
+		ZIndex = 6,
+		Parent = parent,
+	})
+	local modelo = molde:Clone()
+	modelo:PivotTo(CFrame.new())
+	modelo.Parent = vista
+	local caixa, tamanho = modelo:GetBoundingBox()
+	local camera = criar("Camera", { FieldOfView = 30, Parent = vista })
+	-- de frente (-Z), um pouco de lado e de cima, longe o bastante para caber tudo
+	local raio = math.max(tamanho.X, tamanho.Y, tamanho.Z) * 0.5
+	local distancia = raio / math.tan(math.rad(camera.FieldOfView / 2)) * 1.05
+	local direcao = Vector3.new(-0.45, 0.3, -1).Unit
+	camera.CFrame = CFrame.lookAt(caixa.Position + direcao * distancia, caixa.Position)
+	vista.CurrentCamera = camera
+	return vista
+end
+
 -- Bonequinho de blocos de um Brainrot, feito só com quadrados.
 local function bonequinho(def, parent: Instance)
 	local caixa = criar("Frame", {
@@ -351,7 +409,7 @@ end
 
 local painelIndice, conteudoIndice = criarPainel("Indice", "📖 ÍNDICE DE BRAINROTS", Color3.fromRGB(255, 200, 70), Color3.fromRGB(240, 120, 40))
 criar("UIGridLayout", {
-	CellSize = UDim2.fromOffset(196, 196),
+	CellSize = UDim2.fromOffset(196, 214),
 	CellPadding = UDim2.fromOffset(10, 10),
 	HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	SortOrder = Enum.SortOrder.LayoutOrder,
@@ -366,6 +424,20 @@ table.sort(ordemIndice, function(a, b)
 	end
 	return a.renda < b.renda
 end)
+-- Cada Brainrot do Índice: aparece quando o atributo "Ind_<id>" (o servidor
+-- marca quando ele entra na sua base) fica true.
+local tituloIndice = (painelIndice:FindFirstChildWhichIsA("Frame") :: Frame):FindFirstChildWhichIsA("TextLabel") :: TextLabel
+local cartoesIndice: { () -> () } = {}
+local function atualizarTituloIndice()
+	local total = 0
+	for _, def in Config.BRAINROTS do
+		if jogador:GetAttribute(`Ind_{def.id}`) then
+			total += 1
+		end
+	end
+	tituloIndice.Text = `📖 ÍNDICE DE BRAINROTS ({total}/{#Config.BRAINROTS})`
+end
+
 for ordem, def in ordemIndice do
 	local corRaridade = Config.CORES_RARIDADE[def.raridade]
 	local cartao = criar("Frame", {
@@ -374,21 +446,20 @@ for ordem, def in ordemIndice do
 		ZIndex = 5,
 		Parent = conteudoIndice,
 	}, { cantos(16), borda(corRaridade, 3.5), gradiente(Color3.fromRGB(62, 56, 108), Color3.fromRGB(32, 28, 60)) })
-	bonequinho(def, cartao)
-	texto({ Text = def.nome, Position = UDim2.fromOffset(8, 88), Size = UDim2.new(1, -16, 0, 24), ZIndex = 6, Parent = cartao })
+	local nome = texto({ Text = def.nome, Position = UDim2.fromOffset(8, 112), Size = UDim2.new(1, -16, 0, 24), ZIndex = 6, Parent = cartao })
 	local selo = criar("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 116),
+		Position = UDim2.new(0.5, 0, 0, 140),
 		Size = UDim2.fromOffset(110, 24),
 		BackgroundColor3 = corRaridade,
 		ZIndex = 6,
 		Parent = cartao,
 	}, { cantos(12), borda(CONTORNO, 2.5) })
 	texto({ Text = NOME_RARIDADE[def.raridade] or def.raridade, Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = selo })
-	texto({
+	local renda = texto({
 		Text = `💰 ${Config.formatar(def.renda)}/s`,
 		TextColor3 = Color3.fromRGB(130, 255, 130),
-		Position = UDim2.fromOffset(8, 144),
+		Position = UDim2.fromOffset(8, 166),
 		Size = UDim2.new(1, -16, 0, 22),
 		ZIndex = 6,
 		Parent = cartao,
@@ -396,12 +467,46 @@ for ordem, def in ordemIndice do
 	texto({
 		Text = `📍 {biomasDo(def.id)}`,
 		TextColor3 = Color3.fromRGB(200, 220, 255),
-		Position = UDim2.fromOffset(8, 168),
+		Position = UDim2.fromOffset(8, 190),
 		Size = UDim2.new(1, -16, 0, 18),
 		ZIndex = 6,
 		Parent = cartao,
 	})
+	local foto: ViewportFrame? = nil
+	local interrogacao = texto({
+		Text = "?",
+		TextColor3 = Color3.fromRGB(200, 200, 230),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 30),
+		Size = UDim2.fromOffset(60, 60),
+		ZIndex = 7,
+		Parent = cartao,
+	})
+	local function atualizar()
+		local tem = jogador:GetAttribute(`Ind_{def.id}`) == true
+		nome.Text = if tem then def.nome else "???"
+		renda.Text = if tem then `💰 ${Config.formatar(def.renda)}/s` else "💰 ???"
+		interrogacao.Visible = not tem
+		if foto then
+			-- silhueta preta até descobrir
+			foto.ImageColor3 = if tem then BRANCO else Color3.new(0, 0, 0)
+		end
+	end
+	table.insert(cartoesIndice, atualizar)
+	jogador:GetAttributeChangedSignal(`Ind_{def.id}`):Connect(function()
+		atualizar()
+		atualizarTituloIndice()
+	end)
+	atualizar()
+	task.spawn(function()
+		foto = fotoBrainrot(def, cartao)
+		if not foto then
+			bonequinho(def, cartao)
+		end
+		atualizar()
+	end)
 end
+atualizarTituloIndice()
 
 local painelAjuda, conteudoAjuda = criarPainel("Ajuda", "❓ COMO JOGAR", Color3.fromRGB(120, 230, 140), Color3.fromRGB(30, 160, 90))
 criar("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = conteudoAjuda })
@@ -414,7 +519,8 @@ local PASSOS = {
 	{ "😈", "Roube ovos e Brainrots das outras bases, e tranque a sua!" },
 	{ "💰", "Base cheia? Segure E num Brainrot seu para vender." },
 	{ "🔄", "Com bastante dinheiro, renasça: começa de novo, mas ganha mais para sempre." },
-	{ "🛒", "Na Loja tem passes como 2x Dinheiro, 2x Velocidade e Tênis Turbo." },
+	{ "🛒", "Na Loja tem ovos especiais, que abrem na hora, e passes como 2x Dinheiro e Tênis Turbo." },
+	{ "🏆", "No Ranking, veja quem tem mais Brainrots, dinheiro e Velocidade no servidor e no mundo." },
 }
 for ordem, passo in PASSOS do
 	local linha = criar("Frame", {
@@ -460,22 +566,21 @@ end
 
 local textoVezes = texto({ Text = "", Size = UDim2.new(1, -16, 1, -8), Position = UDim2.fromOffset(8, 4), ZIndex = 6, Parent = linhaRenascer(1, 46) })
 local quadroGanhos = linhaRenascer(2, 92)
-local textoRenda = texto({
-	Text = "",
-	TextColor3 = Color3.fromRGB(130, 255, 130),
-	Size = UDim2.new(1, -16, 0, 38),
-	Position = UDim2.fromOffset(8, 6),
-	ZIndex = 6,
-	Parent = quadroGanhos,
-})
-local textoEsteira = texto({
-	Text = "",
-	TextColor3 = Color3.fromRGB(130, 220, 255),
-	Size = UDim2.new(1, -16, 0, 38),
-	Position = UDim2.fromOffset(8, 48),
-	ZIndex = 6,
-	Parent = quadroGanhos,
-})
+-- os quatro bônus em duas colunas: renda e esteira, vagas e tranca
+local function textoGanho(cor: Color3, coluna: number, linha: number): TextLabel
+	return texto({
+		Text = "",
+		TextColor3 = cor,
+		Size = UDim2.new(0.5, -12, 0, 38),
+		Position = UDim2.new(0.5 * coluna, 8, 0, 6 + 42 * linha),
+		ZIndex = 6,
+		Parent = quadroGanhos,
+	})
+end
+local textoRenda = textoGanho(Color3.fromRGB(130, 255, 130), 0, 0)
+local textoEsteira = textoGanho(Color3.fromRGB(130, 220, 255), 0, 1)
+local textoVagas = textoGanho(Color3.fromRGB(255, 220, 120), 1, 0)
+local textoTranca = textoGanho(Color3.fromRGB(200, 170, 255), 1, 1)
 texto({
 	Text = "⚠️ Você perde o dinheiro, a Velocidade, a esteira e tudo da base.",
 	TextColor3 = Color3.fromRGB(255, 170, 170),
@@ -533,6 +638,8 @@ local function atualizarRenascer()
 	if vezes >= Config.RENASCER.maximo then
 		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x`
 		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x`
+		textoVagas.Text = `🥚 Vagas: {Config.vagas(vezes)}`
+		textoTranca.Text = `🔒 Tranca: {Config.tempoTranca(vezes)}s`
 		textoPreco.Text = "MÁXIMO!"
 		enchimentoPreco.Size = UDim2.fromScale(1, 1)
 		podeRenascer = false
@@ -540,6 +647,8 @@ local function atualizarRenascer()
 		local preco = Config.precoRenascer(vezes)
 		textoRenda.Text = `💰 Dinheiro: {Config.multiplicadorRenda(vezes)}x → {Config.multiplicadorRenda(vezes + 1)}x`
 		textoEsteira.Text = `⚡ Esteira: {Config.multiplicadorEsteira(vezes)}x → {Config.multiplicadorEsteira(vezes + 1)}x`
+		textoVagas.Text = `🥚 Vagas: {Config.vagas(vezes)} → {Config.vagas(vezes + 1)}`
+		textoTranca.Text = `🔒 Tranca: {Config.tempoTranca(vezes)}s → {Config.tempoTranca(vezes + 1)}s`
 		textoPreco.Text = `${Config.formatar(dinheiro)} / ${Config.formatar(preco)}`
 		enchimentoPreco.Size = UDim2.fromScale(math.clamp(dinheiro / preco, 0, 1), 1)
 		podeRenascer = dinheiro >= preco
@@ -649,38 +758,76 @@ for ordem, passe in Config.GAMEPASSES do
 	end
 end
 
+-- Ovos especiais (Robux) numa aba da Loja
+LojaOvos.montar(painelLoja, conteudoLoja)
+
+-- Ranking ---------------------------------------------------------------------
+
+local painelRanking, conteudoRanking = criarPainel("Ranking", "🏆 RANKING", Color3.fromRGB(255, 215, 80), Color3.fromRGB(240, 130, 30))
+Ranking.montar(painelRanking, conteudoRanking)
+
+-- Loja de trilhas (abre pelo botão da barraca no mapa) ------------------------
+
+local painelTrilhas, conteudoTrilhas = criarPainel("Trilhas", "✨ LOJA DE TRILHAS", Color3.fromRGB(255, 120, 255), Color3.fromRGB(110, 60, 230))
+LojaTrilhas.montar(conteudoTrilhas)
+ProximityPromptService.PromptTriggered:Connect(function(prompt)
+	if prompt:GetAttribute("AbreLoja") == "Trilhas" and aberto ~= painelTrilhas then
+		abrirPainel(painelTrilhas)
+	end
+end)
+
 -- Botões do lado direito ----------------------------------------------------
 
 local menu = criar("Frame", {
 	Name = "Menu",
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -14, 0.45, 0),
-	Size = UDim2.fromOffset(84, 468),
+	Size = UDim2.fromOffset(84, 564),
 	BackgroundTransparency = 1,
 	Parent = tela,
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
 -- "acao" é um painel para abrir ou uma função para chamar.
-local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, acao: Frame | (() -> ())): TextLabel
+-- Com imagem em Ui.BOTOES, o botão é a imagem inteira; sem, a moldura com
+-- gradiente, o ícone e o nome são desenhados aqui. Devolve o ícone (ou, com
+-- imagem, uma camada vazia por cima dela, onde o Som põe o X de mudo).
+local function botao(ordem: number, icone: string, legenda: string, cima: Color3, baixo: Color3, acao: Frame | (() -> ())): any
+	local imagem = Ui.BOTOES[legenda]
 	local b = criar("TextButton", {
 		Name = legenda,
 		LayoutOrder = ordem,
 		Size = UDim2.fromOffset(84, 84),
 		BackgroundColor3 = BRANCO,
+		BackgroundTransparency = if imagem then 1 else 0,
 		Text = "",
 		AutoButtonColor = false,
 		Parent = menu,
-	}, { cantos(20), borda(CONTORNO, 3.5), gradiente(cima, baixo) })
+	})
 	local escala = criar("UIScale", { Parent = b })
-	criar("Frame", {
-		Position = UDim2.fromOffset(6, 4),
-		Size = UDim2.new(1, -12, 0.35, 0),
-		BackgroundColor3 = BRANCO,
-		BackgroundTransparency = 0.75,
-		Parent = b,
-	}, { cantos(14) })
-	local textoIcone = texto({ Text = icone, Position = UDim2.fromOffset(16, 6), Size = UDim2.fromOffset(52, 48), Parent = b })
-	texto({ Text = legenda, Position = UDim2.new(0, 4, 1, -28), Size = UDim2.new(1, -8, 0, 24), Parent = b })
+	local textoIcone
+	if imagem then
+		criar("ImageLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Image = imagem,
+			ScaleType = Enum.ScaleType.Fit,
+			Parent = b,
+		})
+		textoIcone = criar("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2, Parent = b })
+	else
+		cantos(20).Parent = b
+		borda(CONTORNO, 3.5).Parent = b
+		gradiente(cima, baixo).Parent = b
+		criar("Frame", {
+			Position = UDim2.fromOffset(6, 4),
+			Size = UDim2.new(1, -12, 0.35, 0),
+			BackgroundColor3 = BRANCO,
+			BackgroundTransparency = 0.75,
+			Parent = b,
+		}, { cantos(14) })
+		textoIcone = Ui.icone(legenda, icone, { Position = UDim2.fromOffset(12, 4), Size = UDim2.fromOffset(60, 52), Parent = b })
+		texto({ Text = legenda, Position = UDim2.new(0, 4, 1, -28), Size = UDim2.new(1, -8, 0, 24), Parent = b })
+	end
 	b.MouseEnter:Connect(function()
 		TweenService:Create(escala, TweenInfo.new(0.15), { Scale = 1.08 }):Play()
 	end)
@@ -700,14 +847,21 @@ end
 
 botao(1, "📖", "Índice", Color3.fromRGB(255, 210, 80), Color3.fromRGB(240, 120, 40), painelIndice)
 botao(2, "❓", "Ajuda", Color3.fromRGB(130, 235, 150), Color3.fromRGB(30, 160, 90), painelAjuda)
-botao(3, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230), function()
+botao(3, "🏆", "Ranking", Color3.fromRGB(255, 225, 90), Color3.fromRGB(235, 140, 30), painelRanking)
+botao(4, "🔄", "Renascer", Color3.fromRGB(255, 120, 220), Color3.fromRGB(150, 60, 230), function()
 	atualizarRenascer()
 	abrirPainel(painelRenascer)
 end)
-botao(4, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
-local iconeSom: TextLabel
-iconeSom = botao(5, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
-	iconeSom.Text = if Sons.alternar() then "🔇" else "🔊"
+botao(5, "🛒", "Loja", Color3.fromRGB(120, 255, 140), Color3.fromRGB(20, 150, 110), painelLoja)
+local iconeSom: GuiObject
+iconeSom = botao(6, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB(50, 110, 230), function()
+	local mudo = Sons.alternar()
+	if Ui.BOTOES.Som then
+		-- X vermelho em cima das ondas da imagem
+		Icones.desenhar(iconeSom, if mudo then "Mudo" else "")
+	else
+		Icones.desenhar(iconeSom, if mudo then "SemSom" else "Som")
+	end
 end)
 
 function Interface.iniciar()

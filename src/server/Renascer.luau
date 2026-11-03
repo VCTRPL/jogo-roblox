@@ -1,6 +1,7 @@
 -- Renascer: quem junta dinheiro suficiente zera o progresso (dinheiro,
 -- Velocidade, esteira e a base) e ganha para sempre mais renda e mais
--- Velocidade na esteira. Os números ficam em Config.RENASCER.
+-- Velocidade na esteira, mais vagas na base e mais tempo de tranca. Os
+-- números ficam em Config.RENASCER.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -48,7 +49,11 @@ local function renascer(player: Player)
 		personagem:PivotTo(base.spawn)
 	end
 	local renda = Config.multiplicadorRenda(vezes + 1)
-	Avisos.enviar(player, `Você renasceu! Agora ganha {renda}x de dinheiro!`, DOURADO)
+	Avisos.enviar(
+		player,
+		`Você renasceu! Agora ganha {renda}x de dinheiro, tem {Config.vagas(vezes + 1)} vagas e {Config.tempoTranca(vezes + 1)}s de tranca!`,
+		DOURADO
+	)
 	Avisos.todos(`{player.DisplayName} renasceu pela {vezes + 1}ª vez!`, DOURADO)
 	Avisos.som(nil, "Renasceu", base.info.centro)
 	Avisos.efeito("Renasceu", { posicao = base.spawn.Position })

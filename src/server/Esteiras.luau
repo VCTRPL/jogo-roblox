@@ -5,7 +5,11 @@
 -- cima dela correndo sozinho (veja Bases.luau). O cliente anima as faixas da pista (tag "FaixaEsteira") e o
 -- que gira ou flutua (tag "GirarEsteira"), veja src/client/init.client.luau.
 local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Mapa = require(script.Parent.Mapa)
 
 local Esteiras = {}
@@ -26,7 +30,6 @@ type Estilo = {
 	faixa: Color3,
 	neon: Color3?, -- cor das luzes (nil = sem brilho)
 	grosso: boolean?, -- luzes largas, tipo armadura
-	tela: (gui: SurfaceGui, cor: Color3) -> (),
 	extra: ((modelo: Model, cf: CFrame, cor: Color3) -> ())?,
 }
 
@@ -177,37 +180,60 @@ end
 
 -- Telas do painel ------------------------------------------------------------
 
-local function icone(texto: string)
-	return function(gui: SurfaceGui, cor: Color3)
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.TextScaled = true
-		label.Font = Enum.Font.FredokaOne
-		label.TextColor3 = cor
-		label.Text = texto
-		label.Parent = gui
-	end
-end
-
-local function graficoBarras(gui: SurfaceGui, cor: Color3)
-	for i, altura in { 0.35, 0.6, 0.45, 0.8, 0.65 } do
-		local barra = Instance.new("Frame")
-		barra.AnchorPoint = Vector2.new(0, 1)
-		barra.Position = UDim2.fromScale(0.12 + (i - 1) * 0.16, 0.88)
-		barra.Size = UDim2.fromScale(0.11, altura * 0.75)
-		barra.BackgroundColor3 = cor
-		barra.BorderSizePixel = 0
-		barra.Parent = gui
-	end
-end
-
-local function telaApagada(gui: SurfaceGui, _cor: Color3)
+-- Visor do painel: fundo escuro com linhas de varredura, o nível no canto,
+-- o ganho de Velocidade bem grande na cor do nível e barrinhas de medidor.
+local function painelDigital(gui: SurfaceGui, cor: Color3, nivel: number)
 	local fundo = Instance.new("Frame")
 	fundo.Size = UDim2.fromScale(1, 1)
-	fundo.BackgroundColor3 = Color3.fromRGB(70, 80, 85)
+	fundo.BackgroundColor3 = Color3.new(1, 1, 1)
 	fundo.BorderSizePixel = 0
 	fundo.Parent = gui
+	local gradiente = Instance.new("UIGradient")
+	gradiente.Color = ColorSequence.new(cor:Lerp(Color3.new(0, 0, 0), 0.82), Color3.fromRGB(6, 6, 10))
+	gradiente.Rotation = 90
+	gradiente.Parent = fundo
+	for y = 0.08, 0.95, 0.12 do
+		local linha = Instance.new("Frame")
+		linha.Position = UDim2.fromScale(0, y)
+		linha.Size = UDim2.new(1, 0, 0, 2)
+		linha.BackgroundColor3 = cor
+		linha.BackgroundTransparency = 0.88
+		linha.BorderSizePixel = 0
+		linha.Parent = fundo
+	end
+	local function texto(conteudo: string, x: number, y: number, w: number, h: number, corTexto: Color3, alinhamento: Enum.TextXAlignment?)
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(x, y)
+		label.Size = UDim2.fromScale(w, h)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = corTexto
+		label.TextXAlignment = alinhamento or Enum.TextXAlignment.Center
+		label.Text = conteudo
+		label.Parent = fundo
+		local contorno = Instance.new("UIStroke")
+		contorno.Color = Color3.fromRGB(10, 10, 16)
+		contorno.Thickness = 3
+		contorno.Parent = label
+		return label
+	end
+	local ganho = Config.NIVEIS_ESTEIRA[nivel] and Config.NIVEIS_ESTEIRA[nivel].ganho or 1
+	texto(`NV {nivel}`, 0.05, 0.06, 0.3, 0.2, cor:Lerp(Color3.new(1, 1, 1), 0.4), Enum.TextXAlignment.Left)
+	texto(`+{ganho}`, 0.22, 0.18, 0.56, 0.48, cor:Lerp(Color3.new(1, 1, 1), 0.25))
+	texto("VELOCIDADE", 0.25, 0.64, 0.5, 0.14, Color3.fromRGB(235, 235, 245))
+	-- barrinhas de medidor dos dois lados
+	for _, lado in { 0.07, 0.8 } do
+		for i = 0, 4 do
+			local barra = Instance.new("Frame")
+			barra.AnchorPoint = Vector2.new(0, 1)
+			barra.Position = UDim2.fromScale(lado + i * 0.026, 0.9)
+			barra.Size = UDim2.fromScale(0.018, 0.12 + ((i * 37 + nivel * 11) % 5) * 0.08)
+			barra.BackgroundColor3 = cor
+			barra.BorderSizePixel = 0
+			barra.Parent = fundo
+		end
+	end
 end
 
 -- Estilos de cada nível ------------------------------------------------------
@@ -221,7 +247,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(45, 45, 50),
 		neon = nil,
-		tela = telaApagada,
 	},
 	-- 2: Intermediária, preta com neon azul
 	{
@@ -231,7 +256,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(35, 40, 50),
 		neon = Color3.fromRGB(0, 170, 255),
-		tela = graficoBarras,
 		extra = function(modelo, cf, cor)
 			halo(modelo, cf, cor, 0.7)
 			brilhosSubindo(modelo, cf, cor, 5)
@@ -246,7 +270,6 @@ local ESTILOS: { Estilo } = {
 		materialPista = Enum.Material.Fabric,
 		faixa = Color3.fromRGB(45, 35, 60),
 		neon = Color3.fromRGB(115, 60, 255),
-		tela = icone("🏃"),
 		extra = function(modelo, cf, cor)
 			halo(modelo, cf, cor, 0.55)
 			fumaca(modelo, cf, cor, 8)
@@ -263,7 +286,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(50, 45, 30),
 		neon = Color3.fromRGB(255, 165, 20),
 		grosso = true,
-		tela = icone("👑"),
 		extra = function(modelo, cf, cor)
 			-- placas douradas nas laterais e nas colunas, tipo armadura
 			for _, x in { -1, 1 } do
@@ -303,7 +325,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(110, 20, 25),
 		neon = Color3.fromRGB(255, 35, 45),
 		grosso = true,
-		tela = icone("🔥"),
 		extra = function(modelo, cf, cor)
 			-- espinhos nas colunas, no painel e nos cantos
 			local function espinho(lugar: CFrame, tamanho: number)
@@ -370,7 +391,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(40, 70, 130),
 		neon = Color3.fromRGB(80, 220, 255),
 		grosso = true,
-		tela = icone("🌌"),
 		extra = function(modelo, cf, cor)
 			local roxo = Color3.fromRGB(190, 90, 255)
 			anel(modelo, cf, cor, 5.4, 8.4, 2.5, 0.8, 40)
@@ -418,7 +438,6 @@ local ESTILOS: { Estilo } = {
 		faixa = Color3.fromRGB(255, 220, 120),
 		neon = Color3.fromRGB(255, 225, 120),
 		grosso = true,
-		tela = icone("👼"),
 		extra = function(modelo, cf, cor)
 			-- asas de penas dos dois lados
 			for _, x in { -1, 1 } do
@@ -533,6 +552,116 @@ local function efeitosPista(modelo: Model, chao: CFrame, nivel: number, cor: Col
 		})
 	end
 
+	-- tapete embaixo da esteira, com a borda na cor do nível
+	local tapete = enfeite(modelo, chao * CFrame.new(0, 0.06, 0.2), Vector3.new(9, 0.12, 16.4), Color3.fromRGB(35, 35, 42), Enum.Material.SmoothPlastic, { Name = "Tapete" })
+	for _, x in { -1, 1 } do
+		enfeite(modelo, tapete.CFrame * CFrame.new(x * 4.35, 0.04, 0), Vector3.new(0.3, 0.14, 16.4), cor, if nivel >= 2 then Enum.Material.Neon else Enum.Material.SmoothPlastic, { CastShadow = false })
+	end
+	for _, z in { -1, 1 } do
+		enfeite(modelo, tapete.CFrame * CFrame.new(0, 0.04, z * 8.05), Vector3.new(9, 0.14, 0.3), cor, if nivel >= 2 then Enum.Material.Neon else Enum.Material.SmoothPlastic, { CastShadow = false })
+	end
+
+	-- correntes de energia correndo para trás pelas laterais (Beam animado)
+	if nivel >= 2 then
+		for _, x in { -1, 1 } do
+			local suporte = area(modelo, chao * CFrame.new(x * 3.75, 1.35, 0.4), Vector3.new(0.2, 0.2, 0.2))
+			local inicio = Instance.new("Attachment")
+			inicio.Position = Vector3.new(0, 0, -6)
+			inicio.Parent = suporte
+			local fim = Instance.new("Attachment")
+			fim.Position = Vector3.new(0, 0, 6.2)
+			fim.Parent = suporte
+			local corrente = Instance.new("Beam")
+			corrente.Name = "Corrente"
+			corrente.Attachment0 = inicio
+			corrente.Attachment1 = fim
+			corrente.Texture = FAISCA
+			corrente.TextureMode = Enum.TextureMode.Wrap
+			corrente.TextureLength = 2.5
+			corrente.TextureSpeed = -(1 + forca * 1.5)
+			corrente.Color = ColorSequence.new(Color3.new(1, 1, 1), cor)
+			corrente.LightEmission = 1
+			corrente.LightInfluence = 0
+			corrente.Width0 = 0.5 + forca * 0.5
+			corrente.Width1 = 0.5 + forca * 0.5
+			corrente.FaceCamera = true
+			corrente.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.15, 0.25),
+				NumberSequenceKeypoint.new(0.85, 0.25),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			corrente.Parent = suporte
+		end
+	end
+
+	-- ondas de energia saindo do chão em volta da esteira (o cliente faz cada
+	-- uma nascer pequena, crescer e sumir, sem parar)
+	if nivel >= 2 then
+		for i = 0, 1 do
+			local onda = enfeite(modelo, chao * CFrame.new(0, 0.2, 0.3) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.12, 10, 10), cor, Enum.Material.Neon, { Name = "Onda", Shape = Enum.PartType.Cylinder, Transparency = 0.5 })
+			onda:SetAttribute("ManterForma", true)
+			onda:SetAttribute("Fase", i * 0.5)
+			onda:SetAttribute("Tamanho", 8 + forca * 6)
+			CollectionService:AddTag(onda, "OndaEsteira")
+		end
+	end
+
+	-- arcos de energia passando por cima da pista, da frente até atrás
+	if nivel >= 3 then
+		for _, x in { -1, 1 } do
+			local suporte = area(modelo, chao * CFrame.new(x * 2.95, 7.6, -5.4), Vector3.new(0.2, 0.2, 0.2))
+			local a0 = Instance.new("Attachment")
+			a0.Parent = suporte
+			local a1 = Instance.new("Attachment")
+			a1.Position = suporte.CFrame:PointToObjectSpace((chao * CFrame.new(x * 3.2, 1.4, 6.6)).Position)
+			a1.Parent = suporte
+			local arco = Instance.new("Beam")
+			arco.Name = "Arco"
+			arco.Attachment0 = a0
+			arco.Attachment1 = a1
+			arco.Texture = FAISCA
+			arco.TextureMode = Enum.TextureMode.Wrap
+			arco.TextureLength = 3
+			arco.TextureSpeed = 1.5 + forca
+			arco.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
+			arco.LightEmission = 1
+			arco.LightInfluence = 0
+			arco.Width0 = 1.6
+			arco.Width1 = 0.8
+			arco.CurveSize0 = 6
+			arco.CurveSize1 = 3
+			arco.Segments = 24
+			arco.FaceCamera = true
+			arco.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0),
+				NumberSequenceKeypoint.new(0.8, 0.2),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			arco.Parent = suporte
+		end
+	end
+
+	-- escapamento: chamas na cor do nível saindo dos pés de trás
+	if nivel >= 4 then
+		for _, x in { -1, 1 } do
+			local cano = area(modelo, chao * CFrame.new(x * 3.15, 1, 7.4), Vector3.new(0.6, 0.6, 0.2))
+			particulas(cano, {
+				Name = "Escapamento",
+				Texture = FOGO,
+				Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+				Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) }),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0.1) }),
+				EmissionDirection = Enum.NormalId.Back,
+				Lifetime = NumberRange.new(0.25, 0.45),
+				Rate = 18 + forca * 10,
+				Speed = NumberRange.new(5, 8),
+				SpreadAngle = Vector2.new(10, 10),
+				LightEmission = 1,
+			})
+		end
+	end
+
 	-- pilares de brilho subindo dos dois lados
 	if nivel >= 2 then
 		for _, x in { -1, 1 } do
@@ -645,7 +774,7 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	gui.LightInfluence = 0
 	gui.Brightness = 2
 	gui.Parent = tela
-	estilo.tela(gui, cor)
+	painelDigital(gui, cor, nivel)
 	for i = -1, 1 do
 		enfeite(
 			modelo,
@@ -710,10 +839,22 @@ function Esteiras.celebrar(modelo: Model, nivel: number)
 		RotSpeed = NumberRange.new(-180, 180),
 		LightEmission = 1,
 	})
-	explosao:Emit(120)
-	task.delay(3, function()
-		anexo:Destroy()
+	-- impacto em fases: clarão rápido, onda de choque no chão e as faíscas
+	local clarao = Instance.new("PointLight")
+	clarao.Color = cor
+	clarao.Range = 24
+	clarao.Brightness = 0
+	clarao.Parent = anexo
+	TweenService:Create(clarao, TweenInfo.new(0.12), { Brightness = 8 }):Play()
+	task.delay(0.12, function()
+		TweenService:Create(clarao, TweenInfo.new(0.6), { Brightness = 0 }):Play()
 	end)
+	local onda = enfeite(modelo, CFrame.new(pista.Position - Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 4, 4), cor, Enum.Material.Neon, { Name = "OndaCelebrar", Shape = Enum.PartType.Cylinder })
+	onda:SetAttribute("ManterForma", true)
+	TweenService:Create(onda, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.15, 30, 30), Transparency = 1 }):Play()
+	explosao:Emit(120)
+	Debris:AddItem(onda, 0.8)
+	Debris:AddItem(anexo, 3)
 end
 
 return Esteiras

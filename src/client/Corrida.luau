@@ -372,6 +372,18 @@ function Corrida.iniciar()
 		base[parte :: BasePart] = nil
 	end)
 	RunService.RenderStepped:Connect(animarLinhas)
+	-- ondas das esteiras: nascem pequenas, crescem e somem, de novo e de novo
+	RunService.RenderStepped:Connect(function()
+		local agora = os.clock()
+		for _, onda in CollectionService:GetTagged("OndaEsteira") do
+			if onda:IsA("BasePart") then
+				local t = (agora * 0.6 + (onda:GetAttribute("Fase") or 0)) % 1
+				local tamanho = (onda:GetAttribute("Tamanho") or 10) * (0.35 + t)
+				onda.Size = Vector3.new(0.12, tamanho, tamanho)
+				onda.Transparency = 0.25 + t * 0.75
+			end
+		end
+	end)
 	RunService.RenderStepped:Connect(function()
 		local agora = os.clock()
 		for _, parte in CollectionService:GetTagged("PulsarEsteira") do

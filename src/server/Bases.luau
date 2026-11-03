@@ -11,6 +11,7 @@ local Dados = require(script.Parent.Dados)
 local Esteiras = require(script.Parent.Esteiras)
 local Mapa = require(script.Parent.Mapa)
 local Modelos = require(script.Parent.Modelos)
+local Paineis = require(script.Parent.Paineis)
 local Passes = require(script.Parent.Passes)
 local Velocidade = require(script.Parent.Velocidade)
 
@@ -25,18 +26,22 @@ type ItemNaBase = {
 export type Base = {
 	info: Mapa.InfoBase,
 	dono: Player?,
-	vagas: { CFrame },
+	vagas: { CFrame }, -- todas as vagas que a base pode ter (com o máximo de renascimentos)
 	itens: { [number]: ItemNaBase },
 	trancadaAte: number,
+	duracaoTranca: number, -- quantos segundos durou a última tranca (para a barra)
 	spawn: CFrame,
-	escudo: Part,
+	escudo: Part, -- a parede da frente da tranca
+	paredes: { Part }, -- as quatro paredes da tranca
 	esteira: BasePart, -- a "Pista" do modelo atual
 	modeloEsteira: Model,
 	cframeEsteira: CFrame,
 	nivelEsteira: number, -- nível do modelo que está montado
-	textoBotao: TextLabel,
+	botaoTranca: BasePart, -- o botão redondo que se aperta (ou pisa) para trancar
+	painelTranca: Paineis.Painel,
 	textoPlaca: TextLabel,
-	textoEsteira: TextLabel,
+	painelEsteira: Paineis.Painel,
+	conexoes: { RBXScriptConnection }, -- ligadas ao dono atual
 }
 
 local bases: { Base } = {}
@@ -50,6 +55,17 @@ local inicioCorrida: { [Player]: number } = {}
 
 local VERMELHO = Color3.fromRGB(255, 90, 90)
 local VERDE = Color3.fromRGB(90, 255, 120)
+
+-- Cores do botão de trancar: vermelho esperando, azul (a cor das paredes)
+-- trancada, e piscando nos últimos segundos.
+local COR_BOTAO_LIVRE = Color3.fromRGB(255, 60, 60)
+local COR_BOTAO_TRANCADA = Color3.fromRGB(80, 170, 255)
+local ULTIMOS_SEGUNDOS = 5
+
+-- Brainrots passeando pela base: velocidade (studs/s) e distância da cerca.
+local VELOCIDADE_PASSEIO = 5
+local MARGEM_PASSEIO = 7
+local aleatorio = Random.new()
 
 -- Chamado quando alguém tenta roubar algo de uma base (o módulo Carregar preenche isso).
 Bases.aoTentarRoubar = nil :: ((ladrao: Player, base: Base, vaga: number) -> ())?
@@ -80,9 +96,30 @@ function Bases.renda(base: Base): number
 	return math.floor(total * multiplicador(base.dono))
 end
 
+-- Quanto valem, juntos, os Brainrots da base (o preço de venda de cada um).
+function Bases.valor(base: Base): number
+	local total = 0
+	for _, dados in base.itens do
+		if dados.item.tipo == "brainrot" then
+			total += Config.precoVenda(dados.item)
+		end
+	end
+	return math.floor(total * multiplicador(base.dono))
+end
+
+-- Quantas vagas o dono pode usar: VAGAS_POR_BASE e mais algumas por renascimento.
+function Bases.capacidade(base: Base): number
+	return Config.vagas(if base.dono then Dados.valor(base.dono, "Renascimentos") else 0)
+end
+
 local function atualizarPlaca(base: Base)
 	if base.dono then
-		base.textoPlaca.Text = `Base de {base.dono.DisplayName}\n${Config.formatar(Bases.renda(base))}/s`
+		local ocupadas = 0
+		for _ in base.itens do
+			ocupadas += 1
+		end
+		base.textoPlaca.Text =
+			`Base de {base.dono.DisplayName}\n${Config.formatar(Bases.renda(base))}/s\n🥚 {ocupadas}/{Bases.capacidade(base)} vagas`
 	else
 		base.textoPlaca.Text = "Base livre"
 	end
@@ -105,17 +142,64 @@ end
 local function atualizarEsteira(base: Base)
 	local nivel = if base.dono then base.dono:GetAttribute("NivelEsteira") or 1 else 1
 	montarEsteira(base, nivel)
-	if not base.dono then
-		base.textoEsteira.Text = "Esteira"
-		return
-	end
+	local painel = base.painelEsteira
 	local atual = Config.NIVEIS_ESTEIRA[nivel]
 	local proximo = Config.NIVEIS_ESTEIRA[nivel + 1]
-	local texto = `{atual.nome}\n+{atual.ganho} Velocidade`
-	if proximo then
-		texto ..= `\nMelhorar: ${Config.formatar(proximo.preco)}`
+	painel.icone.Text = "⚡"
+	painel.titulo.Text = atual.nome
+	painel.enchimento.Size = UDim2.fromScale(nivel / #Config.NIVEIS_ESTEIRA, 1)
+	painel.enchimento.BackgroundColor3 = atual.cor
+	Paineis.cores(painel, atual.cor:Lerp(Color3.fromRGB(70, 62, 120), 0.55), Color3.fromRGB(36, 30, 66))
+	if not base.dono then
+		painel.linha.Text = "Esteira de corrida"
+		painel.linha.TextColor3 = Color3.new(1, 1, 1)
+	elseif proximo then
+		local temDinheiro = Dados.valor(base.dono, "Dinheiro") >= proximo.preco
+		painel.linha.Text = `+{atual.ganho}⚡ → +{proximo.ganho}⚡  ·  ${Config.formatar(proximo.preco)}`
+		painel.linha.TextColor3 = if temDinheiro then VERDE else VERMELHO
+	else
+		painel.linha.Text = `+{atual.ganho}⚡ · NÍVEL MÁXIMO!`
+		painel.linha.TextColor3 = Color3.fromRGB(255, 215, 80)
 	end
-	base.textoEsteira.Text = texto
+end
+
+-- Painel e botão de trancar, a cada 0,25 s.
+local function atualizarTranca(base: Base, agora: number)
+	local painel = base.painelTranca
+	local falta = base.trancadaAte - agora
+	if not base.dono then
+		painel.icone.Text = "🔓"
+		painel.titulo.Text = "BASE LIVRE"
+		painel.linha.Text = ""
+		painel.enchimento.Size = UDim2.fromScale(0, 1)
+		Paineis.cores(painel, Color3.fromRGB(150, 150, 160), Color3.fromRGB(80, 80, 95))
+		base.botaoTranca.Color = COR_BOTAO_LIVRE
+		return
+	end
+	if falta > 0 then
+		local fim = falta <= ULTIMOS_SEGUNDOS
+		local pisca = fim and math.floor(agora * 4) % 2 == 0
+		painel.icone.Text = "🔒"
+		painel.titulo.Text = `TRANCADA: {math.ceil(falta)}s`
+		painel.linha.Text = if fim then "Vai abrir!" else "Ninguém entra na base"
+		painel.enchimento.Size = UDim2.fromScale(math.clamp(falta / math.max(base.duracaoTranca, 1), 0, 1), 1)
+		painel.enchimento.BackgroundColor3 = if fim then COR_BOTAO_LIVRE else COR_BOTAO_TRANCADA
+		if fim then
+			Paineis.cores(painel, Color3.fromRGB(255, 110, 90), Color3.fromRGB(150, 30, 40))
+		else
+			Paineis.cores(painel, Color3.fromRGB(110, 190, 255), Color3.fromRGB(30, 70, 170))
+		end
+		base.botaoTranca.Color = if pisca then COR_BOTAO_LIVRE else COR_BOTAO_TRANCADA
+	else
+		local tempo = Config.tempoTranca(Dados.valor(base.dono, "Renascimentos"), Passes.tem(base.dono, "TrancaLonga"))
+		painel.icone.Text = "🔓"
+		painel.titulo.Text = "TRANCAR BASE"
+		painel.linha.Text = `Pise no botão · {tempo}s`
+		painel.enchimento.Size = UDim2.fromScale(1, 1)
+		painel.enchimento.BackgroundColor3 = Color3.fromRGB(120, 240, 130)
+		Paineis.cores(painel, Color3.fromRGB(255, 120, 110), Color3.fromRGB(170, 30, 45))
+		base.botaoTranca.Color = COR_BOTAO_LIVRE
+	end
 end
 
 function Bases.estaTrancada(base: Base): boolean
@@ -129,8 +213,9 @@ local function trancar(player: Player, base: Base)
 	elseif Bases.estaTrancada(base) then
 		Avisos.enviar(player, "Sua base já está trancada.")
 	else
-		local tempo = Config.TEMPO_TRANCA * (if Passes.tem(player, "TrancaLonga") then 2 else 1)
+		local tempo = Config.tempoTranca(Dados.valor(player, "Renascimentos"), Passes.tem(player, "TrancaLonga"))
 		base.trancadaAte = os.clock() + tempo
+		base.duracaoTranca = tempo
 		Avisos.enviar(player, `Base trancada por {tempo} segundos!`, Color3.fromRGB(90, 200, 255))
 		Avisos.som(nil, "Trancou", base.escudo.Position)
 	end
@@ -182,6 +267,8 @@ local function chocar(base: Base, vaga: number)
 	local bonus = Config.BONUS_VELOCIDADE[brainrot.raridade] or 0
 	Dados.adicionar(dono, "Dinheiro", ganho)
 	Velocidade.adicionar(dono, bonus)
+	Dados.somarEstatistica(dono, "Ovos", 1)
+	Dados.somarEstatistica(dono, "Brainrots", 1)
 	local nome = if nascido.mutacao == "Normal" then brainrot.nome else `{brainrot.nome} {nascido.mutacao}`
 	Avisos.enviar(
 		dono,
@@ -210,40 +297,85 @@ local function criarBase(info: Mapa.InfoBase): Base
 	-- de frente para a estrada (z = 0)
 	local olhar = Vector3.new(0, 0, -lado)
 
+	-- As duas primeiras fileiras ficam no fundo da base; as vagas ganhas
+	-- renascendo vão enchendo fileiras na frente, entre o spawn e a estrada.
 	local vagas = {}
 	local colunas = math.ceil(Config.VAGAS_POR_BASE / 2)
-	for i = 0, Config.VAGAS_POR_BASE - 1 do
+	for i = 0, Config.VAGAS_POR_BASE + Config.RENASCER.vagasMaximo - 1 do
 		local coluna = i % colunas
 		local linha = i // colunas
 		local x = (coluna - (colunas - 1) / 2) * 12
-		local pos = topo + Vector3.new(x, 0, lado * (4 + linha * 15))
+		local z = if linha < 2 then 4 + linha * 15 else -14 - (linha - 2) * 12
+		local pos = topo + Vector3.new(x, 0, lado * z)
 		table.insert(vagas, CFrame.lookAt(pos, pos + olhar))
 	end
 
-	local escudo = Instance.new("Part")
-	escudo.Name = "Escudo"
-	escudo.Anchored = true
-	escudo.CanCollide = false
-	escudo.CanQuery = false
-	escudo.Size = Vector3.new(tamanho, 14, 1)
-	escudo.Position = topo + Vector3.new(0, 7, -lado * tamanho / 2)
-	escudo.Color = Color3.fromRGB(80, 170, 255)
-	escudo.Material = Enum.Material.ForceField
-	escudo.Transparency = 1
-	escudo.Parent = info.pasta
+	-- Tranca: quatro paredes de campo de força em volta da base, altas demais
+	-- para pular. Trancada, elas seguram quem está fora (e quem já estava
+	-- dentro, que só sai resetando). O dono passa: o cliente dele desliga a
+	-- colisão das paredes da própria base (atributo "DonoId").
+	local ALTURA_TRANCA = 30
+	local paredes = {}
+	for _, lado2 in { Vector3.new(0, 0, -1), Vector3.new(0, 0, 1), Vector3.new(-1, 0, 0), Vector3.new(1, 0, 0) } do
+		local parede = Instance.new("Part")
+		parede.Name = "Escudo"
+		parede.Anchored = true
+		parede.CanCollide = false
+		parede.CanQuery = false
+		parede.CanTouch = false
+		parede.Size = if lado2.Z ~= 0 then Vector3.new(tamanho + 1, ALTURA_TRANCA, 1) else Vector3.new(1, ALTURA_TRANCA, tamanho + 1)
+		parede.Position = topo + Vector3.new(lado2.X * tamanho / 2, ALTURA_TRANCA / 2, lado2.Z * lado * tamanho / 2)
+		parede.Color = Color3.fromRGB(80, 170, 255)
+		parede.Material = Enum.Material.ForceField
+		parede.Transparency = 1
+		parede.Parent = info.pasta
+		CollectionService:AddTag(parede, "TrancaBase")
+		table.insert(paredes, parede)
+	end
+	local escudo = paredes[1] -- a da frente (lado da estrada)
 
-	local botao = Instance.new("Part")
-	botao.Name = "BotaoTrancar"
-	botao.Anchored = true
-	botao.Size = Vector3.new(4, 1, 4)
-	botao.Position = topo + Vector3.new(tamanho / 2 - 4, 0, -lado * (tamanho / 2 - 4))
-	botao.Color = Color3.fromRGB(255, 80, 80)
-	botao.Material = Enum.Material.Neon
-	botao.Parent = info.pasta
+	-- Botão de trancar: um botão grande de neon em cima de um pedestal baixo,
+	-- com um aro de luz em volta, no canto da base. Pisar nele (o dono) ou
+	-- apertar o botão da tela tranca.
+	local posBotao = topo + Vector3.new(tamanho / 2 - 6, 0, -lado * (tamanho / 2 - 6))
+	Mapa.parte({
+		Name = "PedestalTrancar",
+		Size = Vector3.new(8, 1, 8),
+		CFrame = CFrame.new(posBotao + Vector3.new(0, 0.5, 0)),
+		Color = Color3.fromRGB(60, 60, 72),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = info.pasta,
+	})
+	Mapa.parte({
+		Name = "AroTrancar",
+		Size = Vector3.new(8.8, 0.4, 8.8),
+		CFrame = CFrame.new(posBotao + Vector3.new(0, 0.25, 0)),
+		Color = Color3.fromRGB(255, 215, 80),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = info.pasta,
+	})
+	local botao = Mapa.parte({
+		Name = "BotaoTrancar",
+		Size = Vector3.new(6, 0.8, 6),
+		CFrame = CFrame.new(posBotao + Vector3.new(0, 1.4, 0)),
+		Color = COR_BOTAO_LIVRE,
+		Material = Enum.Material.Neon,
+		Parent = info.pasta,
+	})
+	local luzBotao = Instance.new("PointLight")
+	luzBotao.Range = 12
+	luzBotao.Brightness = 1.5
+	luzBotao.Color = COR_BOTAO_LIVRE
+	luzBotao.Parent = botao
+	botao:GetPropertyChangedSignal("Color"):Connect(function()
+		luzBotao.Color = botao.Color
+	end)
 	local promptTrancar = Instance.new("ProximityPrompt")
 	promptTrancar.ActionText = "Trancar base"
 	promptTrancar.ObjectText = "Tranca"
 	promptTrancar.RequiresLineOfSight = false
+	promptTrancar.MaxActivationDistance = 12
 	promptTrancar.Parent = botao
 
 	-- Esteira de corrida: do lado de fora da base, à direita da entrada (de
@@ -276,6 +408,7 @@ local function criarBase(info: Mapa.InfoBase): Base
 	marcoEsteira.CFrame = cframeEsteira
 	marcoEsteira.Parent = info.pasta
 	local promptEsteira = Instance.new("ProximityPrompt")
+	promptEsteira.Name = "Melhorar"
 	promptEsteira.ActionText = "Melhorar esteira"
 	promptEsteira.ObjectText = "Esteira"
 	promptEsteira.RequiresLineOfSight = false
@@ -288,18 +421,29 @@ local function criarBase(info: Mapa.InfoBase): Base
 		vagas = vagas,
 		itens = {},
 		trancadaAte = 0,
+		duracaoTranca = 1,
 		spawn = CFrame.lookAt(topo + Vector3.new(0, 3, -lado * 4), topo + Vector3.new(0, 3, -lado * 20)),
 		escudo = escudo,
+		paredes = paredes,
 		esteira = modeloEsteira:FindFirstChild("Pista") :: BasePart,
 		modeloEsteira = modeloEsteira,
 		cframeEsteira = cframeEsteira,
 		nivelEsteira = 1,
-		textoBotao = Mapa.placa(botao, "Trancar", 3, 160),
+		botaoTranca = botao,
+		painelTranca = Paineis.criar(botao, { altura = 5.5, largura = 9, alto = 3 }),
 		textoPlaca = Mapa.placa(info.piso, "Base livre", 14),
-		textoEsteira = Mapa.placa(marcoEsteira, "Esteira", 12, 220),
+		painelEsteira = Paineis.criar(marcoEsteira, { altura = 12, largura = 11, alto = 3.4 }),
+		conexoes = {},
 	}
 	promptTrancar.Triggered:Connect(function(player)
 		trancar(player, base)
+	end)
+	-- o dono pisou no botão
+	botao.Touched:Connect(function(parte)
+		local player = Players:GetPlayerFromCharacter(parte.Parent)
+		if player and player == base.dono and not Bases.estaTrancada(base) then
+			trancar(player, base)
+		end
 	end)
 	promptEsteira.Triggered:Connect(function(player)
 		melhorarEsteira(player, base)
@@ -425,6 +569,8 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 					local folego = 1 + (Config.FOLEGO_MAXIMO - 1) * math.min(tempo / Config.FOLEGO_TEMPO, 1)
 					local renascimentos = Dados.valor(player, "Renascimentos")
 					local ganho = Config.NIVEIS_ESTEIRA[nivel].ganho * folego * Config.multiplicadorEsteira(renascimentos)
+					-- trilhas compradas na loja
+					ganho *= Config.multiplicadorTrilha(player:GetAttribute("NivelTrilha") or 0)
 					if Passes.tem(player, "Velocidade2x") then
 						ganho *= 2
 					end
@@ -442,8 +588,11 @@ function Bases.iniciar(infos: { Mapa.InfoBase })
 			local agora = os.clock()
 			for _, base in bases do
 				local trancada = Bases.estaTrancada(base)
-				base.escudo.Transparency = if trancada then 0.3 else 1
-				base.textoBotao.Text = if trancada then `Trancada: {math.ceil(base.trancadaAte - agora)}s` else "Trancar"
+				for _, parede in base.paredes do
+					parede.Transparency = if trancada then 0.3 else 1
+					parede.CanCollide = trancada
+				end
+				atualizarTranca(base, agora)
 				local prontos = {}
 				for vaga, dados in base.itens do
 					Modelos.prompt(dados.modelo).Enabled = not trancada
@@ -477,12 +626,21 @@ function Bases.atribuir(player: Player): Base?
 			porJogador[player] = base
 			-- o cliente usa para a seta que leva de volta para a base
 			player:SetAttribute("BaseCentro", base.info.centro)
+			for _, parede in base.paredes do
+				parede:SetAttribute("DonoId", player.UserId)
+			end
 			-- o nível pode chegar depois (dados carregados): troca o modelo
-			player:GetAttributeChangedSignal("NivelEsteira"):Connect(function()
-				if base.dono == player then
+			table.insert(base.conexoes, player:GetAttributeChangedSignal("NivelEsteira"):Connect(function()
+				atualizarEsteira(base)
+			end))
+			-- o preço da melhoria fica verde quando dá para pagar
+			local stats = player:FindFirstChild("leaderstats")
+			local dinheiro = stats and stats:FindFirstChild("Dinheiro")
+			if dinheiro then
+				table.insert(base.conexoes, (dinheiro :: IntValue).Changed:Connect(function()
 					atualizarEsteira(base)
-				end
-			end)
+				end))
+			end
 			atualizarPlaca(base)
 			atualizarEsteira(base)
 			return base
@@ -505,6 +663,13 @@ function Bases.liberar(player: Player)
 	base.dono = nil
 	base.trancadaAte = 0
 	porJogador[player] = nil
+	for _, conexao in base.conexoes do
+		conexao:Disconnect()
+	end
+	table.clear(base.conexoes)
+	for _, parede in base.paredes do
+		parede:SetAttribute("DonoId", nil)
+	end
 	atualizarPlaca(base)
 	atualizarEsteira(base)
 end
@@ -528,7 +693,7 @@ local function vender(player: Player, base: Base, vaga: number, modelo: Model)
 	end
 	local preco = math.floor(Config.precoVenda(dados.item) * multiplicador(player))
 	local def = Config.brainrot(dados.item.id)
-	local posicao = base.vagas[vaga].Position
+	local posicao = modelo:GetPivot().Position -- ele anda pela base
 	Bases.remover(base, vaga)
 	Dados.adicionar(player, "Dinheiro", preco)
 	Avisos.enviar(player, `Vendeu {def.nome} por ${Config.formatar(preco)}!`, VERDE)
@@ -537,7 +702,7 @@ local function vender(player: Player, base: Base, vaga: number, modelo: Model)
 end
 
 function Bases.vagaLivre(base: Base): number?
-	for vaga = 1, #base.vagas do
+	for vaga = 1, Bases.capacidade(base) do
 		if not base.itens[vaga] then
 			return vaga
 		end
@@ -545,10 +710,53 @@ function Bases.vagaLivre(base: Base): number?
 	return nil
 end
 
+-- O Brainrot anda sozinho pela base, sempre dentro da cerca: escolhe um
+-- ponto, vai até lá dando pulinhos, para um pouco e escolhe outro. Só a
+-- PrimaryPart fica ancorada (o resto vai soldado), então mover o modelo
+-- manda uma posição só pela rede. Para quando o modelo some (vendido,
+-- roubado ou chocou).
+local function passear(base: Base, modelo: Model)
+	local primaria = modelo.PrimaryPart :: BasePart
+	for _, parte in modelo:GetDescendants() do
+		if parte:IsA("BasePart") and parte ~= primaria then
+			parte.Anchored = false
+		end
+	end
+	task.spawn(function()
+		local meio = Mapa.TAMANHO_BASE / 2 - MARGEM_PASSEIO
+		local giro = modelo:GetPivot().Rotation
+		while modelo.Parent do
+			task.wait(aleatorio:NextNumber(1.5, 4.5))
+			if not modelo.Parent then
+				break
+			end
+			local de = modelo:GetPivot().Position
+			local alvo = base.info.centro + Vector3.new(aleatorio:NextNumber(-meio, meio), 0, aleatorio:NextNumber(-meio, meio))
+			alvo = Vector3.new(alvo.X, de.Y, alvo.Z)
+			if (alvo - de).Magnitude > 1 then
+				giro = CFrame.lookAt(de, alvo).Rotation
+			end
+			local duracao = math.max((alvo - de).Magnitude / VELOCIDADE_PASSEIO, 0.1)
+			local inicio = os.clock()
+			while modelo.Parent do
+				local passou = os.clock() - inicio
+				local t = math.min(passou / duracao, 1)
+				local pulo = if t < 1 then math.abs(math.sin(passou * 9)) * 0.35 else 0
+				modelo:PivotTo(CFrame.new(de:Lerp(alvo, t) + Vector3.new(0, pulo, 0)) * giro)
+				if t >= 1 then
+					break
+				end
+				task.wait()
+			end
+		end
+	end)
+end
+
 -- Coloca um ovo ou Brainrot numa vaga livre (ou na vaga pedida, se estiver livre).
 -- Retorna false se a base estiver cheia.
 function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): boolean
-	local vaga = if vagaPreferida and not base.itens[vagaPreferida] then vagaPreferida else Bases.vagaLivre(base)
+	local preferidaLivre = vagaPreferida and vagaPreferida <= Bases.capacidade(base) and not base.itens[vagaPreferida]
+	local vaga = if preferidaLivre then vagaPreferida else Bases.vagaLivre(base)
 	local dono = base.dono
 	if not vaga or not dono then
 		return false
@@ -592,6 +800,9 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	local chocaEm = nil
 	if item.tipo == "ovo" then
 		local falta = item.restante or Config.ovo(item.id).chocar
+		if Passes.tem(dono, "ChocarRapido") then
+			falta = math.min(falta, math.ceil(Config.ovo(item.id).chocar / 2))
+		end
 		chocaEm = os.clock() + falta
 		-- o cliente usa para os efeitos do ovo chocando (tremer, rachar, barra)
 		modelo:SetAttribute("ChocaEm", Workspace:GetServerTimeNow() + falta)
@@ -602,6 +813,16 @@ function Bases.colocar(base: Base, item: Modelos.Item, vagaPreferida: number?): 
 	modelo:PivotTo(base.vagas[vaga])
 	modelo.Parent = base.info.pasta
 	base.itens[vaga] = { item = item, modelo = modelo, chocaEm = chocaEm }
+
+	if item.tipo == "brainrot" then
+		passear(base, modelo)
+	end
+
+	-- Brainrot novo na base (chocou, roubou ou comprou): entra no Índice
+	if item.tipo == "brainrot" and Dados.descobrir(dono, item.id) and dono:GetAttribute("BaseCarregada") then
+		local def = Config.brainrot(item.id)
+		Avisos.enviar(dono, `📖 Novo no Índice: {def.nome}!`, Config.CORES_RARIDADE[def.raridade])
+	end
 	atualizarPlaca(base)
 	return true
 end

@@ -8,15 +8,17 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Mapa = {}
 
 Mapa.TAMANHO_BASE = 72
-Mapa.ESPACO_BASES = 112 -- de um centro de base ao próximo (no eixo X)
-Mapa.Z_BASES = 66 -- distância do centro das bases até o meio da estrada
-Mapa.INICIO_ESTRADA = -205
-Mapa.TUNEL_BOCA = -182 -- a estrada sai de um túnel na montanha
+-- Bases bem separadas (de lado e da estrada) para roubar dar trabalho mesmo
+-- com muita Velocidade.
+Mapa.ESPACO_BASES = 190 -- de um centro de base ao próximo (no eixo X)
+Mapa.Z_BASES = 110 -- distância do centro das bases até o meio da estrada
+Mapa.INICIO_ESTRADA = -313
+Mapa.TUNEL_BOCA = -290 -- a estrada sai de um túnel na montanha
 Mapa.TUNEL_LARGURA = 22 -- por dentro
 Mapa.TUNEL_ALTURA = 20
 Mapa.TAMANHO_BIOMA = 100
-Mapa.INICIO_BIOMAS = 200 -- x onde começa o primeiro bioma
-Mapa.ESPACO_BIOMAS = 50 -- estrada entre um bioma e o próximo
+Mapa.INICIO_BIOMAS = 330 -- x onde começa o primeiro bioma
+Mapa.ESPACO_BIOMAS = 70 -- transição entre um bioma e o próximo
 Mapa.FIM_BASES = Mapa.INICIO_BIOMAS - 18 -- daqui para trás é a área das bases (os chefes param aqui)
 Mapa.Z_PAREDE = Mapa.TAMANHO_BIOMA / 2 + 2 -- paredes dos lados dos biomas
 Mapa.FIM_ESTRADA = Mapa.INICIO_BIOMAS + #Config.BIOMAS * (Mapa.TAMANHO_BIOMA + Mapa.ESPACO_BIOMAS)
@@ -80,12 +82,15 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 	local pasta = Instance.new("Folder")
 	pasta.Name = "Mapa"
 
+	-- Estrada de asfalto só até a entrada do primeiro bioma. Entre um bioma e
+	-- o próximo o chão é a transição de um para o outro (Decoracao).
 	local fimEstrada = Mapa.FIM_ESTRADA
 	local inicioEstrada = Mapa.INICIO_ESTRADA
+	local primeiroBioma = Mapa.inicioBioma(1)
 	parte({
 		Name = "Estrada",
-		Size = Vector3.new(fimEstrada - inicioEstrada, 1, 14),
-		Position = Vector3.new((fimEstrada + inicioEstrada) / 2, 0.5, 0),
+		Size = Vector3.new(primeiroBioma - inicioEstrada, 1, 14),
+		Position = Vector3.new((primeiroBioma + inicioEstrada) / 2, 0.5, 0),
 		Color = Color3.fromRGB(60, 60, 70),
 		Material = Enum.Material.Asphalt,
 		Parent = pasta,
@@ -99,14 +104,18 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 		pastaBase.Name = `Base{i}`
 		pastaBase.Parent = pasta
 
+		-- o piso é de grama, igual ao chão do mapa (Decoracao); a cor de cada
+		-- base fica nas lanternas, faixa e bandeiras (Decoracao)
+		local matiz = (i - 1) / 6
 		local piso = parte({
 			Name = "Piso",
 			Size = Vector3.new(Mapa.TAMANHO_BASE, 1, Mapa.TAMANHO_BASE),
 			Position = Vector3.new(x, 0.5, lado * Mapa.Z_BASES),
-			Color = Color3.fromHSV((i - 1) / 6, 0.4, 0.85),
-			Material = Enum.Material.SmoothPlastic,
+			Color = Color3.fromRGB(125, 195, 90),
+			Material = Enum.Material.Grass,
 			Parent = pastaBase,
 		})
+		piso:SetAttribute("CorBase", Color3.fromHSV(matiz, 0.4, 0.85))
 		table.insert(bases, { piso = piso, centro = Vector3.new(x, 1, lado * Mapa.Z_BASES), lado = lado, pasta = pastaBase })
 	end
 	-- caminho de pedra da estrada até a entrada de cada base

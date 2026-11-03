@@ -5,12 +5,18 @@ local Workspace = game:GetService("Workspace")
 local Avisos = require(script.Avisos)
 local Bases = require(script.Bases)
 local Carregar = require(script.Carregar)
+local Compras = require(script.Compras)
 local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
 local Mapa = require(script.Mapa)
+local Mochila = require(script.Mochila)
+local Modelos = require(script.Modelos)
 local Ninhos = require(script.Ninhos)
 local Passes = require(script.Passes)
+local Ranking = require(script.Ranking)
 local Renascer = require(script.Renascer)
+local Taco = require(script.Taco)
+local Trilhas = require(script.Trilhas)
 local Velocidade = require(script.Velocidade)
 
 -- Todo mundo nasce na própria base: tira o SpawnLocation que vem no lugar
@@ -36,12 +42,18 @@ end
 
 local infoBases, infoBiomas = Mapa.construir()
 Decoracao.construir(infoBases, infoBiomas)
+Modelos.publicarIndice()
 Passes.iniciar()
 Velocidade.iniciar()
 Bases.iniciar(infoBases)
 Carregar.iniciar()
+Taco.iniciar() -- antes da mochila, para o taco ser o primeiro da barra
+Mochila.iniciar()
+Trilhas.iniciar()
 Ninhos.iniciar(infoBiomas)
 Renascer.iniciar()
+Ranking.iniciar()
+Compras.iniciar()
 
 local function salvar(player: Player)
 	local base = Bases.doJogador(player)
@@ -61,8 +73,17 @@ local function aoEntrar(player: Player)
 		return
 	end
 	for _, item in itens do
-		Bases.colocar(base, item)
+		-- não coube (vagas a menos que no save): espera no inventário
+		if not Bases.colocar(base, item) then
+			Dados.adicionarPendente(player, item)
+		end
 	end
+	-- daqui para a frente, Brainrot novo avisa "Novo no Índice"
+	player:SetAttribute("BaseCarregada", true)
+	-- ovos que estavam na mochila
+	Mochila.entrar(player)
+	-- ovos comprados com Robux que estavam esperando vaga
+	Compras.entrar(player)
 	Velocidade.atualizar(player)
 
 	local function nascerNaBase(personagem: Model)
@@ -86,6 +107,8 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	Carregar.perder(player)
 	salvar(player)
+	Ranking.sair(player)
+	Compras.sair(player)
 	Dados.esquecer(player)
 	Bases.liberar(player)
 end)
@@ -103,5 +126,6 @@ end)
 game:BindToClose(function()
 	for _, player in Players:GetPlayers() do
 		salvar(player)
+		Ranking.gravar(player)
 	end
 end)
