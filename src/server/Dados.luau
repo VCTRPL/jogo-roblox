@@ -87,6 +87,8 @@ function Dados.carregar(player: Player): { any }
 		if ok then
 			salvo = resultado
 			podeSalvar[player] = true
+			local trilha = if typeof(resultado) == "table" then resultado.nivelTrilha else nil
+			print(`[Dados] Carregou {player.Name}: save {if resultado then "encontrado" else "novo"}, trilha {trilha}`)
 		else
 			warn(`Não consegui carregar os dados de {player.Name}:`, resultado)
 		end
@@ -220,7 +222,9 @@ function Dados.salvar(player: Player, itens: { any }, renda: number): boolean
 			pilha = pilha[player] or 0,
 		}, { player.UserId })
 	end)
-	if not ok then
+	if ok then
+		print(`[Dados] Salvou {player.Name}: dinheiro {dinheiro.Value}, trilha {player:GetAttribute("NivelTrilha")}`)
+	else
 		warn(`Não consegui salvar os dados de {player.Name}:`, erro)
 	end
 	return ok

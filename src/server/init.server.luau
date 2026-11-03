@@ -118,7 +118,14 @@ local function aoEntrar(player: Player)
 			salvarLogo(player)
 		end)
 	end
-	if Dados.temStore() and not Dados.carregado(player) then
+	if not Dados.temStore() then
+		-- DataStore desligado: nada é salvo (no Studio, falta ligar o acesso às APIs)
+		Avisos.enviar(
+			player,
+			"O progresso NÃO está sendo salvo! No Studio: Game Settings > Security > Enable Studio Access to API Services (o jogo precisa estar publicado).",
+			Color3.fromRGB(255, 90, 90)
+		)
+	elseif not Dados.carregado(player) then
 		Avisos.enviar(
 			player,
 			"Não consegui carregar seu progresso salvo. Nada será salvo nesta partida; entre de novo.",
