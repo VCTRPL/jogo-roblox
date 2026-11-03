@@ -131,6 +131,8 @@ local function mostrar(prompt: ProximityPrompt, entrada: Enum.ProximityPromptInp
 		ZIndex = 5,
 		Parent = gui,
 	})
+	-- camada invisível: não cresce nem faz clique (BotoesVivos)
+	botao:SetAttribute("SemVida", true)
 	botao.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			prompt:InputHoldBegin()

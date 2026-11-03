@@ -8,6 +8,7 @@ local Carregar = require(script.Carregar)
 local Compras = require(script.Compras)
 local Dados = require(script.Dados)
 local Decoracao = require(script.Decoracao)
+local Guardioes = require(script.Guardioes)
 local Mapa = require(script.Mapa)
 local Mochila = require(script.Mochila)
 local Modelos = require(script.Modelos)
@@ -42,6 +43,7 @@ end
 
 local infoBases, infoBiomas = Mapa.construir()
 Decoracao.construir(infoBases, infoBiomas)
+Guardioes.monumentos(infoBiomas) -- estátuas dos chefes na frente de cada bioma
 Modelos.publicarIndice()
 Passes.iniciar()
 Velocidade.iniciar()

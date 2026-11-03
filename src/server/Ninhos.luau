@@ -55,6 +55,10 @@ local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
 	local visual = Guardioes.criar(info.config)
 	local casa = CFrame.lookAt(info.centro, info.centro + Vector3.new(-1, 0, 0))
 	visual.modelo:PivotTo(casa)
+	-- o cliente desenha o círculo de runas na casa e o anel do alcance
+	visual.modelo:SetAttribute("Casa", casa.Position)
+	visual.modelo:SetAttribute("Alcance", visual.raio + 2.5)
+	visual.modelo:SetAttribute("Cor", info.config.cor)
 	visual.modelo.Parent = info.pasta
 
 	return {
@@ -313,6 +317,8 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 				guardiao.posicao.Z
 			)).Magnitude
 			if distancia <= guardiao.alcance then
+				-- o cliente faz o golpe (braços descendo, onda de choque no chão)
+				guardiao.modelo:SetAttribute("Ataque", (guardiao.modelo:GetAttribute("Ataque") or 0) + 1)
 				Carregar.derrubar(alvo, `{info.config.guardiao} te pegou! Você perdeu o ovo.`)
 				trocarAlvo(guardiao, nil)
 			end
@@ -340,11 +346,9 @@ local function moverGuardiao(bioma: Bioma, dt: number)
 		guardiao.posicao += delta.Unit * passo
 	end
 	local olhar = if delta.Magnitude > 0.1 then guardiao.posicao + delta.Unit else guardiao.posicao + Vector3.xAxis
-	-- passos pesados: pulinhos que ficam mais rápidos quanto mais rápido ele é
-	local pulo = if chegou then 0 else math.abs(math.sin(os.clock() * guardiao.velocidade / 6)) * 1.2
-	guardiao.modelo:PivotTo(
-		CFrame.lookAt(guardiao.posicao, Vector3.new(olhar.X, guardiao.posicao.Y, olhar.Z)) + Vector3.new(0, pulo, 0)
-	)
+	-- os passos (pernas, braços, corpo balançando) são animados no cliente,
+	-- em ChefesAnimacao: aqui só anda e vira para onde vai
+	guardiao.modelo:PivotTo(CFrame.lookAt(guardiao.posicao, Vector3.new(olhar.X, guardiao.posicao.Y, olhar.Z)))
 end
 
 -- Marca em que bioma cada um está (o cliente troca a música). Todo mundo

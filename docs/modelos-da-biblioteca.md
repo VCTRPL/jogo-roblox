@@ -5,8 +5,6 @@ Todos foram limpos antes: sem Scripts, LocalScripts, ModuleScripts, Sounds nem v
 
 | Nome | ID do asset | Criador | Onde foi colocado |
 | --- | --- | --- | --- |
-| Tung Tung Tung Sahur | 138151705692565 | ATMnou | ReplicatedStorage.ModelosChefao |
-| Cappuccino Assassino | 130589530520250 | kalidrios | ReplicatedStorage.ModelosChefao (era um acessório; virou um Model com uma MeshPart) |
 | Low Poly Tree (Arvore1) | 12549617200 | Remadex Development | ReplicatedStorage.ModelosArvore.Floresta |
 | Low Poly Tree (Arvore2) | 4893246329 | Abishpc | ReplicatedStorage.ModelosArvore.Floresta |
 | Low Poly Tree (Arvore3) | 10707210767 | z4cked | ReplicatedStorage.ModelosArvore.Floresta |
@@ -15,3 +13,5 @@ Todos foram limpos antes: sem Scripts, LocalScripts, ModuleScripts, Sounds nem v
 | Low poly Mountain (PicoNevado) | 4941433371 | madisynettv | ReplicatedStorage.ModelosMontanha.Picos |
 | Low Poly Mountain (PenhascoDegraus) | 15173362991 | ItzRoVoider | ReplicatedStorage.ModelosMontanha.Penhascos |
 | Low poly Mountain (PenhascoGrama) | 8761162042 | zZenderC | ReplicatedStorage.ModelosMontanha.Penhascos |
+
+Os chefes (Tung Tung Tung Sahur e Cappuccino Assassino) que vinham da biblioteca foram trocados por modelos LEGO próprios, feitos no Blender (`arte/chefes3d`).

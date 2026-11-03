@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local ChefesAnimacao = require(script.Parent.ChefesAnimacao)
 local Sons = require(script.Parent.Sons)
 local Tremor = require(script.Parent.Tremor)
 local Ui = require(script.Parent.Ui)
@@ -62,6 +63,69 @@ local aviso = Ui.texto({
 	Parent = tela,
 })
 local escalaAviso = Ui.criar("UIScale", { Parent = aviso })
+
+-- Medidor: quanto falta para o chefe te alcançar e quanto falta até a base.
+local medidor = Ui.criar("Frame", {
+	Name = "Medidor",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 132),
+	Size = UDim2.fromOffset(420, 40),
+	BackgroundColor3 = Color3.fromRGB(40, 10, 20),
+	BackgroundTransparency = 0.15,
+	Parent = tela,
+}, { Ui.cantos(20), Ui.borda(Ui.CONTORNO, 3) })
+local enchimento = Ui.criar("Frame", {
+	Name = "Perigo",
+	Size = UDim2.fromScale(0, 1),
+	BackgroundColor3 = Ui.BRANCO,
+	Parent = medidor,
+}, { Ui.cantos(20), Ui.gradiente(Color3.fromRGB(255, 120, 90), Color3.fromRGB(200, 20, 30)) })
+local textoChefe = Ui.texto({
+	Text = "",
+	TextXAlignment = Enum.TextXAlignment.Left,
+	Position = UDim2.fromOffset(14, 5),
+	Size = UDim2.new(0.6, -14, 1, -10),
+	ZIndex = 2,
+	Parent = medidor,
+})
+local textoBase = Ui.texto({
+	Text = "",
+	TextXAlignment = Enum.TextXAlignment.Right,
+	TextColor3 = Color3.fromRGB(150, 255, 160),
+	Position = UDim2.new(0.6, 0, 0, 5),
+	Size = UDim2.new(0.4, -14, 1, -10),
+	ZIndex = 2,
+	Parent = medidor,
+})
+
+local function atualizarMedidor(nome: string)
+	local personagem = jogador.Character
+	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not raiz then
+		return
+	end
+	local chefe: Model? = nil
+	for _, modelo in CollectionService:GetTagged("Guardiao") do
+		if modelo.Name == nome and modelo:IsA("Model") then
+			chefe = modelo
+		end
+	end
+	local minha = Vector3.new(raiz.Position.X, 0, raiz.Position.Z)
+	if chefe then
+		local posicao = chefe:GetPivot().Position
+		local alcance = chefe:GetAttribute("Alcance") or 8
+		local falta = math.max(0, (Vector3.new(posicao.X, 0, posicao.Z) - minha).Magnitude - alcance)
+		textoChefe.Text = `👹 {math.floor(falta)} m`
+		-- enche quanto mais perto: cheio = ele está quase te pegando
+		local perigo = math.clamp(1 - falta / 60, 0.04, 1)
+		enchimento.Size = enchimento.Size:Lerp(UDim2.fromScale(perigo, 1), 0.25)
+		textoChefe.TextColor3 = if falta < 12 then Color3.fromRGB(255, 255, 120) else Ui.BRANCO
+	end
+	local base = jogador:GetAttribute("BaseCentro")
+	if typeof(base) == "Vector3" then
+		textoBase.Text = `🏠 {math.floor((Vector3.new(base.X, 0, base.Z) - minha).Magnitude)} m`
+	end
+end
 
 local function atualizarPerseguicao()
 	local nome = jogador:GetAttribute("Perseguido")
@@ -129,7 +193,8 @@ local function tremer()
 			local distancia = (posicao - olho).Magnitude
 			if chefe:GetAttribute("Bravo") and andando and distancia < ALCANCE_TREMOR then
 				forca = math.max(forca, 1 - distancia / ALCANCE_TREMOR)
-				if agora >= estado.proximoPasso then
+				-- chefe animado: o som e a poeira saem quando o pé bate no chão
+				if agora >= estado.proximoPasso and not ChefesAnimacao.animado(chefe) then
 					estado.proximoPasso = agora + 0.42
 					Sons.tocar("Passo", posicao)
 					poeira(chefe)
@@ -147,6 +212,10 @@ local function tremer()
 	end
 	-- a borda vermelha pulsa como um coração acelerado
 	if tela.Enabled then
+		local nome = jogador:GetAttribute("Perseguido")
+		if nome then
+			atualizarMedidor(nome)
+		end
 		local batida = (math.sin(agora * 9) + 1) / 2
 		for _, borda in bordas do
 			borda.BackgroundTransparency = 0.25 + batida * 0.45
@@ -155,6 +224,18 @@ local function tremer()
 end
 
 function Chefes.iniciar()
+	ChefesAnimacao.aoPisar(function(chefe, posicao, forca)
+		local camera = Workspace.CurrentCamera
+		if not (camera and chefe:GetAttribute("Bravo")) then
+			return
+		end
+		local distancia = (posicao - camera.Focus.Position).Magnitude
+		if distancia < ALCANCE_TREMOR * 1.5 then
+			Sons.tocar("Passo", posicao)
+			poeira(chefe)
+			Tremor.perto(posicao, 0.35 * forca, ALCANCE_TREMOR, 0.2)
+		end
+	end)
 	jogador:GetAttributeChangedSignal("Perseguido"):Connect(atualizarPerseguicao)
 	atualizarPerseguicao()
 	CollectionService:GetInstanceRemovedSignal("Guardiao"):Connect(function(chefe)

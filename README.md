@@ -27,7 +27,7 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/init.server.luau` | Liga tudo e cuida de quem entra e sai |
 | `src/server/Mapa.luau` | Cria as bases, a estrada e os biomas |
 | `src/server/Ninhos.luau` | Ninhos de ovos, guardião e bloqueio por Velocidade |
-| `src/server/Guardioes.luau` | Modelos dos guardiões (Tung Tung Tung Sahur, Cappuccino Assassino) |
+| `src/server/Guardioes.luau` | Os 5 chefes (guardiões): monta o modelo de blocos de `ModelosChefao`, olhos que acendem bravos e as estátuas na frente de cada bioma |
 | `src/server/Carregar.luau` | Carregar ovos/Brainrots, entregar na base e roubar |
 | `src/server/Bases.luau` | Vagas, chocar ovos, renda, esteira de corrida e tranca |
 | `src/server/Velocidade.luau` | Velocidade de andar (atributo, peso do ovo, atordoado) |
@@ -54,7 +54,9 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/client/Prompts.luau` | Botões "Pegar", "Roubar" etc. no estilo do jogo (tocar funciona no celular) |
 | `src/client/Sons.luau` | Toca os sons pedidos pelo servidor e a música de fundo |
 | `src/client/OvosVfx.luau` | Efeitos dos ovos: flutuar, aura, órbitas, raios, rachar e barra de tempo |
-| `src/client/Chefes.luau` | Tela tremendo, passos dos chefes e o aviso vermelho de perseguição |
+| `src/client/Chefes.luau` | Tela tremendo, passos dos chefes, o aviso vermelho de perseguição e o medidor (chefe a X m, base a Y m) |
+| `src/client/ChefesAnimacao.luau` | Anima os chefes: passos, braços, corpo balançando, rugido ao acordar, golpe ao pegar alguém, anel da Saturnita girando, círculo de runas na casa e anel do alcance no chão |
+| `src/client/BotoesVivos.luau` | Todo botão da tela cresce com o mouse, afunda ao apertar e faz clique |
 | `src/client/Ambiente.luau` | Clima de cada bioma: cor da tela, partículas e o nome aparecendo |
 
 ## Brainrots de blocos Lego (do Sketchfab)
@@ -80,7 +82,7 @@ Os ovos ainda são de blocos com pintas, e os Brainrots sem arquivo em `src/serv
 
 Do mesmo jeito, os chefões e as árvores podem vir da biblioteca do Roblox (Toolbox):
 
-- `ReplicatedStorage.ModelosChefao`: um Model com o nome exato do guardião (`Tung Tung Tung Sahur`, `Cappuccino Assassino`).
+- `ReplicatedStorage.ModelosChefao`: um Model com o nome exato do guardião. Hoje os 5 chefes são modelos LEGO feitos no Blender (veja `arte/chefes3d/README.md`), com membros separados para a animação.
 - `ReplicatedStorage.ModelosArvore.Floresta` e `ReplicatedStorage.ModelosArvore.Praia`: árvores e palmeiras.
 
 O jogo tira os scripts, ancora e ajusta o tamanho sozinho. Sem essas pastas ele usa os modelos de blocos.

@@ -16,6 +16,7 @@ require(script.Sons).iniciar()
 require(script.Hud).iniciar()
 require(script.Efeitos).iniciar()
 require(script.OvosVfx).iniciar()
+require(script.ChefesAnimacao).iniciar()
 require(script.Chefes).iniciar()
 require(script.Ambiente).iniciar()
 require(script.MapaVfx).iniciar()
@@ -27,6 +28,7 @@ require(script.LojaOvos).iniciar()
 require(script.Corrida).iniciar()
 local Prompts = require(script.Prompts)
 Prompts.iniciar()
+require(script.BotoesVivos).iniciar()
 
 -- Esconde "Roubar" nos Brainrots da sua própria base ----------------------
 
