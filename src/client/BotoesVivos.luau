@@ -2,7 +2,8 @@
 -- quando é apertado e faz o som de clique. Só nos botões que ainda não se
 -- animam sozinhos (quem já tem um UIScale, como o menu da direita e os
 -- botões de compra, cuida de si). Um botão com o atributo "SemVida" fica
--- como está.
+-- como está. Os controles do Roblox no celular (TouchGui: pulo, analógico)
+-- ficam de fora, senão o botão de pulo fazia som de clique.
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
@@ -24,6 +25,9 @@ local function darVida(botao: GuiButton)
 		return
 	end
 	vistos[botao] = true
+	if botao:FindFirstAncestor("TouchGui") then
+		return
+	end
 	-- espera o botão ficar pronto: quem cria às vezes põe o UIScale depois
 	task.defer(function()
 		if not botao.Parent or botao:GetAttribute("SemVida") or botao:FindFirstChildOfClass("UIScale") then
