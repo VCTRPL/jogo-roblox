@@ -4,6 +4,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Admin = require(script.Parent.Admin)
 
 local Dados = {}
 
@@ -88,9 +89,12 @@ function Dados.carregar(player: Player): { any }
 			salvo = resultado
 			podeSalvar[player] = true
 			local trilha = if typeof(resultado) == "table" then resultado.nivelTrilha else nil
-			print(`[Dados] Carregou {player.Name}: save {if resultado then "encontrado" else "novo"}, trilha {trilha}`)
+			local texto = `Carregou: save {if resultado then "encontrado" else "novo"}, trilha {trilha or 0}`
+			print(`[Dados] {player.Name} {texto}`)
+			task.delay(6, Admin.avisar, player, texto)
 		else
 			warn(`Não consegui carregar os dados de {player.Name}:`, resultado)
+			task.delay(6, Admin.avisar, player, `Falhou ao carregar: {resultado}`, Color3.fromRGB(255, 90, 90))
 		end
 	end
 	if typeof(salvo) ~= "table" then
@@ -223,9 +227,12 @@ function Dados.salvar(player: Player, itens: { any }, renda: number): boolean
 		}, { player.UserId })
 	end)
 	if ok then
-		print(`[Dados] Salvou {player.Name}: dinheiro {dinheiro.Value}, trilha {player:GetAttribute("NivelTrilha")}`)
+		local texto = `Salvou: ${Config.formatar(dinheiro.Value)}, trilha {player:GetAttribute("NivelTrilha") or 0}`
+		print(`[Dados] {player.Name} {texto}`)
+		Admin.avisar(player, texto)
 	else
 		warn(`Não consegui salvar os dados de {player.Name}:`, erro)
+		Admin.avisar(player, `Falhou ao salvar: {erro}`, Color3.fromRGB(255, 90, 90))
 	end
 	return ok
 end
