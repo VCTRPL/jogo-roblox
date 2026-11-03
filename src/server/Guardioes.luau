@@ -11,7 +11,8 @@ local Mapa = require(script.Parent.Mapa)
 
 local Guardioes = {}
 
--- Altura (em studs) dos chefões que vêm da biblioteca do Roblox.
+-- Altura (em studs, antes de Config.ESCALA_CHEFE) dos chefões de
+-- ReplicatedStorage.ModelosChefao (os modelos LEGO de arte/chefes3d).
 local ALTURA_CHEFAO = {
 	["Tung Tung Tung Sahur"] = 10,
 	["Cappuccino Assassino"] = 9,
@@ -33,6 +34,7 @@ export type Visual = {
 local PRETO = Color3.fromRGB(25, 20, 20)
 local BRANCO = Color3.fromRGB(245, 245, 245)
 local VERMELHO = Color3.fromRGB(255, 40, 40)
+local OLHO_CALMO = Color3.fromRGB(150, 20, 20) -- olho aceso fraco; bravo fica VERMELHO
 
 local function peca(modelo: Model, nome: string, tamanho: Vector3, cf: CFrame, cor: Color3, material: Enum.Material?): Part
 	return Mapa.parte({
@@ -286,29 +288,41 @@ local MONTAR = {
 -- Chefão da biblioteca: um Model com o nome do guardião dentro de
 -- ReplicatedStorage.ModelosChefao (veja o README). Fica do tamanho certo,
 -- de pé na origem, olhando para -Z, com uma peça invisível "Corpo" no meio.
-local function daBiblioteca(nome: string?, escala: number): (Model?, number)
+-- Os chefões de blocos feitos no Blender têm os membros separados (BracoD,
+-- PernaE...) com um Attachment "Junta" na articulação, e os olhos (OlhoD,
+-- OlhoE) separados: o cliente anima os membros (ChefesAnimacao) e os olhos
+-- acendem quando ele fica bravo.
+local function daBiblioteca(nome: string?, escala: number): (Model?, { BasePart }, number)
 	local pasta = ReplicatedStorage:FindFirstChild("ModelosChefao")
 	local molde = nome and pasta and pasta:FindFirstChild(nome)
 	if not (molde and molde:IsA("Model")) then
-		return nil, 0
+		return nil, {}, 0
 	end
 	local modelo = Biblioteca.preparar(molde, (ALTURA_CHEFAO[nome :: string] or 10) * escala)
 	if not modelo then
-		return nil, 0
+		return nil, {}, 0
 	end
 	modelo.Name = "Guardiao"
+	local olhos: { BasePart } = {}
+	for _, parte in modelo:GetChildren() do
+		if parte:IsA("BasePart") and parte.Name:match("^Olho") then
+			parte.Color = OLHO_CALMO
+			parte.Material = Enum.Material.Neon
+			table.insert(olhos, parte)
+		end
+	end
 	local caixa, tamanho = modelo:GetBoundingBox()
 	local corpo = peca(modelo, "CorpoChefao", Vector3.new(1, 1, 1), CFrame.new(caixa.Position), BRANCO)
 	corpo.Transparency = 1
 	modelo.PrimaryPart = corpo
 	corpo.PivotOffset = corpo.CFrame:Inverse() -- pivot nos pés
-	return modelo, tamanho.Y / 2
+	return modelo, olhos, tamanho.Y / 2
 end
 
 local function montar(nome: string?, escala: number): (Model, { BasePart }, number)
-	local biblioteca, meio = daBiblioteca(nome, escala)
+	local biblioteca, olhosBiblioteca, meio = daBiblioteca(nome, escala)
 	if biblioteca then
-		return biblioteca, {}, meio
+		return biblioteca, olhosBiblioteca, meio
 	end
 
 	local modelo = Instance.new("Model")
@@ -340,8 +354,11 @@ function Guardioes.criar(config): Visual
 	modelo.Name = config.guardiao or "Guardiao"
 	-- o cliente treme a câmera e mostra o aviso quando ele está bravo e perto
 	CollectionService:AddTag(modelo, "Guardiao")
+	-- chega inteiro no cliente (o streaming não manda um braço sem o corpo)
+	modelo.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
 	local corpo = modelo.PrimaryPart :: BasePart
 	local _, tamanho = modelo:GetBoundingBox()
+	modelo:SetAttribute("Altura", tamanho.Y)
 	-- As placas vão numa peça invisível sem rotação: o corpo é um cilindro
 	-- girado, e o deslocamento da placa gira junto com a peça.
 	local marcador = peca(modelo, "Marcador", Vector3.new(0.2, 0.2, 0.2), CFrame.new(0, alturaCorpo, 0), BRANCO)
@@ -414,13 +431,114 @@ function Guardioes.criar(config): Visual
 
 	return {
 		modelo = modelo,
-		raio = math.max(tamanho.X, tamanho.Z) / 2,
+		-- média das duas larguras: braço esticado ou anel largo não contam inteiros
+		raio = (tamanho.X + tamanho.Z) / 4,
 		aura = aura,
 		olhos = pupilas,
 		alerta = alerta,
 		rastro = rastro,
 		luz = luz,
 	}
+end
+
+-- Monumento na frente do portal de cada bioma: o chefe dele em estátua,
+-- num pedestal de blocos com a cor do bioma, uma placa de aviso e dois
+-- braseiros. Fica do lado da estrada, olhando para quem chega.
+local PEDRA = Color3.fromRGB(95, 98, 110)
+local PEDRA_ESCURA = Color3.fromRGB(62, 64, 74)
+
+local function chao(x: number, z: number, ignorar: { Instance }): number
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignorar
+	local acerto = workspace:Raycast(Vector3.new(x, 80, z), Vector3.new(0, -160, 0), params)
+	-- bateu numa copa de árvore ou em algo alto: fica no chão normal
+	return if acerto and acerto.Position.Y < 4 then acerto.Position.Y else 1
+end
+
+local function braseiro(pasta: Instance, posicao: Vector3, cor: Color3)
+	peca(pasta :: any, "Braseiro", Vector3.new(1.6, 2.4, 1.6), CFrame.new(posicao + Vector3.new(0, 1.2, 0)), PEDRA_ESCURA)
+	local bacia = peca(pasta :: any, "Bacia", Vector3.new(2.4, 0.6, 2.4), CFrame.new(posicao + Vector3.new(0, 2.7, 0)), PEDRA)
+	local brasa = peca(pasta :: any, "Brasa", Vector3.new(1.8, 0.3, 1.8), CFrame.new(posicao + Vector3.new(0, 3.1, 0)), cor, Enum.Material.Neon)
+	brasa.CastShadow = false
+	local fogo = Instance.new("ParticleEmitter")
+	fogo.Name = "Fogo"
+	fogo.Texture = "rbxasset://textures/particles/fire_main.dds"
+	fogo.Color = ColorSequence.new(Color3.fromRGB(255, 230, 140), cor)
+	fogo.LightEmission = 1
+	fogo.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.4), NumberSequenceKeypoint.new(1, 0.2) })
+	fogo.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	fogo.Lifetime = NumberRange.new(0.5, 0.9)
+	fogo.Speed = NumberRange.new(3, 5)
+	fogo.SpreadAngle = Vector2.new(12, 12)
+	fogo.Rate = 22
+	fogo.Parent = brasa
+	local luz = Instance.new("PointLight")
+	luz.Color = cor
+	luz.Range = 14
+	luz.Brightness = 1.6
+	luz.Parent = bacia
+	return bacia
+end
+
+function Guardioes.monumentos(infos: { Mapa.InfoBioma })
+	local pasta = Instance.new("Folder")
+	pasta.Name = "MonumentosChefes"
+	for i, info in infos do
+		local nome = info.config.guardiao
+		if nome then
+			local inicio = Mapa.inicioBioma(i)
+			local x, z = inicio - 16, 22
+			local y = chao(x, z, { pasta })
+			local modelo = Instance.new("Model")
+			modelo.Name = `Monumento {nome}`
+			local cor = info.config.cor
+			-- pedestal em degraus
+			peca(modelo, "Degrau", Vector3.new(11, 0.8, 11), CFrame.new(x, y + 0.4, z), PEDRA_ESCURA)
+			peca(modelo, "Pedestal", Vector3.new(9, 2.2, 9), CFrame.new(x, y + 1.9, z), PEDRA)
+			peca(modelo, "Faixa", Vector3.new(9.3, 0.5, 9.3), CFrame.new(x, y + 2.6, z), cor)
+			local topo = peca(modelo, "Topo", Vector3.new(9.6, 0.6, 9.6), CFrame.new(x, y + 3.3, z), PEDRA_ESCURA)
+			-- placa na frente (para -X, de onde o jogador vem)
+			local placa = peca(modelo, "Placa", Vector3.new(0.3, 1.4, 6.5), CFrame.new(x - 4.65, y + 1.85, z), Color3.fromRGB(40, 30, 30))
+			local gui = Instance.new("SurfaceGui")
+			gui.Face = Enum.NormalId.Left
+			gui.PixelsPerStud = 40
+			gui.Parent = placa
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.fromScale(1, 1)
+			label.Font = Enum.Font.LuckiestGuy
+			label.TextScaled = true
+			label.TextColor3 = Color3.fromRGB(255, 90, 80)
+			label.Text = "⚠ GUARDIÃO ⚠"
+			local contorno = Instance.new("UIStroke")
+			contorno.Thickness = 3
+			contorno.Color = Color3.fromRGB(30, 10, 10)
+			contorno.Parent = label
+			label.Parent = gui
+			-- a estátua (o mesmo modelo de blocos do chefe), um pouco menor
+			local estatua = montar(nome, 0.8)
+			estatua.Name = "Estatua"
+			for _, olho in estatua:GetDescendants() do
+				if olho:IsA("BasePart") and olho.Name:match("^Olho") then
+					olho.Color = VERMELHO
+					olho.Material = Enum.Material.Neon
+				end
+			end
+			-- olha para -X (de onde vem quem chega pela estrada)
+			estatua:PivotTo(CFrame.new(x, topo.Position.Y + 0.3, z) * CFrame.Angles(0, math.rad(90), 0))
+			estatua.Parent = modelo
+			local _, tamanhoEstatua = estatua:GetBoundingBox()
+			local nomePlaca = Mapa.placa(topo, nome, tamanhoEstatua.Y + 2.5, 300)
+			nomePlaca.TextColor3 = Color3.fromRGB(255, 110, 90)
+			for _, lado in { -1, 1 } do
+				braseiro(modelo, Vector3.new(x - 6.5, y, z + lado * 5.5), cor:Lerp(Color3.fromRGB(255, 120, 30), 0.6))
+			end
+			Blocos.aplicar(modelo)
+			modelo.Parent = pasta
+		end
+	end
+	pasta.Parent = workspace
 end
 
 -- Liga ou desliga o modo bravo: "!" na cabeça, olhos vermelhos e luz.
@@ -433,9 +551,10 @@ function Guardioes.bravo(visual: Visual, bravo: boolean)
 	for _, olho in visual.olhos do
 		if olho:GetAttribute("CorNormal") == nil then
 			olho:SetAttribute("CorNormal", olho.Color)
+			olho:SetAttribute("MaterialNormal", olho.Material.Name)
 		end
 		olho.Color = if bravo then VERMELHO else olho:GetAttribute("CorNormal")
-		olho.Material = if bravo then Enum.Material.Neon else Enum.Material.Plastic
+		olho.Material = if bravo then Enum.Material.Neon else Enum.Material[olho:GetAttribute("MaterialNormal")]
 	end
 end
 
