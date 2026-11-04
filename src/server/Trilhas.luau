@@ -321,8 +321,8 @@ end
 
 -- Vendedora atrás do balcão (como a da foto): uma vovozinha R15 de cabelo
 -- branco em coque, vestido azul com avental branco e óculos, acenando e com
--- uma trilha arco-íris na mão. Falar com ela abre a mesma tela da loja
--- (atributo "AbreLoja"), sem outro sistema de compra.
+-- uma trilha arco-íris na mão. A loja abre pelo botão "LOJA" que aparece
+-- na tela perto da barraca (Interface.luau), sem outro sistema de compra.
 local function vendedor(cf: CFrame, pai: Instance)
 	local ok, boneco = pcall(function()
 		local desc = Instance.new("HumanoidDescription")
@@ -418,17 +418,6 @@ local function vendedor(cf: CFrame, pai: Instance)
 		faixa.Looped = true
 		faixa:Play()
 	end
-	local raiz = boneco:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if raiz then
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.Name = "Vendedor"
-		prompt.ActionText = "Falar"
-		prompt.ObjectText = "Vovó das Trilhas"
-		prompt.RequiresLineOfSight = false
-		prompt.MaxActivationDistance = 12
-		prompt:SetAttribute("AbreLoja", "Trilhas")
-		prompt.Parent = raiz
-	end
 end
 
 local function montarLoja()
@@ -463,14 +452,18 @@ local function montarLoja()
 	marco.CFrame = CFrame.lookAt(POSICAO_LOJA, olhar)
 		* (if proprio then CFrame.new(0, 3, -math.max(tamanho.Z / 2, 4) - 1) else CFrame.new(0, 4, -8.2))
 	marco.Parent = modelo
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "Loja"
-	prompt.ActionText = "Abrir loja"
-	prompt.ObjectText = "Trilhas"
-	prompt.RequiresLineOfSight = false
-	prompt.MaxActivationDistance = 14
-	prompt:SetAttribute("AbreLoja", "Trilhas")
-	prompt.Parent = marco
+	-- quem abre a loja é o botão "LOJA" da tela (aparece perto da barraca,
+	-- veja Interface.luau); num modelo próprio sem esse botão, fica o prompt
+	if proprio then
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "Loja"
+		prompt.ActionText = "Abrir loja"
+		prompt.ObjectText = "Trilhas"
+		prompt.RequiresLineOfSight = false
+		prompt.MaxActivationDistance = 14
+		prompt:SetAttribute("AbreLoja", "Trilhas")
+		prompt.Parent = marco
+	end
 	-- placa grande em cima (a loja nova já tem o letreiro dela)
 	if proprio then
 		local placa = Paineis.criar(marco, {

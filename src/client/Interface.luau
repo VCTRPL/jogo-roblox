@@ -776,6 +776,41 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt)
 	end
 end)
 
+-- Botão "LOJA" feito no Figma (importado pelo BloxFig para
+-- StarterGui.BotaoLojaTrilhas, com as animações dele e o som de clique
+-- novo): aparece quando o jogador chega perto da barraca e abre a loja de
+-- trilhas. Some de novo quando ele se afasta ou com a loja aberta.
+local PERTO_DA_BARRACA = 18
+task.spawn(function()
+	local guiPlayer = jogador:WaitForChild("PlayerGui")
+	local botaoLoja = guiPlayer:WaitForChild("BotaoLojaTrilhas", 30) :: ScreenGui?
+	if not botaoLoja then
+		return
+	end
+	botaoLoja.Enabled = false
+	local alvo = botaoLoja:FindFirstChild("Group 1") :: GuiButton?
+	if alvo then
+		alvo.Activated:Connect(function()
+			if aberto ~= painelTrilhas then
+				abrirPainel(painelTrilhas)
+			end
+		end)
+	end
+	while botaoLoja.Parent do
+		task.wait(0.25)
+		local mapa = Workspace:FindFirstChild("Mapa")
+		local loja = mapa and mapa:FindFirstChild("LojaTrilhas") :: Model?
+		local personagem = jogador.Character
+		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local perto = false
+		if loja and raiz then
+			local p = loja:GetPivot().Position
+			perto = Vector3.new(raiz.Position.X - p.X, 0, raiz.Position.Z - p.Z).Magnitude < PERTO_DA_BARRACA
+		end
+		botaoLoja.Enabled = perto and aberto ~= painelTrilhas
+	end
+end)
+
 -- Botões do lado direito ----------------------------------------------------
 
 local menu = criar("Frame", {
