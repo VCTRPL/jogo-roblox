@@ -43,19 +43,28 @@ end
 -- Sons da Creator Store que não carregarem usam a "reserva" (que vem com o Roblox).
 local falhou: { [string]: boolean } = {}
 task.spawn(function()
+	-- pré-carrega como Sound (com o id solto, o Roblox achava que era imagem
+	-- e marcava como falha)
 	local lista = {}
+	local vistos = {}
 	for _, def in Config.SONS do
-		if string.find(def.id, "rbxassetid://", 1, true) and not table.find(lista, def.id) then
-			table.insert(lista, def.id)
+		if string.find(def.id, "rbxassetid://", 1, true) and not vistos[def.id] then
+			vistos[def.id] = true
+			local som = Instance.new("Sound")
+			som.SoundId = def.id
+			table.insert(lista, som)
 		end
 	end
 	pcall(function()
 		ContentProvider:PreloadAsync(lista, function(id, estado)
-			if estado ~= Enum.AssetFetchStatus.Success then
+			if estado == Enum.AssetFetchStatus.Failure or estado == Enum.AssetFetchStatus.TimedOut then
 				falhou[id] = true
 			end
 		end)
 	end)
+	for _, som in lista do
+		som:Destroy()
+	end
 end)
 
 -- Para o mesmo som não empilhar (vários cliques no mesmo quadro somavam volume).
