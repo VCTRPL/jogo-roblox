@@ -9,7 +9,7 @@ Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ni
 - **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur, Cappuccino Assassino, Il Cacto Hipopotamo, Rhino Toasterino e La Vaca Saturno Saturnita) e corre atrás de você até a área das bases. Os chefes são enormes: a tela treme quando eles chegam perto. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
 - **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Perto de chocar ele treme e racha. Depois ele vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, Mítico, Secreto ou Arco-íris, o servidor inteiro fica sabendo.
 - **Vender**: segure **E** num Brainrot da sua base para vender (vale 60 segundos da renda dele). Bom para abrir vaga para um melhor.
-- **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Correndo sem parar, o **fôlego** sobe e o ganho chega a 2x. Segure **E** nela para melhorar (7 níveis, até a Esteira Divina). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
+- **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Correndo sem parar, o **fôlego** sobe e o ganho chega a 2x. Segure **E** nela para melhorar (10 níveis: depois da Divina vêm a Tempestade, a do Abismo e a Suprema). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
 - **Roubar**: segure **E** num ovo ou Brainrot da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono. Cada roubo entregue conta no placar de **Roubos**.
 - **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
 - **Renascer**: com bastante dinheiro (2M no primeiro), o botão 🔄 zera dinheiro, Velocidade, esteira, trilhas e a base, e dá para sempre +50% de dinheiro e +25% de Velocidade na esteira por renascimento.
@@ -41,7 +41,7 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/Blocos.luau` | Estilo Lego: pinos em cima das peças, bolas e cilindros viram blocos |
 | `src/server/Montanhas.luau` | Montanhas quadradas em volta das bases e dos lados das fases |
 | `src/server/Biblioteca.luau` | Prepara chefões e árvores da biblioteca do Roblox (sem scripts, no tamanho certo) |
-| `src/server/Esteiras.luau` | Modelos e efeitos das 7 esteiras de corrida |
+| `src/server/Esteiras.luau` | Modelos e efeitos das 10 esteiras de corrida |
 | `src/server/Renascer.luau` | Renascimento: zera o progresso e dá multiplicadores |
 | `src/server/Passes.luau` | Gamepasses: quem tem cada um e compras durante o jogo |
 | `src/server/Paredes.luau` | Paredes dos lados dos biomas, com o tema de cada um |

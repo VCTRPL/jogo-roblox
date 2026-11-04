@@ -335,8 +335,8 @@ function Mapa.construir(): ({ InfoBase }, { InfoBioma })
 		-- Portal na entrada com o nome e a velocidade necessária
 		local portal = parte({
 			Name = "Portal",
-			Size = Vector3.new(1, 16, 20),
-			Position = Vector3.new(inicio, 9, 0),
+			Size = Vector3.new(1, 28, 33),
+			Position = Vector3.new(inicio, 15, 0),
 			Color = config.cor,
 			Material = Enum.Material.ForceField,
 			Transparency = 0.5,

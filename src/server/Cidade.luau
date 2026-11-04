@@ -1,7 +1,7 @@
 -- A área das bases, repaginada: a rua (asfalto, calçadas com meio-fio,
 -- faixas, faixas de pedestre POR CIMA das listras amarelas, bueiros e placas),
--- os postes com luz no chão, a arquitetura das bases (piso de porcelanato,
--- muro de pedra com pilares, torres nos cantos e o portal da entrada) e as
+-- os postes com luz no chão, a arquitetura das bases (muro de pedra com
+-- pilares, torres nos cantos e o portal da entrada) e as
 -- duas praças com chafariz. Tudo aqui usa materiais de verdade (atributo
 -- "SemLego"): os modelos 3D vêm de ServerStorage.ModelosMapa (Adereco).
 -- Só enfeite: nada aqui muda as regras do jogo.
@@ -187,7 +187,7 @@ local function poste(pasta: Instance, chao: Vector3, paraEstrada: number)
 	local giro = if paraEstrada > 0 then CFrame.new() else CFrame.Angles(0, math.pi, 0)
 	local modelo = Adereco.colocar("Poste", CFrame.new(chao) * giro, pasta, {
 		escala = ESCALA,
-		solidas = { "Ferro" },
+		colide = false, -- a colisão do modelo pegava uma caixa enorme (com o braço) e travava a calçada
 		cores = { Vidro = LUZ_QUENTE },
 		materiais = { Vidro = Enum.Material.Neon },
 	})
@@ -198,6 +198,17 @@ local function poste(pasta: Instance, chao: Vector3, paraEstrada: number)
 		enfeite({ Name = "Braco", Size = Vector3.new(0.4, 0.4, 4.6), Position = chao + Vector3.new(0, 16, paraEstrada * 2.2), Color = FERRO, Material = Enum.Material.Metal, Parent = pasta })
 		enfeite({ Name = "Lampada", Size = Vector3.new(1.2, 1.4, 1.2), Position = lanterna, Color = LUZ_QUENTE, Material = Enum.Material.Neon, Parent = pasta })
 	end
+	-- só a coluna segura o jogador: um cilindro fino e invisível
+	parte({
+		Name = "ColisaoPoste",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(16, 1, 1),
+		CFrame = CFrame.new(chao + Vector3.new(0, 8, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Transparency = 1,
+		CanQuery = false,
+		CanTouch = false,
+		Parent = pasta,
+	})
 	local foco = enfeite({
 		Name = "FocoPoste",
 		Size = Vector3.new(0.4, 0.4, 0.4),
@@ -333,7 +344,7 @@ function Cidade.rua(pai: Instance)
 
 	-- postes dos dois lados, alternados, fora das travessias e do túnel
 	local ladoPoste = 1
-	for x = c0 + 14, b - 14, 38 do
+	for x = c0 + 14, b - 30, 38 do
 		if pertoDaFaixa(x, 9) then
 			x += 10
 		end
@@ -391,8 +402,8 @@ local function torre(pasta: Instance, chao: Vector3, cor: Color3)
 	end
 end
 
--- Arquitetura de uma base: piso de porcelanato com juntas e borda na cor da
--- base, emblema no meio, muro de pedra com pilares, torres nos cantos,
+-- Arquitetura de uma base (o chão continua a grama): muro de pedra com
+-- pilares, torres nos cantos,
 -- portal na entrada (pilares altos, arco, placa e lanternas acesas),
 -- canteiros com arbustos e flores no fundo e os mastros com bandeira.
 function Cidade.base(info: Mapa.InfoBase)
@@ -408,22 +419,7 @@ function Cidade.base(info: Mapa.InfoBase)
 		return topo + Vector3.new(x, 0, lado * z)
 	end
 
-	-- piso: porcelanato claro com juntas a cada 8 studs, faixa na cor da base
-	-- rente ao muro e um emblema redondo no meio
-	local Y = topo.Y
-	parte({ Name = "Porcelanato", Size = Vector3.new(T - 2, 0.12, T - 2), Position = Vector3.new(topo.X, Y + 0.01, topo.Z), Color = Color3.fromRGB(238, 232, 220), Material = Enum.Material.Marble, Parent = pasta })
-	for k = -4, 4 do
-		enfeite({ Name = "Junta", Size = Vector3.new(0.18, 0.04, T - 6), Position = Vector3.new(topo.X + k * 8, Y + 0.08, topo.Z), Color = Color3.fromRGB(205, 196, 182), Material = Enum.Material.SmoothPlastic, CastShadow = false, Parent = pasta })
-		enfeite({ Name = "Junta", Size = Vector3.new(T - 6, 0.04, 0.18), Position = Vector3.new(topo.X, Y + 0.08, topo.Z + k * 8), Color = Color3.fromRGB(205, 196, 182), Material = Enum.Material.SmoothPlastic, CastShadow = false, Parent = pasta })
-	end
-	for _, s in { -1, 1 } do
-		enfeite({ Name = "BordaPiso", Size = Vector3.new(T - 4, 0.05, 1.4), Position = Vector3.new(topo.X, Y + 0.09, topo.Z + s * (T / 2 - 3)), Color = cor, Material = Enum.Material.SmoothPlastic, CastShadow = false, Parent = pasta })
-		enfeite({ Name = "BordaPiso", Size = Vector3.new(1.4, 0.05, T - 4), Position = Vector3.new(topo.X + s * (T / 2 - 3), Y + 0.09, topo.Z), Color = cor, Material = Enum.Material.SmoothPlastic, CastShadow = false, Parent = pasta })
-	end
-	disco(pasta, ponto(0, -4), 6.5, Y + 0.1, 0.06, { Name = "Emblema", Color = cor, Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false })
-	disco(pasta, ponto(0, -4), 5.2, Y + 0.11, 0.06, { Name = "Emblema", Color = Color3.fromRGB(245, 240, 230), Material = Enum.Material.Marble, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false })
-	local estrela = disco(pasta, ponto(0, -4), 2.2, Y + 0.12, 0.06, { Name = "EmblemaLuz", Color = corForte, Material = Enum.Material.Neon, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false })
-	CollectionService:AddTag(estrela, "PulsarEsteira")
+	-- o chão da base é a grama dela (Mapa); só o muro, as torres e o portal em volta
 
 	-- muro (com a entrada na frente) e torres nos cantos
 	muro(pasta, ponto(-meio, meio), ponto(meio, meio), cor, Vector3.new(0, 0, lado))
@@ -634,7 +630,7 @@ local function praca(pasta: Instance, centro: Vector3)
 		local a = i / 4 * math.pi * 2 + math.pi / 4
 		local d = Vector3.new(math.cos(a), 0, math.sin(a))
 		local pe = centro + d * 18.6 + Vector3.new(0, TOPO, 0)
-		local lum = Adereco.colocar("Luminaria", CFrame.new(pe), pasta, { escala = 1.1, solidas = { "Ferro" }, cores = { Vidro = LUZ_QUENTE }, materiais = { Vidro = Enum.Material.Neon } })
+		local lum = Adereco.colocar("Luminaria", CFrame.new(pe), pasta, { escala = 1.1, colide = false, cores = { Vidro = LUZ_QUENTE }, materiais = { Vidro = Enum.Material.Neon } })
 		if lum then
 			local vidro = Adereco.peca(lum, "Vidro")
 			if vidro then
@@ -786,7 +782,7 @@ function Cidade.arredores(pai: Instance)
 			for z = 22, frente - 6, 20 do
 				for _, dx in { -8, 8 } do
 					local lum = Adereco.colocar("Luminaria", CFrame.new(Vector3.new(x + dx, 0.05, lado * z)), pasta, {
-						solidas = { "Ferro" },
+						colide = false,
 						cores = { Vidro = LUZ_QUENTE },
 						materiais = { Vidro = Enum.Material.Neon },
 					})

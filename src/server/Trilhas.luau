@@ -1,4 +1,4 @@
--- Loja de trilhas: uma barraca no mapa vende as trilhas de Config.TRILHAS,
+-- Loja de trilhas: uma vendinha no mapa (com a vovó vendedora) vende as trilhas de Config.TRILHAS,
 -- uma depois da outra. A melhor que o jogador já comprou multiplica a
 -- Velocidade ganha na esteira (Bases.luau usa o atributo "NivelTrilha"); a
 -- equipada ("TrilhaEquipada") é só a aparência, um rastro de luz atrás dele.
@@ -129,14 +129,18 @@ local function pedido(player: Player, acao: any, indice: any)
 	end
 end
 
--- Loja de Trilhas: um pavilhão de pedra clara com piso de mármore, colunas
--- na frente, telhado com a beirada em neon nas cores das trilhas, letreiro,
--- balcão, vitrines com uma trilha de verdade girando em cima de cada
--- pedestal e o vendedor atrás do balcão. O modelo é montado olhando para -Z
--- (a frente, onde fica a rua) e depois girado para o lugar.
-local MARMORE = Color3.fromRGB(240, 236, 228)
-local PEDRA = Color3.fromRGB(205, 198, 186)
-local ROXO = Color3.fromRGB(110, 60, 200)
+-- Loja de Trilhas: uma vendinha simples de blocos (como a da referência):
+-- piso de tábuas, muretas de tijolo com pinos, quatro pilares quadrados,
+-- telhado de duas águas com listras azuis e brancas, uma mesinha no fundo
+-- com vaso de planta, patinho e caneca, uma cadeira, a placa "TRILHAS" e,
+-- pendurados na beirada do telhado, uma bolinha de cada trilha girando com
+-- o rastro dela. A vendedora fica atrás do balcão. O modelo é montado
+-- olhando para -Z (a frente, onde fica a rua) e depois girado para o lugar.
+local TIJOLO = Color3.fromRGB(176, 104, 58)
+local TIJOLO_ESCURO = Color3.fromRGB(150, 86, 46)
+local MADEIRA_ESCURA = Color3.fromRGB(70, 46, 32)
+local AZUL = Color3.fromRGB(20, 40, 230)
+local BRANCO_TOLDO = Color3.fromRGB(235, 240, 255)
 
 local function corDaTrilha(trilha): Color3
 	return if trilha.arcoIris then Color3.fromRGB(255, 120, 200) else trilha.cores[1]
@@ -144,9 +148,8 @@ end
 
 local function lojaNova(): Model
 	local modelo = Instance.new("Model")
-	modelo:SetAttribute("SemLego", true)
 	local function bloco(nome: string, tamanho: Vector3, cf: CFrame, cor: Color3, material: Enum.Material?, props: any?): BasePart
-		local p = Mapa.parte({ Name = nome, Size = tamanho, CFrame = cf, Color = cor, Material = material or Enum.Material.SmoothPlastic, Parent = modelo })
+		local p = Mapa.parte({ Name = nome, Size = tamanho, CFrame = cf, Color = cor, Material = material or Enum.Material.Plastic, Parent = modelo })
 		if props then
 			for chave, valor in props do
 				(p :: any)[chave] = valor
@@ -154,158 +157,190 @@ local function lojaNova(): Model
 		end
 		return p
 	end
-	local W, D, H = 40, 30, 15
-	local piso = bloco("Piso", Vector3.new(W, 1.2, D), CFrame.new(0, 0.6, 0), PEDRA, Enum.Material.Limestone)
-	bloco("Marmore", Vector3.new(W - 2, 0.1, D - 2), CFrame.new(0, 1.22, 0), MARMORE, Enum.Material.Marble)
-	-- tapete roxo da entrada até o balcão
-	bloco("Tapete", Vector3.new(7, 0.06, 18), CFrame.new(0, 1.29, -5), ROXO, Enum.Material.Fabric, { CanCollide = false })
-	-- degraus na frente
-	for i = 0, 1 do
-		bloco("Degrau", Vector3.new(16 - i * 2, 0.6, 2), CFrame.new(0, 0.3 + i * 0.3, -D / 2 - 2 + i), PEDRA, Enum.Material.Limestone)
+	local W, D = 18, 13 -- largura (X) e fundo (Z)
+	local ALTURA_PILAR = 9
+	local MURETA = 3.6
+	local piso = bloco("Piso", Vector3.new(W, 1, D), CFrame.new(0, 0.5, 0), Color3.fromRGB(140, 96, 60), Enum.Material.WoodPlanks)
+
+	-- muretas de tijolo: frente inteira (é o balcão), lados e fundo
+	local function mureta(centro: Vector3, tamanho: Vector3)
+		bloco("Mureta", tamanho, CFrame.new(centro), TIJOLO)
+		-- fiadas mais escuras para parecer tijolo
+		for y = 1, math.floor(tamanho.Y) - 1 do
+			bloco("Fiada", Vector3.new(tamanho.X + 0.06, 0.12, tamanho.Z + 0.06), CFrame.new(centro.X, centro.Y - tamanho.Y / 2 + y, centro.Z), TIJOLO_ESCURO, nil, { CanCollide = false })
+		end
 	end
-	-- paredes do fundo e dos lados (os lados vão até 2/3)
-	bloco("Parede", Vector3.new(W, H, 1.6), CFrame.new(0, 1.2 + H / 2, D / 2 - 0.8), PEDRA, Enum.Material.Limestone)
+	local yMureta = 1 + MURETA / 2
+	mureta(Vector3.new(0, yMureta, -D / 2 + 0.6), Vector3.new(W - 2, MURETA, 1.2))
+	mureta(Vector3.new(0, yMureta, D / 2 - 0.6), Vector3.new(W - 2, MURETA, 1.2))
 	for _, s in { -1, 1 } do
-		bloco("Parede", Vector3.new(1.6, H, D * 0.62), CFrame.new(s * (W / 2 - 0.8), 1.2 + H / 2, D / 2 - D * 0.31), PEDRA, Enum.Material.Limestone)
+		mureta(Vector3.new(s * (W / 2 - 0.6), yMureta, 0), Vector3.new(1.2, MURETA, D - 2))
 	end
-	-- colunas na frente
-	for _, x in { -W / 2 + 1, -9, 9, W / 2 - 1 } do
-		bloco("Base", Vector3.new(3, 1, 3), CFrame.new(x, 1.7, -D / 2 + 1.5), PEDRA, Enum.Material.Limestone)
-		local c = bloco("Coluna", Vector3.new(H - 1, 2.2, 2.2), CFrame.new(x, 1.2 + H / 2, -D / 2 + 1.5) * CFrame.Angles(0, 0, math.rad(90)), MARMORE, Enum.Material.Marble)
-		c.Shape = Enum.PartType.Cylinder
-		bloco("Capitel", Vector3.new(3, 0.8, 3), CFrame.new(x, H + 0.8, -D / 2 + 1.5), Color3.fromRGB(230, 190, 90), Enum.Material.Metal)
+	-- tampo de madeira em cima da mureta da frente (o balcão)
+	bloco("Balcao", Vector3.new(W - 2, 0.4, 2), CFrame.new(0, 1 + MURETA + 0.2, -D / 2 + 0.8), MADEIRA_ESCURA, Enum.Material.Wood)
+
+	-- quatro pilares quadrados com "pinos" de lado (os quadradinhos da foto)
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			local x, z = sx * (W / 2 - 0.9), sz * (D / 2 - 0.9)
+			bloco("Pilar", Vector3.new(1.8, ALTURA_PILAR, 1.8), CFrame.new(x, 1 + ALTURA_PILAR / 2, z), TIJOLO)
+			for y = 1.8, ALTURA_PILAR, 1.4 do
+				bloco("Pino", Vector3.new(0.8, 0.8, 0.25), CFrame.new(x, y, z - 1.0), TIJOLO_ESCURO, nil, { CanCollide = false })
+				bloco("Pino", Vector3.new(0.25, 0.8, 0.8), CFrame.new(x + sx * 1.0, y, z), TIJOLO_ESCURO, nil, { CanCollide = false })
+			end
+		end
 	end
-	-- telhado com beiral e a beirada em neon com as cores das trilhas
-	bloco("Telhado", Vector3.new(W + 4, 1.6, D + 4), CFrame.new(0, H + 2, 0), Color3.fromRGB(70, 50, 120), Enum.Material.SmoothPlastic)
-	bloco("Telhado", Vector3.new(W + 1, 1, D + 1), CFrame.new(0, H + 3.2, 0), Color3.fromRGB(90, 66, 150), Enum.Material.SmoothPlastic)
-	local largura = (W + 4) / #Config.TRILHAS
-	for i, trilha in Config.TRILHAS do
-		local faixa = bloco("BeiralNeon", Vector3.new(largura, 0.5, 0.3), CFrame.new(-(W + 4) / 2 + largura * (i - 0.5), H + 1.5, -(D + 4) / 2 - 0.1), corDaTrilha(trilha), Enum.Material.Neon, { CanCollide = false })
-		CollectionService:AddTag(faixa, "PulsarEsteira")
+	-- viga em volta, em cima dos pilares
+	local yViga = 1 + ALTURA_PILAR + 0.4
+	for _, sz in { -1, 1 } do
+		bloco("Viga", Vector3.new(W, 0.8, 1), CFrame.new(0, yViga, sz * (D / 2 - 0.9)), TIJOLO_ESCURO)
 	end
-	-- letreiro em cima da entrada
-	local letreiro = bloco("Letreiro", Vector3.new(22, 4.2, 0.6), CFrame.new(0, H + 5.6, -D / 2 + 1), Color3.fromRGB(40, 28, 70), Enum.Material.SmoothPlastic)
+	for _, sx in { -1, 1 } do
+		bloco("Viga", Vector3.new(1, 0.8, D), CFrame.new(sx * (W / 2 - 0.9), yViga, 0), TIJOLO_ESCURO)
+	end
+
+	-- telhado de duas águas com listras azuis e brancas (descendo para a
+	-- frente e para trás), passando um pouco das paredes
+	local beiral = 1.4
+	local meioFundo = D / 2 + beiral
+	local subida = 4.2
+	local inclinacao = math.atan2(subida, meioFundo)
+	local comprimento = math.sqrt(meioFundo * meioFundo + subida * subida)
+	local largura = W + 2
+	local listras = 12
+	local passo = largura / listras
+	local yBase = yViga + 0.4
+	for _, sz in { -1, 1 } do
+		for k = 0, listras - 1 do
+			local x = -largura / 2 + passo * (k + 0.5)
+			local centro = CFrame.new(x, yBase + subida / 2, sz * meioFundo / 2) * CFrame.Angles(sz * inclinacao, 0, 0)
+			bloco("Toldo", Vector3.new(passo, 0.5, comprimento), centro, if k % 2 == 0 then AZUL else BRANCO_TOLDO)
+		end
+		-- franja na beirada
+		for k = 0, listras - 1 do
+			local x = -largura / 2 + passo * (k + 0.5)
+			bloco("Franja", Vector3.new(passo - 0.1, 0.7, 0.3), CFrame.new(x, yBase - 0.3, sz * (meioFundo - 0.1)), if k % 2 == 0 then BRANCO_TOLDO else AZUL, nil, { CanCollide = false })
+		end
+	end
+	-- oitões azuis (triângulos dos lados)
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			local cunha = Instance.new("WedgePart")
+			cunha.Name = "Oitao"
+			cunha.Anchored = true
+			cunha.CanCollide = false
+			cunha.Size = Vector3.new(0.4, subida, meioFundo - beiral)
+			-- a cunha sobe para -Z local; girada 180 no lado de trás
+			cunha.CFrame = CFrame.new(sx * (W / 2 - 0.4), yBase + subida / 2, sz * (meioFundo - beiral) / 2) * CFrame.Angles(0, if sz > 0 then math.pi else 0, 0)
+			cunha.Color = AZUL
+			cunha.Parent = modelo
+		end
+	end
+
+	-- placa "TRILHAS" em cima do telhado, na frente
+	local placa = bloco("PlacaLoja", Vector3.new(10, 2.6, 0.5), CFrame.new(0, yBase + subida - 0.6, -1.6) * CFrame.Angles(-inclinacao, 0, 0) * CFrame.new(0, 1.6, 0), Color3.fromRGB(255, 245, 225), Enum.Material.SmoothPlastic)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 30
-	gui.LightInfluence = 0
-	gui.Parent = letreiro
+	gui.PixelsPerStud = 40
+	gui.Parent = placa
 	local texto = Instance.new("TextLabel")
 	texto.BackgroundTransparency = 1
-	texto.Size = UDim2.fromScale(0.94, 0.8)
-	texto.Position = UDim2.fromScale(0.03, 0.1)
-	texto.Font = Enum.Font.LuckiestGuy
-	texto.Text = "LOJA DE TRILHAS"
+	texto.Size = UDim2.fromScale(0.92, 0.84)
+	texto.Position = UDim2.fromScale(0.04, 0.08)
+	texto.Font = Enum.Font.Bangers
+	texto.Text = "✨ TRILHAS ✨"
 	texto.TextScaled = true
-	texto.TextColor3 = Color3.new(1, 1, 1)
-	local grad = Instance.new("UIGradient")
-	local pontos = {}
-	for i, trilha in Config.TRILHAS do
-		table.insert(pontos, ColorSequenceKeypoint.new((i - 1) / (#Config.TRILHAS - 1), corDaTrilha(trilha)))
-	end
-	grad.Color = ColorSequence.new(pontos)
-	grad.Parent = texto
+	texto.TextColor3 = AZUL
 	local contorno = Instance.new("UIStroke")
-	contorno.Thickness = 4
-	contorno.Color = Color3.fromRGB(20, 10, 40)
+	contorno.Thickness = 3
+	contorno.Color = Color3.new(1, 1, 1)
 	contorno.Parent = texto
 	texto.Parent = gui
-	bloco("MolduraLetreiro", Vector3.new(23, 5.2, 0.4), CFrame.new(0, H + 5.6, -D / 2 + 1.4), Color3.fromRGB(230, 190, 90), Enum.Material.Metal)
-	-- balcão
-	bloco("Balcao", Vector3.new(14, 3.6, 2.6), CFrame.new(0, 3, 6), Color3.fromRGB(120, 80, 170), Enum.Material.SmoothPlastic)
-	bloco("TampoBalcao", Vector3.new(14.6, 0.4, 3.2), CFrame.new(0, 5, 6), MARMORE, Enum.Material.Marble)
-	bloco("FaixaBalcao", Vector3.new(14.1, 0.25, 0.1), CFrame.new(0, 4.2, 4.65), Color3.fromRGB(255, 120, 255), Enum.Material.Neon, { CanCollide = false })
-	-- vitrines: um pedestal por trilha, com a trilha girando em cima
+
+	-- mesinha no fundo com vaso de planta, patinho e caneca, e uma cadeira
+	local mesa = CFrame.new(-W / 2 + 4.5, 1, D / 2 - 2.6)
+	bloco("Mesa", Vector3.new(5, 0.4, 2.4), mesa * CFrame.new(0, 2.6, 0), MADEIRA_ESCURA, Enum.Material.Wood)
+	for _, dx in { -2.1, 2.1 } do
+		for _, dz in { -0.9, 0.9 } do
+			bloco("PeMesa", Vector3.new(0.35, 2.4, 0.35), mesa * CFrame.new(dx, 1.2, dz), MADEIRA_ESCURA, Enum.Material.Wood)
+		end
+	end
+	bloco("Vaso", Vector3.new(1, 0.9, 1), mesa * CFrame.new(1.4, 3.25, 0.2), MADEIRA_ESCURA)
+	for k = 0, 4 do
+		local a = k / 5 * math.pi * 2
+		bloco("Folha", Vector3.new(0.3, 1.2, 0.7), mesa * CFrame.new(1.4 + math.cos(a) * 0.3, 4.1, 0.2 + math.sin(a) * 0.3) * CFrame.Angles(math.cos(a) * 0.5, a, math.sin(a) * 0.5), Color3.fromRGB(60, 160, 60), nil, { CanCollide = false })
+	end
+	bloco("Pato", Vector3.new(0.9, 0.7, 1.1), mesa * CFrame.new(-0.4, 3.15, 0), Color3.fromRGB(255, 220, 30))
+	bloco("CabecaPato", Vector3.new(0.6, 0.6, 0.6), mesa * CFrame.new(-0.4, 3.75, -0.3), Color3.fromRGB(255, 220, 30))
+	bloco("BicoPato", Vector3.new(0.3, 0.2, 0.3), mesa * CFrame.new(-0.4, 3.7, -0.7), Color3.fromRGB(255, 140, 30), nil, { CanCollide = false })
+	bloco("Caneca", Vector3.new(0.6, 0.6, 0.6), mesa * CFrame.new(-1.7, 3.1, 0.3), Color3.fromRGB(160, 220, 255))
+	local cadeira = CFrame.new(W / 2 - 4, 1, 1.5)
+	bloco("Assento", Vector3.new(2, 0.3, 2), cadeira * CFrame.new(0, 2, 0), Color3.fromRGB(35, 25, 20), Enum.Material.Wood)
+	bloco("Encosto", Vector3.new(2, 2.6, 0.3), cadeira * CFrame.new(0, 3.4, 0.85), Color3.fromRGB(35, 25, 20), Enum.Material.Wood)
+	for _, dx in { -0.8, 0.8 } do
+		for _, dz in { -0.8, 0.8 } do
+			bloco("PeCadeira", Vector3.new(0.25, 2, 0.25), cadeira * CFrame.new(dx, 1, dz), Color3.fromRGB(35, 25, 20), Enum.Material.Wood)
+		end
+	end
+
+	-- uma bolinha de cada trilha pendurada na beirada da frente, girando com o rastro
 	for i, trilha in Config.TRILHAS do
-		local s = if i <= 4 then -1 else 1
-		local k = if i <= 4 then i - 1 else i - 5
-		local pos = Vector3.new(s * (W / 2 - 4.5), 1.2, -D / 2 + 7 + k * 5.2)
-		local pedestal = bloco("Pedestal", Vector3.new(2.4, 3, 2.4), CFrame.new(pos + Vector3.new(0, 1.5, 0)), MARMORE, Enum.Material.Marble)
-		bloco("TopoPedestal", Vector3.new(2.8, 0.3, 2.8), CFrame.new(pos + Vector3.new(0, 3.15, 0)), Color3.fromRGB(230, 190, 90), Enum.Material.Metal)
-		local centro = Vector3.new(pos.X, pos.Y + 5, pos.Z)
-		local bola = bloco("Amostra", Vector3.new(0.5, 0.5, 0.5), CFrame.new(centro + Vector3.new(1.3, 0, 0)), corDaTrilha(trilha), Enum.Material.Neon, { CanCollide = false, CanQuery = false })
+		local x = -W / 2 + 2 + (i - 1) * (W - 4) / (#Config.TRILHAS - 1)
+		local centro = Vector3.new(x, yBase - 2.2, -D / 2 - 0.4)
+		bloco("Fio", Vector3.new(0.08, 1.6, 0.08), CFrame.new(centro + Vector3.new(0, 1.3, 0)), Color3.fromRGB(240, 240, 240), nil, { CanCollide = false, CanQuery = false })
+		local bola = bloco("Amostra", Vector3.new(0.5, 0.5, 0.5), CFrame.new(centro + Vector3.new(0.6, 0, 0)), corDaTrilha(trilha), Enum.Material.Neon, { CanCollide = false, CanQuery = false })
 		local a0 = Instance.new("Attachment")
-		a0.Position = Vector3.new(0, 0.5, 0)
+		a0.Position = Vector3.new(0, 0.3, 0)
 		a0.Parent = bola
 		local a1 = Instance.new("Attachment")
-		a1.Position = Vector3.new(0, -0.5, 0)
+		a1.Position = Vector3.new(0, -0.3, 0)
 		a1.Parent = bola
 		local rastro = Instance.new("Trail")
 		rastro.Attachment0 = a0
 		rastro.Attachment1 = a1
 		rastro.Color = corDa(trilha)
 		rastro.LightEmission = 0.8
-		rastro.Lifetime = 0.6
+		rastro.Lifetime = 0.5
 		rastro.Transparency = NumberSequence.new(0, 1)
 		rastro.Parent = bola
-		bola:SetAttribute("Giro", 200)
-		bola:SetAttribute("Flutua", 0.4)
-		-- "Centro" é posto depois de girar a loja para o lugar (montarLoja)
+		bola:SetAttribute("Giro", 180 + i * 10)
+		bola:SetAttribute("Flutua", 0.2)
 		bola:SetAttribute("CentroLocal", centro)
-		CollectionService:AddTag(bola, "AmostraTrilha")
-		local placa = Instance.new("SurfaceGui")
-		placa.Face = if s > 0 then Enum.NormalId.Left else Enum.NormalId.Right
-		placa.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		placa.PixelsPerStud = 40
-		placa.Parent = pedestal
-		local nome = Instance.new("TextLabel")
-		nome.BackgroundTransparency = 1
-		nome.Size = UDim2.fromScale(1, 0.5)
-		nome.Position = UDim2.fromScale(0, 0.25)
-		nome.Font = Enum.Font.FredokaOne
-		nome.TextScaled = true
-		nome.Text = trilha.nome .. "\nx" .. trilha.multiplicador
-		nome.TextColor3 = corDaTrilha(trilha):Lerp(Color3.new(0, 0, 0), 0.35)
-		nome.Parent = placa
 	end
-	-- luzes de dentro
-	for _, x in { -10, 10 } do
-		local lampada = bloco("Lustre", Vector3.new(2, 0.6, 2), CFrame.new(x, H + 0.4, 0), Color3.fromRGB(255, 230, 180), Enum.Material.Neon, { CanCollide = false })
-		local luzLoja = Instance.new("PointLight")
-		luzLoja.Range = 22
-		luzLoja.Brightness = 1.4
-		luzLoja.Color = Color3.fromRGB(255, 220, 255)
-		luzLoja.Parent = lampada
-	end
-	-- brilhos na entrada
-	local entrada = bloco("BrilhoEntrada", Vector3.new(14, 1, 2), CFrame.new(0, 2, -D / 2 + 1), Color3.new(1, 1, 1), nil, { Transparency = 1, CanCollide = false, CanQuery = false })
-	local brilho = Instance.new("ParticleEmitter")
-	brilho.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	brilho.Color = ColorSequence.new(pontos)
-	brilho.LightEmission = 1
-	brilho.Size = NumberSequence.new(0.5, 0)
-	brilho.Lifetime = NumberRange.new(1, 2)
-	brilho.Rate = 12
-	brilho.Speed = NumberRange.new(1, 3)
-	brilho.EmissionDirection = Enum.NormalId.Top
-	brilho.Parent = entrada
+	-- luzinha quente dentro
+	local lampada = bloco("Lampada", Vector3.new(0.8, 0.8, 0.8), CFrame.new(0, yBase + 1.4, 0), Color3.fromRGB(255, 225, 160), Enum.Material.Neon, { CanCollide = false })
+	local luzLoja = Instance.new("PointLight")
+	luzLoja.Range = 16
+	luzLoja.Brightness = 1.2
+	luzLoja.Color = Color3.fromRGB(255, 220, 170)
+	luzLoja.Parent = lampada
 	modelo.PrimaryPart = piso
 	return modelo
 end
 
--- Vendedor atrás do balcão: um boneco R15 de roupa roxa, avental e chapéu,
--- uma trilha arco-íris na mão e acenando sem parar. Falar com ele abre a
--- mesma tela da loja (atributo "AbreLoja"), sem outro sistema de compra.
+-- Vendedora atrás do balcão (como a da foto): uma vovozinha R15 de cabelo
+-- branco em coque, vestido azul com avental branco e óculos, acenando e com
+-- uma trilha arco-íris na mão. Falar com ela abre a mesma tela da loja
+-- (atributo "AbreLoja"), sem outro sistema de compra.
 local function vendedor(cf: CFrame, pai: Instance)
 	local ok, boneco = pcall(function()
 		local desc = Instance.new("HumanoidDescription")
-		desc.HeadColor = Color3.fromRGB(255, 205, 160)
+		desc.HeadColor = Color3.fromRGB(255, 214, 180)
 		desc.LeftArmColor = desc.HeadColor
 		desc.RightArmColor = desc.HeadColor
-		desc.TorsoColor = Color3.fromRGB(130, 70, 210)
-		desc.LeftLegColor = Color3.fromRGB(45, 35, 80)
-		desc.RightLegColor = Color3.fromRGB(45, 35, 80)
+		desc.TorsoColor = Color3.fromRGB(70, 110, 210)
+		desc.LeftLegColor = Color3.fromRGB(70, 110, 210)
+		desc.RightLegColor = Color3.fromRGB(70, 110, 210)
 		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not boneco then
-		warn("Vendedor de trilhas não montou:", boneco)
+		warn("Vendedora de trilhas não montou:", boneco)
 		return
 	end
-	boneco.Name = "Vendedor de Trilhas"
-	boneco:SetAttribute("SemLego", true)
+	boneco.Name = "Vendedora de Trilhas"
 	local humanoid = boneco:FindFirstChildOfClass("Humanoid") :: Humanoid
-	humanoid.DisplayName = "Vendedor de Trilhas"
+	humanoid.DisplayName = "Vovó das Trilhas"
 	humanoid.NameDisplayDistance = 60
 	humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
 	for _, p in boneco:GetDescendants() do
@@ -316,12 +351,12 @@ local function vendedor(cf: CFrame, pai: Instance)
 	end
 	local tronco = boneco:FindFirstChild("UpperTorso") :: BasePart?
 	local cabeca = boneco:FindFirstChild("Head") :: BasePart?
-	local function preso(alvo: BasePart, nome: string, tamanho: Vector3, desloca: CFrame, cor: Color3, material: Enum.Material)
+	local function preso(alvo: BasePart, nome: string, tamanho: Vector3, desloca: CFrame, cor: Color3, material: Enum.Material?)
 		local p = Instance.new("Part")
 		p.Name = nome
 		p.Size = tamanho
 		p.Color = cor
-		p.Material = material
+		p.Material = material or Enum.Material.SmoothPlastic
 		p.CanCollide = false
 		p.Massless = true
 		p.CFrame = alvo.CFrame * desloca
@@ -331,13 +366,23 @@ local function vendedor(cf: CFrame, pai: Instance)
 		solda.Parent = p
 		p.Parent = boneco
 	end
+	local BRANCO_CABELO = Color3.fromRGB(245, 245, 250)
 	if tronco then
-		preso(tronco, "Avental", Vector3.new(1.7, 1.5, 0.15), CFrame.new(0, -0.1, -0.55), Color3.fromRGB(255, 215, 90), Enum.Material.Fabric)
+		preso(tronco, "Avental", Vector3.new(1.6, 1.6, 0.15), CFrame.new(0, -0.1, -0.55), Color3.new(1, 1, 1), Enum.Material.Fabric)
+		preso(tronco, "Gola", Vector3.new(1.4, 0.3, 1.1), CFrame.new(0, 0.75, 0), Color3.new(1, 1, 1), Enum.Material.Fabric)
 	end
 	if cabeca then
-		preso(cabeca, "Chapeu", Vector3.new(1.6, 0.25, 1.6), CFrame.new(0, 0.7, 0), Color3.fromRGB(70, 40, 140), Enum.Material.SmoothPlastic)
-		preso(cabeca, "Chapeu", Vector3.new(1.1, 0.8, 1.1), CFrame.new(0, 1.15, 0), Color3.fromRGB(70, 40, 140), Enum.Material.SmoothPlastic)
-		preso(cabeca, "FitaChapeu", Vector3.new(1.15, 0.2, 1.15), CFrame.new(0, 0.85, 0), Color3.fromRGB(255, 120, 255), Enum.Material.Neon)
+		-- cabelo branco cacheado e o coque em cima
+		preso(cabeca, "Cabelo", Vector3.new(1.35, 0.6, 1.35), CFrame.new(0, 0.45, 0.05), BRANCO_CABELO)
+		for _, dx in { -0.6, 0.6 } do
+			preso(cabeca, "Cabelo", Vector3.new(0.4, 0.9, 1.1), CFrame.new(dx, 0.05, 0.15), BRANCO_CABELO)
+		end
+		preso(cabeca, "Cabelo", Vector3.new(1.2, 0.9, 0.4), CFrame.new(0, 0.05, 0.6), BRANCO_CABELO)
+		preso(cabeca, "Coque", Vector3.new(0.75, 0.6, 0.75), CFrame.new(0, 0.95, 0.15), BRANCO_CABELO)
+		-- óculos redondinhos
+		for _, dx in { -0.25, 0.25 } do
+			preso(cabeca, "Oculos", Vector3.new(0.32, 0.32, 0.05), CFrame.new(dx, 0.12, -0.6), Color3.fromRGB(40, 40, 50))
+		end
 	end
 	boneco:PivotTo(cf)
 	boneco.Parent = pai
@@ -378,9 +423,9 @@ local function vendedor(cf: CFrame, pai: Instance)
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "Vendedor"
 		prompt.ActionText = "Falar"
-		prompt.ObjectText = "Vendedor de Trilhas"
+		prompt.ObjectText = "Vovó das Trilhas"
 		prompt.RequiresLineOfSight = false
-		prompt.MaxActivationDistance = 14
+		prompt.MaxActivationDistance = 12
 		prompt:SetAttribute("AbreLoja", "Trilhas")
 		prompt.Parent = raiz
 	end
@@ -416,7 +461,7 @@ local function montarLoja()
 	marco.Size = Vector3.one
 	-- na frente do balcão (num modelo próprio, na frente dele)
 	marco.CFrame = CFrame.lookAt(POSICAO_LOJA, olhar)
-		* (if proprio then CFrame.new(0, 3, -math.max(tamanho.Z / 2, 4) - 1) else CFrame.new(0, 4, 2.5))
+		* (if proprio then CFrame.new(0, 3, -math.max(tamanho.Z / 2, 4) - 1) else CFrame.new(0, 4, -8.2))
 	marco.Parent = modelo
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "Loja"
@@ -451,12 +496,12 @@ local function montarLoja()
 		end
 	end
 	if not proprio then
-		-- vendedor atrás do balcão, olhando para a entrada
+		-- vendedora atrás do balcão, olhando para a rua
 		local frente = CFrame.lookAt(POSICAO_LOJA, olhar)
-		vendedor(frente * CFrame.new(0, 4.3, 9), modelo)
+		vendedor(frente * CFrame.new(0, 4.05, -3.6), modelo)
 		-- passeio de pedra da calçada até os degraus
 		local inicio = math.sign(POSICAO_LOJA.Z) * 13.6
-		local fim = POSICAO_LOJA.Z - math.sign(POSICAO_LOJA.Z) * 17
+		local fim = POSICAO_LOJA.Z - math.sign(POSICAO_LOJA.Z) * 6.5
 		local passeio = Mapa.parte({
 			Name = "PasseioLoja",
 			Size = Vector3.new(10, 1, math.abs(fim - inicio)),

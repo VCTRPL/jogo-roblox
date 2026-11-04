@@ -31,6 +31,7 @@ type Estilo = {
 	faixa: Color3,
 	neon: Color3?, -- cor das luzes (nil = sem brilho)
 	grosso: boolean?, -- luzes largas, tipo armadura
+	arcoIris: boolean?, -- as luzes trocam de cor (o cliente anima pela tag "ArcoIrisEsteira")
 	extra: ((modelo: Model, cf: CFrame, cor: Color3) -> ())?,
 }
 
@@ -485,6 +486,200 @@ local ESTILOS: { Estilo } = {
 			flutuantes(modelo, cf, cor, 16, Vector3.new(0.35, 0.35, 0.35))
 		end,
 	},
+	-- 8: Tempestade, cinza-chumbo com neon amarelo-elétrico, para-raios e raios
+	-- estalando entre as colunas
+	{
+		estrutura = Color3.fromRGB(46, 50, 62),
+		material = Enum.Material.Metal,
+		pista = Color3.fromRGB(22, 24, 32),
+		materialPista = Enum.Material.DiamondPlate,
+		faixa = Color3.fromRGB(90, 90, 40),
+		neon = Color3.fromRGB(255, 240, 70),
+		grosso = true,
+		extra = function(modelo, cf, cor)
+			local azul = Color3.fromRGB(120, 200, 255)
+			-- para-raios no topo das colunas e nos pés de trás, com uma bola de energia
+			for _, x in { -1, 1 } do
+				for _, lugar in { Vector3.new(x * 3.2, 9.6, -5.5), Vector3.new(x * 3.2, 3.2, 6.6) } do
+					enfeite(modelo, cf * CFrame.new(lugar), Vector3.new(0.25, 2.6, 0.25), Color3.fromRGB(200, 205, 215), Enum.Material.Metal, { Name = "ParaRaios" })
+					local bola = enfeite(modelo, cf * CFrame.new(lugar + Vector3.new(0, 1.5, 0)), Vector3.new(0.7, 0.7, 0.7), cor, Enum.Material.Neon, { Name = "Bobina", CastShadow = false })
+					girar(bola, 120, 0.15)
+					particulas(bola, {
+						Name = "Faiscas",
+						Texture = FAISCA,
+						Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+						Size = NumberSequence.new(0.5, 0),
+						Lifetime = NumberRange.new(0.15, 0.35),
+						Rate = 25,
+						Speed = NumberRange.new(4, 8),
+						SpreadAngle = Vector2.new(180, 180),
+						LightEmission = 1,
+					})
+				end
+			end
+			-- raios (Beam em zigue-zague) ligando as bobinas da frente com as de trás
+			for _, x in { -1, 1 } do
+				local a0 = area(modelo, cf * CFrame.new(x * 3.2, 11.1, -5.5), Vector3.new(0.2, 0.2, 0.2))
+				local a1 = area(modelo, cf * CFrame.new(x * 3.2, 4.7, 6.6), Vector3.new(0.2, 0.2, 0.2))
+				local p0 = Instance.new("Attachment")
+				p0.Parent = a0
+				local p1 = Instance.new("Attachment")
+				p1.Parent = a1
+				for i, corRaio in { cor, azul } do
+					local raio = Instance.new("Beam")
+					raio.Name = "Raio"
+					raio.Attachment0 = p0
+					raio.Attachment1 = p1
+					raio.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+					raio.TextureMode = Enum.TextureMode.Wrap
+					raio.TextureLength = 1.5
+					raio.TextureSpeed = 6 + i * 3
+					raio.Color = ColorSequence.new(corRaio)
+					raio.LightEmission = 1
+					raio.Width0 = 0.6
+					raio.Width1 = 0.6
+					raio.CurveSize0 = 3 * i * x
+					raio.CurveSize1 = -2 * i * x
+					raio.FaceCamera = true
+					raio.Parent = a0
+				end
+			end
+			anel(modelo, cf, cor, 5, 8, 2.4, 1.6, 70)
+			anel(modelo, cf, azul, 4.4, 7.2, 5.6, -1.4, -90)
+			halo(modelo, cf, cor, 0.4)
+			-- nuvem de tempestade pequena em cima da esteira
+			local nuvem = area(modelo, cf * CFrame.new(0, 13, 0.5), Vector3.new(8, 1, 12))
+			particulas(nuvem, {
+				Name = "Nuvem",
+				Texture = FUMACA,
+				Color = ColorSequence.new(Color3.fromRGB(80, 85, 100)),
+				Transparency = NumberSequence.new(0.35, 1),
+				Size = NumberSequence.new(4, 7),
+				Lifetime = NumberRange.new(2, 3),
+				Rate = 8,
+				Speed = NumberRange.new(0.2, 0.6),
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+			brilhosSubindo(modelo, cf, cor, 18)
+			flutuantes(modelo, cf, azul, 16, Vector3.new(0.3, 0.3, 0.3))
+		end,
+	},
+	-- 9: Abismo, preta com neon roxo, olhos de fenda, orbes do vazio girando
+	-- e um portal escuro atrás
+	{
+		estrutura = Color3.fromRGB(14, 10, 20),
+		material = Enum.Material.SmoothPlastic,
+		pista = Color3.fromRGB(10, 6, 16),
+		materialPista = Enum.Material.Glass,
+		faixa = Color3.fromRGB(70, 20, 110),
+		neon = Color3.fromRGB(170, 60, 255),
+		grosso = true,
+		extra = function(modelo, cf, cor)
+			local rosa = Color3.fromRGB(255, 60, 170)
+			-- chifres curvos nas colunas
+			for _, x in { -1, 1 } do
+				for i = 0, 3 do
+					enfeite(
+						modelo,
+						cf * CFrame.new(x * (3.3 + i * 0.35), 8.4 + i * 0.75, -5.6) * CFrame.Angles(0, 0, math.rad(-x * (25 + i * 18))),
+						Vector3.new(0.6 - i * 0.12, 0.9, 0.6 - i * 0.12),
+						if i == 3 then cor else Color3.fromRGB(14, 10, 20),
+						if i == 3 then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+						{ Name = "Chifre" }
+					)
+				end
+			end
+			-- portal do vazio atrás da esteira, girando
+			local portal = enfeite(modelo, cf * CFrame.new(0, 4.5, 9.2) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(0.2, 7, 7), Color3.fromRGB(30, 10, 50), Enum.Material.ForceField, { Name = "PortalVazio", Shape = Enum.PartType.Cylinder, CastShadow = false })
+			portal:SetAttribute("ManterForma", true)
+			anel(modelo, cf * CFrame.new(0, 0, 9.2), cor, 3.6, 0.6, 4.5, 0, 0)
+			local redemoinho = area(modelo, cf * CFrame.new(0, 4.5, 9.2), Vector3.new(0.5, 6, 6))
+			particulas(redemoinho, {
+				Name = "Vazio",
+				Texture = "rbxasset://textures/particles/forcefield_vortex_main.dds",
+				Color = ColorSequence.new(cor, rosa),
+				Size = NumberSequence.new(5, 6),
+				Lifetime = NumberRange.new(1, 1.5),
+				Rate = 4,
+				Speed = NumberRange.new(0),
+				Rotation = NumberRange.new(0, 360),
+				RotSpeed = NumberRange.new(-180, 180),
+				LockedToPart = true,
+				LightEmission = 1,
+			})
+			-- orbes escuros em órbita
+			local centro = (cf * CFrame.new(0, 4, 0)).Position
+			for i = 1, 4 do
+				local angulo = i / 4 * math.pi * 2
+				local orbe = enfeite(modelo, cf * CFrame.new(math.cos(angulo) * 6.5, 3 + (i % 2) * 3, math.sin(angulo) * 8.5), Vector3.one * 1.1, if i % 2 == 0 then cor else rosa, Enum.Material.Neon, { Name = "Orbe", CastShadow = false })
+				girar(orbe, -40 - i * 8, 0.5, centro)
+			end
+			anel(modelo, cf, cor, 5.6, 8.6, 2.8, 1, -45)
+			halo(modelo, cf, cor, 0.35)
+			fumaca(modelo, cf, Color3.fromRGB(60, 20, 90), 14)
+			brilhosSubindo(modelo, cf, rosa, 14)
+			flutuantes(modelo, cf, cor, 18, Vector3.new(0.35, 0.9, 0.35))
+		end,
+	},
+	-- 10: Suprema, branca com neon que troca de cor (arco-íris), coroa
+	-- flutuando, três anéis coloridos e uma chuva de estrelas
+	{
+		estrutura = Color3.fromRGB(250, 250, 255),
+		material = Enum.Material.Marble,
+		pista = Color3.fromRGB(30, 26, 44),
+		materialPista = Enum.Material.Glass,
+		faixa = Color3.fromRGB(255, 255, 255),
+		neon = Color3.fromRGB(255, 120, 220),
+		grosso = true,
+		arcoIris = true,
+		extra = function(modelo, cf, cor)
+			local cores = {}
+			for i = 0, 5 do
+				table.insert(cores, Color3.fromHSV(i / 6, 0.75, 1))
+			end
+			-- três anéis em alturas e cores diferentes
+			anel(modelo, cf, cores[1], 5.2, 8.2, 2.4, 1.2, 50)
+			anel(modelo, cf, cores[3], 4.6, 7.4, 5, -1, -65)
+			anel(modelo, cf, cores[5], 4, 6.6, 7.6, 0.8, 80)
+			-- coroa dourada girando em cima do painel
+			local topoCoroa = cf * CFrame.new(0, 13, -5.3)
+			enfeite(modelo, topoCoroa, Vector3.new(2.6, 0.6, 2.6), Color3.fromRGB(255, 205, 60), Enum.Material.Neon, { Name = "Coroa", CastShadow = false })
+			for i = 0, 4 do
+				local a = i / 5 * math.pi * 2
+				local ponta = enfeite(modelo, topoCoroa * CFrame.new(math.cos(a) * 1.1, 0.8, math.sin(a) * 1.1), Vector3.new(0.45, 1, 0.45), cores[i + 1], Enum.Material.Neon, { Name = "Joia", CastShadow = false })
+				girar(ponta, 60, 0.3, topoCoroa.Position)
+			end
+			-- feixes de luz coloridos subindo dos cantos
+			local cantos = { Vector3.new(-3.6, 12, -6), Vector3.new(3.6, 12, -6), Vector3.new(-3.6, 12, 6.5), Vector3.new(3.6, 12, 6.5) }
+			for i, lugar in cantos do
+				enfeite(modelo, cf * CFrame.new(lugar), Vector3.new(0.9, 24, 0.9), cores[i], Enum.Material.Neon, { Transparency = 0.7, CastShadow = false, Name = "Raio" })
+			end
+			halo(modelo, cf, Color3.new(1, 1, 1), 0.3)
+			-- chuva de estrelas coloridas
+			local ceu = area(modelo, cf * CFrame.new(0, 14, 0), Vector3.new(11, 1, 17))
+			local pontos = {}
+			for i, c in cores do
+				table.insert(pontos, ColorSequenceKeypoint.new((i - 1) / (#cores - 1), c))
+			end
+			particulas(ceu, {
+				Name = "Estrelas",
+				Texture = FAISCA,
+				Color = ColorSequence.new(pontos),
+				Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 0.1) }),
+				Lifetime = NumberRange.new(2, 3.5),
+				Rate = 18,
+				Speed = NumberRange.new(2, 4),
+				EmissionDirection = Enum.NormalId.Bottom,
+				RotSpeed = NumberRange.new(-120, 120),
+				LightEmission = 1,
+				Shape = Enum.ParticleEmitterShape.Box,
+				ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume,
+			})
+			brilhosSubindo(modelo, cf, cores[2], 20)
+			flutuantes(modelo, cf, cores[4], 20, Vector3.new(0.4, 0.4, 0.4))
+		end,
+	},
 }
 
 -- Efeitos que toda esteira tem, mais fortes a cada nível: riscos de vento
@@ -743,7 +938,7 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	if malha then
 		local neon = malha:FindFirstChild("Neon")
 		if neon and estilo.neon then
-			CollectionService:AddTag(neon, "PulsarEsteira")
+			CollectionService:AddTag(neon, if estilo.arcoIris then "ArcoIrisEsteira" else "PulsarEsteira")
 		end
 	else
 		-- deck: corpo por baixo da pista, laterais, capô do motor e pés de trás

@@ -229,7 +229,7 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 	-- (do lado direito da passagem), virada para quem chega
 	-- antes do primeiro bioma é o gramado do mapa; nos outros, o chão de transição
 	local altura = if info.config == Config.BIOMAS[1] then 0.05 else info.centro.Y
-	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, altura, 13)
+	local chao = Vector3.new(info.centro.X - Mapa.TAMANHO_BIOMA / 2 - 7, altura, 27) -- do lado de fora do pilar do arco
 	-- o poste fica atrás da placa (quem chega vem de -X), sem tampar o texto
 	Mapa.parte({
 		Name = "PostePlaca",
@@ -256,7 +256,7 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 	label.BackgroundTransparency = 1
 	label.Position = UDim2.fromScale(0.05, 0.1)
 	label.Size = UDim2.fromScale(0.9, 0.8)
-	label.Font = Enum.Font.LuckiestGuy
+	label.Font = Enum.Font.Bangers
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(255, 245, 210)
 	local contorno = Instance.new("UIStroke")

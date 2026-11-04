@@ -397,6 +397,12 @@ function Corrida.iniciar()
 				parte.Color = cor:Lerp(Color3.new(1, 1, 1), onda * 0.45)
 			end
 		end
+		-- luzes da Esteira Suprema: trocam de cor passando pelo arco-íris
+		for _, parte in CollectionService:GetTagged("ArcoIrisEsteira") do
+			if parte:IsA("BasePart") then
+				parte.Color = Color3.fromHSV((agora * 0.25 + parte.Position.X * 0.01) % 1, 0.7, 1)
+			end
+		end
 	end)
 end
 

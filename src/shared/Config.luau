@@ -95,6 +95,9 @@ Config.NIVEIS_ESTEIRA = {
 	{ nome = "Esteira Lendária", ganho = 30, preco = 5000000, cor = Color3.fromRGB(255, 35, 45) },
 	{ nome = "Esteira Cósmica", ganho = 75, preco = 80000000, cor = Color3.fromRGB(80, 220, 255) },
 	{ nome = "Esteira Divina", ganho = 200, preco = 1500000000, cor = Color3.fromRGB(255, 235, 150) },
+	{ nome = "Esteira Tempestade", ganho = 500, preco = 25000000000, cor = Color3.fromRGB(255, 240, 70) },
+	{ nome = "Esteira do Abismo", ganho = 1300, preco = 400000000000, cor = Color3.fromRGB(170, 60, 255) },
+	{ nome = "Esteira Suprema", ganho = 3500, preco = 6000000000000, cor = Color3.fromRGB(255, 120, 220) },
 }
 
 Config.CORES_RARIDADE = {

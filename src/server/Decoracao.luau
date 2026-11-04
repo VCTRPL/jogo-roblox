@@ -1,6 +1,5 @@
--- Decoração do mapa: céu e iluminação, chão de grama, árvores, o lago,
--- cercas das bases, postes da estrada, o túnel da entrada e os portais
--- dos biomas. Só enfeite: nada aqui muda
+-- Decoração do mapa: céu e iluminação, chão de grama, o túnel da entrada,
+-- os portais dos biomas, a junção com o primeiro bioma e o fim do mapa. Só enfeite: nada aqui muda
 -- as regras do jogo. O sorteio usa sempre a mesma semente, então o
 -- mapa fica igual toda vez.
 local CollectionService = game:GetService("CollectionService")
@@ -107,18 +106,25 @@ local function texto(parent: BasePart, face: Enum.NormalId, conteudo: string, co
 	label.Parent = gui
 end
 
--- Túnel de trem no começo da estrada, de concreto, entrando na montanha
--- (veja Montanhas.luau): as duas esteiras rolantes saem dele. Por dentro
--- tem arcos de concreto, luzes no teto, faixas de LED pulsando nas paredes
--- e ventiladores girando; na boca, faixas de alerta, luzes vermelhas
--- piscando e fumaça saindo.
+-- Túnel de estrada no começo da rua, entrando na montanha (veja
+-- Montanhas.luau). Por dentro: paredes de azulejo claro com faixa azul,
+-- calçadinhas com guarda-corpo, luminárias quentes no teto e o fundo
+-- sumindo no escuro. Na boca: fachada de pedra com um arco de aduelas e a
+-- pedra-chave, pilastras com lanternas, cornija, a placa com o nome do jogo,
+-- trepadeiras, floreiras e a placa de altura máxima.
 local TUNEL_FUNDO = Mapa.INICIO_ESTRADA - 1
 local TUNEL_BOCA = Mapa.TUNEL_BOCA
-local CONCRETO = Color3.fromRGB(150, 150, 155)
-local CONCRETO_ESCURO = Color3.fromRGB(105, 105, 112)
-local AMARELO = Color3.fromRGB(255, 200, 40)
-local PRETO = Color3.fromRGB(30, 30, 34)
-local function tunel(pasta: Instance)
+local PEDRA_FACHADA = Color3.fromRGB(176, 166, 150)
+local PEDRA_ESCURA = Color3.fromRGB(122, 114, 104)
+local PEDRA_CLARA = Color3.fromRGB(214, 206, 190)
+local AZULEJO = Color3.fromRGB(232, 230, 222)
+local FAIXA_AZUL = Color3.fromRGB(60, 120, 200)
+local LUZ_TUNEL = Color3.fromRGB(255, 214, 150)
+local function tunel(pai: Instance)
+	local pasta = Instance.new("Folder")
+	pasta.Name = "Tunel"
+	pasta:SetAttribute("SemLego", true)
+	pasta.Parent = pai
 	local comprimento = TUNEL_BOCA - TUNEL_FUNDO
 	local meio = (TUNEL_BOCA + TUNEL_FUNDO) / 2
 	local meia = Mapa.TUNEL_LARGURA / 2
@@ -133,115 +139,48 @@ local function tunel(pasta: Instance)
 		return parte(props)
 	end
 
-	-- paredes, teto e fundo escuro
+	-- paredes de azulejo, cantos de cima chanfrados e teto
 	for _, lado in { -1, 1 } do
-		parte({
-			Name = "ParedeTunel",
-			Size = Vector3.new(comprimento, altura, 2.5),
-			Position = Vector3.new(meio, altura / 2, lado * (meia + 1.25)),
-			Color = CONCRETO_ESCURO,
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-		-- cantos de cima chanfrados, para a boca ficar arredondada
-		parte({
-			Name = "CantoTunel",
-			Size = Vector3.new(comprimento, 3, 3),
-			Position = Vector3.new(meio, altura - 1.5, lado * (meia - 1.5)),
-			Color = CONCRETO_ESCURO,
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-		-- faixa de LED pulsando ao longo da parede
-		local led = enfeite({
-			Name = "LedTunel",
-			Size = Vector3.new(comprimento - 1, 0.35, 0.2),
-			Position = Vector3.new(meio, 3, lado * (meia - 0.1)),
-			Color = Color3.fromRGB(60, 220, 255),
-			Material = Enum.Material.Neon,
-		})
-		CollectionService:AddTag(led, "PulsarEsteira")
-	end
-	parte({
-		Name = "TetoTunel",
-		Size = Vector3.new(comprimento, 4, Mapa.TUNEL_LARGURA + 5),
-		Position = Vector3.new(meio, altura + 2, 0),
-		Color = CONCRETO_ESCURO,
-		Material = Enum.Material.Concrete,
-		Parent = pasta,
-	})
-	parte({
-		Name = "FundoTunel",
-		Size = Vector3.new(1, altura, Mapa.TUNEL_LARGURA),
-		Position = Vector3.new(TUNEL_FUNDO + 0.5, altura / 2, 0),
-		Color = Color3.fromRGB(14, 12, 18),
-		Material = Enum.Material.SmoothPlastic,
-		Parent = pasta,
-	})
-
-	-- arcos de concreto por dentro, com uma luz no teto entre eles
-	for x = TUNEL_FUNDO + 3, TUNEL_BOCA - 2, 6 do
-		for _, lado in { -1, 1 } do
-			parte({
-				Name = "ArcoTunel",
-				Size = Vector3.new(1.2, altura, 1),
-				Position = Vector3.new(x, altura / 2, lado * (meia - 0.5)),
-				Color = CONCRETO,
-				Material = Enum.Material.Concrete,
-				Parent = pasta,
-			})
+		parte({ Name = "ParedeTunel", Size = Vector3.new(comprimento, altura, 2.5), Position = Vector3.new(meio, altura / 2, lado * (meia + 1.25)), Color = AZULEJO, Material = Enum.Material.Marble, Parent = pasta })
+		local canto = parte({ Name = "CantoTunel", Size = Vector3.new(comprimento, 4.2, 4.2), CFrame = CFrame.new(meio, altura - 1.4, lado * (meia - 0.6)) * CFrame.Angles(math.rad(45), 0, 0), Color = AZULEJO, Material = Enum.Material.Marble, Parent = pasta })
+		local _ = canto
+		-- faixa azul de azulejo e rodapé escuro
+		enfeite({ Name = "FaixaTunel", Size = Vector3.new(comprimento, 0.8, 0.15), Position = Vector3.new(meio, 5, lado * (meia - 0.05)), Color = FAIXA_AZUL, Material = Enum.Material.SmoothPlastic })
+		enfeite({ Name = "FaixaTunel", Size = Vector3.new(comprimento, 0.25, 0.15), Position = Vector3.new(meio, 6, lado * (meia - 0.05)), Color = FAIXA_AZUL, Material = Enum.Material.SmoothPlastic })
+		parte({ Name = "Rodape", Size = Vector3.new(comprimento, 1.6, 0.4), Position = Vector3.new(meio, 1.8, lado * (meia - 0.15)), Color = Color3.fromRGB(70, 72, 80), Material = Enum.Material.Concrete, Parent = pasta })
+		-- calçadinha com guarda-corpo de metal
+		parte({ Name = "CalcadaTunel", Size = Vector3.new(comprimento, 0.4, 2.2), Position = Vector3.new(meio, 1.2, lado * (meia - 1.1)), Color = Color3.fromRGB(190, 186, 178), Material = Enum.Material.Concrete, Parent = pasta })
+		enfeite({ Name = "Corrimao", Size = Vector3.new(comprimento, 0.2, 0.2), Position = Vector3.new(meio, 3.6, lado * (meia - 2.1)), Color = Color3.fromRGB(200, 205, 215), Material = Enum.Material.Metal })
+		for x = TUNEL_FUNDO + 2, TUNEL_BOCA - 1, 3 do
+			enfeite({ Name = "Corrimao", Size = Vector3.new(0.2, 2.2, 0.2), Position = Vector3.new(x, 2.5, lado * (meia - 2.1)), Color = Color3.fromRGB(200, 205, 215), Material = Enum.Material.Metal })
 		end
-		parte({
-			Name = "ArcoTunel",
-			Size = Vector3.new(1.2, 1, Mapa.TUNEL_LARGURA),
-			Position = Vector3.new(x, altura - 0.5, 0),
-			Color = CONCRETO,
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-		if x + 3 < TUNEL_BOCA then
-			local lampada = enfeite({
-				Name = "LuzTunel",
-				Size = Vector3.new(1, 0.3, 5),
-				Position = Vector3.new(x + 3, altura - 0.15, 0),
-				Color = Color3.fromRGB(255, 210, 130),
-				Material = Enum.Material.Neon,
-			})
-			local luz = Instance.new("PointLight")
-			luz.Color = Color3.fromRGB(255, 210, 150)
-			luz.Range = 18
-			luz.Brightness = 1.2
-			luz.Parent = lampada
+		-- olhos-de-gato no chão, perto da calçadinha
+		for x = TUNEL_FUNDO + 3, TUNEL_BOCA - 1, 4 do
+			enfeite({ Name = "OlhoDeGato", Size = Vector3.new(0.5, 0.12, 0.5), Position = Vector3.new(x, 1.05, lado * (meia - 2.6)), Color = Color3.fromRGB(255, 190, 60), Material = Enum.Material.Neon })
 		end
 	end
+	parte({ Name = "TetoTunel", Size = Vector3.new(comprimento, 4, Mapa.TUNEL_LARGURA + 5), Position = Vector3.new(meio, altura + 2, 0), Color = AZULEJO, Material = Enum.Material.Marble, Parent = pasta })
+	parte({ Name = "FundoTunel", Size = Vector3.new(1, altura, Mapa.TUNEL_LARGURA), Position = Vector3.new(TUNEL_FUNDO + 0.5, altura / 2, 0), Color = Color3.fromRGB(10, 10, 14), Material = Enum.Material.SmoothPlastic, Parent = pasta })
 
-	-- ventiladores no teto, girando
-	for _, x in { TUNEL_BOCA - 4 } do
-		local centro = Vector3.new(x, altura - 1.6, 0)
-		enfeite({
-			Name = "EixoVentilador",
-			Size = Vector3.new(0.6, 1.2, 0.6),
-			Position = centro + Vector3.new(0, 0.6, 0),
-			Color = PRETO,
-			Material = Enum.Material.Metal,
-		})
-		for _, giro in { 0, 90 } do
-			local pa = enfeite({
-				Name = "PaVentilador",
-				Size = Vector3.new(6, 0.2, 0.9),
-				CFrame = CFrame.new(centro) * CFrame.Angles(0, math.rad(giro), 0),
-				Color = Color3.fromRGB(70, 70, 78),
-				Material = Enum.Material.Metal,
-			})
-			pa:SetAttribute("Centro", centro)
-			pa:SetAttribute("Giro", 220)
-			CollectionService:AddTag(pa, "GirarEsteira")
+	-- luminárias no teto (duas fileiras), com duas luzes de verdade só
+	local luzes = 0
+	for x = TUNEL_FUNDO + 4, TUNEL_BOCA - 2, 4 do
+		for _, z in { -4, 4 } do
+			enfeite({ Name = "CaixaLuz", Size = Vector3.new(2.6, 0.5, 1.2), Position = Vector3.new(x, altura - 0.25, z), Color = Color3.fromRGB(60, 62, 70), Material = Enum.Material.Metal })
+			local lampada = enfeite({ Name = "LuzTunel", Size = Vector3.new(2.2, 0.2, 0.8), Position = Vector3.new(x, altura - 0.55, z), Color = LUZ_TUNEL, Material = Enum.Material.Neon })
+			if z > 0 and luzes < 2 and x > TUNEL_FUNDO + 9 then
+				luzes += 1
+				local luz = Instance.new("PointLight")
+				luz.Color = LUZ_TUNEL
+				luz.Range = 20
+				luz.Brightness = 1.4
+				luz.Parent = lampada
+			end
 		end
 	end
 
 	-- camadas pretas no fundo, cada vez mais escuras: as primeiras dá para
-	-- atravessar (só sombra), as 3 últimas são blocos sólidos que fecham o
-	-- túnel
+	-- atravessar (só sombra), as 3 últimas são blocos sólidos que fecham o túnel
 	local CAMADAS = 7
 	local SOLIDAS = 3
 	local inicioCamadas = TUNEL_BOCA - 8
@@ -250,7 +189,6 @@ local function tunel(pasta: Instance)
 		local x = inicioCamadas - (i - 1) * 2
 		local grossura = if solida then 2 else 0.4
 		if i == CAMADAS then
-			-- o último vai até o fundo, bem grosso para ninguém passar correndo
 			grossura = x + 1 - TUNEL_FUNDO
 			x = (x + 1 + TUNEL_FUNDO) / 2
 		end
@@ -269,212 +207,83 @@ local function tunel(pasta: Instance)
 		})
 	end
 
-	-- frente de concreto em volta da boca, encostada na montanha
-	local largura = meia + 12 -- até onde a frente vai para cada lado
-	local topo = altura + 8
+	-- Fachada de pedra encostada na montanha
+	local largura = meia + 14 -- até onde a fachada vai para cada lado
+	local topo = altura + 9
 	local x = TUNEL_BOCA + 1
+	local RAIO = meia -- o arco é meio círculo em cima da abertura
+	local centroArco = altura - RAIO
 	for _, lado in { -1, 1 } do
-		parte({
-			Name = "FrenteTunel",
-			Size = Vector3.new(2, topo, largura - meia),
-			Position = Vector3.new(x, topo / 2, lado * (meia + largura) / 2),
-			Color = CONCRETO,
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-		-- contraforte inclinado em degraus dos dois lados
-		for i = 1, 3 do
-			local h = topo - i * 6
-			parte({
-				Name = "FrenteTunel",
-				Size = Vector3.new(2 + i, h, 3),
-				Position = Vector3.new(x - 1 + (2 + i) / 2, h / 2, lado * (largura + (i - 0.5) * 3)),
-				Color = CONCRETO,
-				Material = Enum.Material.Concrete,
-				Parent = pasta,
-			})
-		end
-		-- faixas de alerta amarelas e pretas dos lados da abertura
-		for i = 0, math.floor((altura - 2) / 1.5) - 1 do
-			enfeite({
-				Name = "AlertaTunel",
-				Size = Vector3.new(0.3, 1.5, 1.2),
-				Position = Vector3.new(x + 1.15, 0.75 + i * 1.5, lado * (meia + 1.6)),
-				Color = if i % 2 == 0 then AMARELO else PRETO,
-				Material = Enum.Material.SmoothPlastic,
-			})
-		end
-		-- luz vermelha piscando no alto, de cada lado
-		local alarme = enfeite({
-			Name = "AlarmeTunel",
-			Size = Vector3.new(1.4, 1.4, 1.4),
-			Position = Vector3.new(x + 1.5, altura + 2, lado * (meia + 3.5)),
-			Color = Color3.fromRGB(255, 40, 40),
-			Material = Enum.Material.Neon,
-		})
-		CollectionService:AddTag(alarme, "PulsarEsteira")
-		local luz = Instance.new("PointLight")
-		luz.Color = Color3.fromRGB(255, 60, 50)
-		luz.Range = 14
-		luz.Brightness = 1.5
-		luz.Parent = alarme
+		parte({ Name = "FachadaTunel", Size = Vector3.new(2, topo, largura - meia), Position = Vector3.new(x, topo / 2, lado * (meia + largura) / 2), Color = PEDRA_FACHADA, Material = Enum.Material.Cobblestone, Parent = pasta })
 	end
-	parte({
-		Name = "FrenteTunel",
-		Size = Vector3.new(2, topo - altura, Mapa.TUNEL_LARGURA),
-		Position = Vector3.new(x, (topo + altura) / 2, 0),
-		Color = CONCRETO,
-		Material = Enum.Material.Concrete,
-		Parent = pasta,
-	})
-	-- moldura saltada em volta da abertura e as pedras do arco
-	local borda = x + 1.4
-	parte({
-		Name = "MolduraTunel",
-		Size = Vector3.new(0.8, 1.5, Mapa.TUNEL_LARGURA + 3),
-		Position = Vector3.new(borda, altura + 0.75, 0),
-		Color = CONCRETO_ESCURO,
-		Material = Enum.Material.Concrete,
-		Parent = pasta,
-	})
-	for _, lado in { -1, 1 } do
-		parte({
-			Name = "MolduraTunel",
-			Size = Vector3.new(0.8, 3, 3),
-			Position = Vector3.new(borda, altura - 1.5, lado * (meia - 1)),
-			Color = CONCRETO_ESCURO,
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-	end
-	for i = -3, 3 do
-		parte({
-			Name = "PedraArco",
-			Size = Vector3.new(1.2, 2.5 - math.abs(i) * 0.25, 2.4),
-			Position = Vector3.new(borda + 0.2, altura + 2.75 - math.abs(i) * 0.12, i * 2.7),
-			Color = if i == 0 then CONCRETO_ESCURO else CONCRETO:Lerp(CONCRETO_ESCURO, 0.4),
-			Material = Enum.Material.Concrete,
-			Parent = pasta,
-		})
-	end
-	-- cornija no alto da frente
-	parte({
-		Name = "CornijaTunel",
-		Size = Vector3.new(3, 1.2, largura * 2 + 2),
-		Position = Vector3.new(x + 0.5, topo + 0.6, 0),
-		Color = CONCRETO_ESCURO,
-		Material = Enum.Material.Concrete,
-		Parent = pasta,
-	})
-
-	-- tijolos de pedra por cima da frente de concreto (dos lados e em cima da boca)
-	local TIJOLOS = { CONCRETO, CONCRETO_ESCURO, Color3.fromRGB(160, 150, 140), Color3.fromRGB(135, 128, 120) }
-	local function parede(zMin: number, zMax: number, yMin: number, yMax: number)
-		local linha = 0
-		for y = yMin, yMax - 1.9, 2 do
-			local z = zMin - (linha % 2) * 2
-			while z < zMax do
-				local de, ate = math.max(z, zMin), math.min(z + 4, zMax)
-				if ate - de > 0.5 then
-					enfeite({
-						Name = "Tijolo",
-						Size = Vector3.new(0.6, 1.9, ate - de - 0.1),
-						Position = Vector3.new(x + 1.3 + aleatorio:NextNumber(0, 0.25), y + 0.95, (de + ate) / 2),
-						Color = escolher(TIJOLOS),
-						Material = Enum.Material.Slate,
-					})
-				end
-				z += 4
+	parte({ Name = "FachadaTunel", Size = Vector3.new(2, topo - altura, meia * 2), Position = Vector3.new(x, (topo + altura) / 2, 0), Color = PEDRA_FACHADA, Material = Enum.Material.Cobblestone, Parent = pasta })
+	-- os cantos de cima da abertura viram arco (degraus finos de pedra)
+	for y = centroArco, altura - 0.5, 0.5 do
+		local w = math.sqrt(math.max(0, RAIO * RAIO - (y + 0.25 - centroArco) ^ 2))
+		local sobra = meia - w
+		if sobra > 0.05 then
+			for _, lado in { -1, 1 } do
+				parte({ Name = "FachadaTunel", Size = Vector3.new(2, 0.5, sobra), Position = Vector3.new(x, y + 0.25, lado * (w + sobra / 2)), Color = PEDRA_FACHADA, Material = Enum.Material.Cobblestone, Parent = pasta })
 			end
-			linha += 1
 		end
 	end
-	for _, lado in { -1, 1 } do
-		local perto, longe = meia + 2.9, largura
-		if lado == 1 then
-			parede(perto, longe, 0, topo)
-		else
-			parede(-longe, -perto, 0, topo)
-		end
-	end
-	parede(-meia - 2.9, meia + 2.9, altura + 4.2, topo)
-
-	-- placa com o nome do jogo em cima da boca
-	local placaJogo = parte({
-		Name = "PlacaJogo",
-		Size = Vector3.new(1.2, 8, 36),
-		Position = Vector3.new(x + 2.4, topo + 5.4, 0),
-		Color = Color3.fromRGB(150, 100, 60),
-		Material = Enum.Material.WoodPlanks,
-		Parent = pasta,
-	})
-	parte({
-		Name = "MolduraPlacaJogo",
-		Size = Vector3.new(1, 9, 37.4),
-		Position = Vector3.new(x + 2.1, topo + 5.4, 0),
-		Color = AMARELO,
-		Parent = pasta,
-	})
-	texto(placaJogo, Enum.NormalId.Right, "ROUBE UM OVO\nBRAINROT", Color3.fromRGB(255, 240, 120), Enum.Font.LuckiestGuy)
-
-	-- tochas dos dois lados da boca
-	for _, lado in { -1, 1 } do
-		local suporte = enfeite({
-			Name = "Tocha",
-			Size = Vector3.new(1, 1.6, 1),
-			Position = Vector3.new(x + 2.2, 9, lado * (meia + 5.5)),
-			Color = Color3.fromRGB(70, 50, 35),
-			Material = Enum.Material.Wood,
+	-- aduelas do arco (saltadas da fachada) e a pedra-chave
+	local ADUELAS = 15
+	for i = 0, ADUELAS - 1 do
+		local a = math.pi * (i + 0.5) / ADUELAS
+		local r = RAIO + 1.1
+		local chave = i == math.floor(ADUELAS / 2)
+		parte({
+			Name = if chave then "PedraChave" else "Aduela",
+			Size = Vector3.new(if chave then 1.6 else 1.2, if chave then 3.4 else 2.4, 2.1),
+			CFrame = CFrame.new(x + 1.2, centroArco + math.sin(a) * r, math.cos(a) * r) * CFrame.Angles(a - math.pi / 2, 0, 0),
+			Color = if chave then PEDRA_CLARA else (if i % 2 == 0 then PEDRA_ESCURA else PEDRA_FACHADA:Lerp(PEDRA_ESCURA, 0.5)),
+			Material = Enum.Material.Limestone,
+			Parent = pasta,
 		})
-		local fogo = Instance.new("Fire")
-		fogo.Size = 3
-		fogo.Heat = 6
-		fogo.Parent = suporte
-		local luz = Instance.new("PointLight")
-		luz.Color = Color3.fromRGB(255, 160, 80)
-		luz.Range = 16
-		luz.Brightness = 1.5
-		luz.Parent = suporte
 	end
+	-- pés do arco descendo até o chão
+	for _, lado in { -1, 1 } do
+		parte({ Name = "Ombreira", Size = Vector3.new(1.2, centroArco, 2.1), Position = Vector3.new(x + 1.2, centroArco / 2, lado * (RAIO + 1.1)), Color = PEDRA_ESCURA, Material = Enum.Material.Limestone, Parent = pasta })
+	end
+	-- pilastras dos dois lados com lanternas
+	for _, lado in { -1, 1 } do
+		local z = lado * (meia + 7)
+		parte({ Name = "Pilastra", Size = Vector3.new(3, topo + 1, 3.2), Position = Vector3.new(x + 1.2, (topo + 1) / 2, z), Color = PEDRA_CLARA, Material = Enum.Material.Limestone, Parent = pasta })
+		parte({ Name = "BasePilastra", Size = Vector3.new(3.6, 2, 3.8), Position = Vector3.new(x + 1.4, 1, z), Color = PEDRA_ESCURA, Material = Enum.Material.Limestone, Parent = pasta })
+		enfeite({ Name = "SuporteLanterna", Size = Vector3.new(1.6, 0.3, 0.3), Position = Vector3.new(x + 3.4, 11.5, z), Color = Color3.fromRGB(40, 44, 52), Material = Enum.Material.Metal })
+		enfeite({ Name = "TetoLanterna", Size = Vector3.new(1.6, 0.4, 1.6), Position = Vector3.new(x + 4.1, 11.3, z), Color = Color3.fromRGB(40, 44, 52), Material = Enum.Material.Metal })
+		local lanterna = enfeite({ Name = "Lanterna", Size = Vector3.new(1.1, 1.5, 1.1), Position = Vector3.new(x + 4.1, 10.3, z), Color = LUZ_TUNEL, Material = Enum.Material.Neon })
+		local luz = Instance.new("PointLight")
+		luz.Color = LUZ_TUNEL
+		luz.Range = 18
+		luz.Brightness = 1.6
+		luz.Parent = lanterna
+		-- floreira no pé da pilastra
+		parte({ Name = "Floreira", Size = Vector3.new(3, 1.6, 6), Position = Vector3.new(x + 4.2, 0.8, lado * (meia + 3.4)), Color = PEDRA_ESCURA, Material = Enum.Material.Limestone, Parent = pasta })
+		enfeite({ Name = "Terra", Size = Vector3.new(2.4, 0.2, 5.4), Position = Vector3.new(x + 4.2, 1.65, lado * (meia + 3.4)), Color = Color3.fromRGB(95, 70, 50), Material = Enum.Material.Ground })
+		Cidade.flores(pasta, Vector3.new(x + 4.2, 1.7, lado * (meia + 3.4)), 1.4, 7)
+	end
+	-- cornija em cima da fachada
+	parte({ Name = "Cornija", Size = Vector3.new(3.4, 1.4, largura * 2 + 1), Position = Vector3.new(x + 0.9, topo + 0.7, 0), Color = PEDRA_CLARA, Material = Enum.Material.Limestone, Parent = pasta })
+	parte({ Name = "Cornija", Size = Vector3.new(2.6, 0.8, largura * 2), Position = Vector3.new(x + 0.6, topo - 0.4, 0), Color = PEDRA_ESCURA, Material = Enum.Material.Limestone, Parent = pasta })
+
+	-- placa com o nome do jogo em cima do arco
+	local placaJogo = parte({ Name = "PlacaJogo", Size = Vector3.new(1, 6.2, 26), Position = Vector3.new(x + 1.6, altura + 4.6, 0), Color = Color3.fromRGB(40, 70, 130), Material = Enum.Material.SmoothPlastic, Parent = pasta })
+	parte({ Name = "MolduraPlacaJogo", Size = Vector3.new(0.8, 7, 27), Position = Vector3.new(x + 1.3, altura + 4.6, 0), Color = Color3.fromRGB(230, 190, 90), Material = Enum.Material.Metal, Parent = pasta })
+	texto(placaJogo, Enum.NormalId.Right, "ROUBE UM OVO BRAINROT", Color3.fromRGB(255, 240, 150), Enum.Font.Bangers)
+	-- placa de altura máxima pendurada antes da boca
+	local alturaMax = enfeite({ Name = "AlturaMaxima", Size = Vector3.new(0.3, 2.4, 2.4), Position = Vector3.new(x + 1.9, altura + 0.2 - 1.6, meia - 3.2), Color = Color3.fromRGB(255, 255, 255), Material = Enum.Material.SmoothPlastic })
+	texto(alturaMax, Enum.NormalId.Right, "⬍\n" .. altura .. "m", Color3.fromRGB(200, 30, 30), Enum.Font.Bangers)
 
 	-- trepadeiras caindo da cornija
-	for _ = 1, 12 do
-		local comprimento = aleatorio:NextNumber(2, 7)
+	for _ = 1, 16 do
+		local comprimentoFolha = aleatorio:NextNumber(2, 7)
 		local z = aleatorio:NextNumber(-largura, largura)
-		if math.abs(z) > meia + 1 or comprimento < 5 then
-			enfeite({
-				Name = "Trepadeira",
-				Size = Vector3.new(0.3, comprimento, 0.9),
-				Position = Vector3.new(x + 1.9, topo - comprimento / 2, z),
-				Color = escolher(FOLHAS),
-			})
+		if math.abs(z) > meia + 2 or comprimentoFolha < 4 then
+			enfeite({ Name = "Trepadeira", Size = Vector3.new(0.3, comprimentoFolha, aleatorio:NextNumber(0.8, 1.6)), Position = Vector3.new(x + 2.6, topo - comprimentoFolha / 2, z), Color = escolher(FOLHAS), Material = Enum.Material.Grass })
 		end
 	end
-
-	-- fumaça saindo devagar da boca
-	local saida = enfeite({
-		Name = "FumacaTunel",
-		Size = Vector3.new(1, altura - 4, Mapa.TUNEL_LARGURA - 4),
-		Position = Vector3.new(TUNEL_BOCA - 3, altura / 2, 0),
-		Transparency = 1,
-	})
-	local fumaca = Instance.new("ParticleEmitter")
-	fumaca.Texture = "rbxasset://textures/particles/smoke_main.dds"
-	fumaca.Color = ColorSequence.new(Color3.fromRGB(200, 200, 210))
-	fumaca.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.3, 0.75),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	fumaca.Size = NumberSequence.new(4, 9)
-	fumaca.EmissionDirection = Enum.NormalId.Right
-	fumaca.Speed = NumberRange.new(2, 4)
-	fumaca.SpreadAngle = Vector2.new(20, 20)
-	fumaca.Lifetime = NumberRange.new(4, 6)
-	fumaca.Rate = 4
-	fumaca.RotSpeed = NumberRange.new(-20, 20)
-	fumaca.Acceleration = Vector3.new(0, 0.6, 0)
-	fumaca.Parent = saida
 end
 
 -- (criado mais abaixo, junto com a decoração do deserto)
@@ -594,12 +403,12 @@ local TEMAS_ARCO: { [string]: TemaArco } = {
 }
 
 -- Texto da placa do arco: o nome grande e, embaixo, a Velocidade necessária.
--- Fonte grossa de letreiro, só com letras sem acento (a fonte não tem acentos).
+-- Fonte de letreiro de quadrinhos (Bangers), em maiúsculas e sem acento.
 local function textoArco(placa: BasePart, face: Enum.NormalId, nome: string, aviso: string?, tema: TemaArco)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 25
+	gui.PixelsPerStud = 9 -- baixo de propósito: o texto do Roblox para de crescer em 100 px
 	gui.LightInfluence = if tema.bordaNeon then 0 else 1
 	gui.Parent = placa
 	local function linha(conteudo: string, y: number, altura: number, cor: Color3)
@@ -607,12 +416,12 @@ local function textoArco(placa: BasePart, face: Enum.NormalId, nome: string, avi
 		label.BackgroundTransparency = 1
 		label.Position = UDim2.fromScale(0.04, y)
 		label.Size = UDim2.fromScale(0.92, altura)
-		label.Font = Enum.Font.LuckiestGuy
+		label.Font = Enum.Font.Bangers
 		label.TextScaled = true
 		label.TextColor3 = cor
 		label.Text = conteudo
 		local contorno = Instance.new("UIStroke")
-		contorno.Thickness = 5
+		contorno.Thickness = 3
 		contorno.Color = tema.placa:Lerp(Color3.new(0, 0, 0), 0.6)
 		contorno.Parent = label
 		label.Parent = gui
@@ -621,7 +430,7 @@ local function textoArco(placa: BasePart, face: Enum.NormalId, nome: string, avi
 		linha(nome, 0.08, 0.56, tema.texto)
 		linha(aviso, 0.66, 0.26, Color3.fromRGB(255, 225, 90))
 	else
-		linha(nome, 0.14, 0.72, tema.texto)
+		linha(nome, 0.1, 0.8, tema.texto)
 	end
 end
 
@@ -654,7 +463,7 @@ local function placaAviso(pasta: Instance, x: number, z: number, info: Mapa.Info
 			label.BackgroundTransparency = 1
 			label.Position = UDim2.fromScale(0.05, y)
 			label.Size = UDim2.fromScale(0.9, altura)
-			label.Font = Enum.Font.FredokaOne
+			label.Font = Enum.Font.Bangers
 			label.TextScaled = true
 			label.TextWrapped = true
 			label.TextColor3 = cor
@@ -675,14 +484,18 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	local x = info.centro.X - Mapa.TAMANHO_BIOMA / 2
 	local tema = TEMAS_ARCO[info.config.estilo] or TEMAS_ARCO.floresta
 
-	-- pilares de blocos, mais largos embaixo, com listras
-	for _, z in { -12.5, 12.5 } do
-		parte({ Name = "PePilar", Size = Vector3.new(5, 3, 5), Position = Vector3.new(x, 1.5, z), Color = tema.pilar:Lerp(Color3.new(0, 0, 0), 0.2), Material = tema.material, Parent = pasta })
-		parte({ Name = "Pilar", Size = Vector3.new(3.6, 20, 3.6), Position = Vector3.new(x, 13, z), Color = tema.pilar, Material = tema.material, Parent = pasta })
-		for y = 6, 20, 5 do
+	-- O arco acompanha o bioma grande: pilares grossos e altos, viga dupla e
+	-- uma placa larga com moldura, um friso na cor do bioma e o nome grande.
+	local Z_PILAR = 19
+	local ALTO = 30
+	for _, z in { -Z_PILAR, Z_PILAR } do
+		parte({ Name = "PePilar", Size = Vector3.new(7.5, 4, 7.5), Position = Vector3.new(x, 2, z), Color = tema.pilar:Lerp(Color3.new(0, 0, 0), 0.2), Material = tema.material, Parent = pasta })
+		parte({ Name = "Pilar", Size = Vector3.new(5.2, ALTO, 5.2), Position = Vector3.new(x, 4 + ALTO / 2, z), Color = tema.pilar, Material = tema.material, Parent = pasta })
+		parte({ Name = "TopoPilar", Size = Vector3.new(6.6, 1.6, 6.6), Position = Vector3.new(x, 4 + ALTO + 0.8, z), Color = tema.pilar:Lerp(Color3.new(0, 0, 0), 0.2), Material = tema.material, Parent = pasta })
+		for y = 9, 4 + ALTO - 3, 6 do
 			local listra = parte({
 				Name = "Listra",
-				Size = Vector3.new(3.9, 0.6, 3.9),
+				Size = Vector3.new(5.6, 0.9, 5.6),
 				Position = Vector3.new(x, y, z),
 				Color = tema.faixa,
 				Material = if tema.faixaNeon then Enum.Material.Neon else tema.material,
@@ -693,28 +506,32 @@ local function decorarPortal(info: Mapa.InfoBioma)
 			end
 		end
 		if tema.enfeite then
-			tema.enfeite(pasta, Vector3.new(x, 23, z))
+			tema.enfeite(pasta, Vector3.new(x, 4 + ALTO + 1.6, z))
 		end
 	end
 
-	-- placa grande em cima, com moldura
+	-- placa larga em cima, com moldura e friso na cor do bioma
+	local yPlaca = 4 + ALTO - 4
 	local placa = parte({
 		Name = "PlacaBioma",
-		Size = Vector3.new(1.6, 7.5, 24),
-		Position = Vector3.new(x, 26.5, 0),
+		Size = Vector3.new(1.8, 10, Z_PILAR * 2 - 5.4),
+		Position = Vector3.new(x, yPlaca, 0),
 		Color = tema.placa,
 		Material = if tema.material == Enum.Material.Wood then Enum.Material.WoodPlanks else tema.material,
 		Parent = pasta,
 	})
 	parte({
 		Name = "MolduraBioma",
-		Size = Vector3.new(1.3, 8.7, 25.2),
-		Position = Vector3.new(x, 26.5, 0),
+		Size = Vector3.new(1.4, 11.6, Z_PILAR * 2 - 4.2),
+		Position = Vector3.new(x, yPlaca, 0),
 		Color = tema.borda,
 		Material = if tema.bordaNeon then Enum.Material.Neon else Enum.Material.Wood,
 		Parent = pasta,
 	})
-	parte({ Name = "Viga", Size = Vector3.new(2.4, 1.6, 30), Position = Vector3.new(x, 22.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
+	local friso = parte({ Name = "FrisoBioma", Size = Vector3.new(2, 0.6, Z_PILAR * 2 - 6), Position = Vector3.new(x, yPlaca - 5.6, 0), Color = info.config.cor, Material = Enum.Material.Neon, CanCollide = false, Parent = pasta })
+	CollectionService:AddTag(friso, "PulsarEsteira")
+	parte({ Name = "Viga", Size = Vector3.new(3.2, 2, Z_PILAR * 2 + 6), Position = Vector3.new(x, 4 + ALTO + 0.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
+	parte({ Name = "Viga", Size = Vector3.new(2.6, 1.4, Z_PILAR * 2), Position = Vector3.new(x, yPlaca - 6.6, 0), Color = tema.pilar, Material = tema.material, Parent = pasta })
 	local nome = Config.maiusculas(Config.semAcento(info.config.nome))
 	-- só o nome: a Velocidade mínima fica na placa amarela de atenção
 	local minimo = info.config.velocidadeMinima
@@ -738,7 +555,7 @@ local function decorarPortal(info: Mapa.InfoBioma)
 	end
 
 	if minimo > 0 then
-		placaAviso(pasta, x - 16, -17, info)
+		placaAviso(pasta, x - 16, -28, info)
 	end
 end
 
@@ -966,7 +783,7 @@ local function fimDoMapa(pasta: Instance)
 	textoPlaca.BackgroundTransparency = 1
 	textoPlaca.Position = UDim2.fromScale(0.04, 0.12)
 	textoPlaca.Size = UDim2.fromScale(0.92, 0.6)
-	textoPlaca.Font = Enum.Font.LuckiestGuy
+	textoPlaca.Font = Enum.Font.Bangers
 	textoPlaca.TextScaled = true
 	textoPlaca.TextColor3 = PRETO_ALERTA
 	textoPlaca.Text = "🚧 EM CONSTRUÇÃO 🚧"
@@ -1094,7 +911,7 @@ local function fimDoMapa(pasta: Instance)
 		label.BackgroundTransparency = 1
 		label.Position = UDim2.fromScale(0.04, y)
 		label.Size = UDim2.fromScale(0.92, altura)
-		label.Font = Enum.Font.FredokaOne
+		label.Font = Enum.Font.Bangers
 		label.TextScaled = true
 		label.TextColor3 = cor
 		label.TextStrokeColor3 = Color3.fromRGB(25, 15, 45)
