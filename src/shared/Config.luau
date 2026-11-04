@@ -254,31 +254,40 @@ Config.BIOMAS = {
 	},
 }
 
--- Sons do jogo. Os "rbxasset://" já vêm com o Roblox e funcionam em qualquer
--- lugar. Para trocar, ponha o id de um som da Creator Store ("rbxassetid://123").
+-- Sons do jogo. Os da interface são o pacote oficial do Roblox
+-- ("Roblox_UI_*", os mesmos de muitos simuladores) e os de pegar moeda e
+-- brilho são sons públicos bem usados da Creator Store; todos tocam em
+-- qualquer jogo sem permissão. "reserva" é um som que já vem com o Roblox,
+-- usado se o principal não carregar. "grupo" diz em que canal ele toca
+-- (Interface, Efeitos ou Mundo, veja Sons.luau): cada canal tem o próprio
+-- volume e um compressor junta tudo, para nenhum som tampar os outros.
+-- Volumes baixos de propósito: o clique é o mais baixo, as comemorações um
+-- pouco acima. Para trocar, ponha outro id ("rbxassetid://123").
 Config.SONS = {
-	Clique = { id = "rbxasset://sounds/button.wav", volume = 0.5 },
-	-- botão LOJA da barraca: um "click" seco e curto
-	CliqueLoja = { id = "rbxasset://sounds/clickfast.wav", volume = 0.8, tom = 1.15 },
-	Erro = { id = "rbxasset://sounds/button.wav", volume = 0.5, tom = 0.6 },
-	Pegou = { id = "rbxasset://sounds/swoosh.wav", volume = 0.7, tom = 1.2 },
-	Guardiao = { id = "rbxasset://sounds/unsheath.wav", volume = 0.8, tom = 0.8 },
-	Derrubado = { id = "rbxasset://sounds/uuhhh.mp3", volume = 0.8 },
-	Entregou = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6, tom = 1.3 },
-	Chocou = { id = "rbxasset://sounds/snap.wav", volume = 0.8 },
-	Brilho = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, tom = 1.6 },
-	ChocouRaro = { id = "rbxasset://sounds/victory.wav", volume = 0.7 },
-	Vendeu = { id = "rbxasset://sounds/clickfast.wav", volume = 0.8, tom = 1.2 },
-	Melhorou = { id = "rbxasset://sounds/victory.wav", volume = 0.6, tom = 1.15 },
-	Roubando = { id = "rbxasset://sounds/swordslash.wav", volume = 0.8 },
-	Trancou = { id = "rbxasset://sounds/button.wav", volume = 0.7, tom = 0.8 },
-	Anuncio = { id = "rbxasset://sounds/victory.wav", volume = 0.35, tom = 0.9 },
-	Renasceu = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 0.6 },
-	Rugido = { id = "rbxasset://sounds/swordlunge.wav", volume = 1, tom = 0.35 },
-	Passo = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.9, tom = 0.45 },
-	Comprou = { id = "rbxasset://sounds/victory.wav", volume = 0.6, tom = 1.25 },
-	Tacada = { id = "rbxasset://sounds/swordslash.wav", volume = 0.7, tom = 0.8 },
-	Acertou = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 1, tom = 1.4 },
+	-- Interface
+	Clique = { id = "rbxassetid://15675032796", reserva = "rbxasset://sounds/button.wav", volume = 0.45, grupo = "Interface" }, -- Roblox_UI_Small_Click
+	CliqueLoja = { id = "rbxassetid://15675059323", reserva = "rbxasset://sounds/clickfast.wav", volume = 0.5, grupo = "Interface" }, -- Roblox_UI_Bright_Click
+	Erro = { id = "rbxassetid://15675075163", reserva = "rbxasset://sounds/button.wav", volume = 0.4, grupo = "Interface", semVariar = true }, -- Roblox_UI_Delete
+	Comprou = { id = "rbxassetid://15675043410", reserva = "rbxasset://sounds/victory.wav", volume = 0.45, grupo = "Interface" }, -- Roblox_UI_Tonal_Stinger
+	Melhorou = { id = "rbxassetid://15675043410", reserva = "rbxasset://sounds/victory.wav", volume = 0.5, tom = 1.12, grupo = "Interface" },
+	Trancou = { id = "rbxassetid://15675046931", reserva = "rbxasset://sounds/button.wav", volume = 0.45, grupo = "Interface" }, -- Roblox_UI_Sweep
+	Anuncio = { id = "rbxassetid://15675085146", reserva = "rbxasset://sounds/electronicpingshort.wav", volume = 0.35, grupo = "Interface" }, -- Roblox_UI_Indicator
+	-- Efeitos do jogador
+	Pegou = { id = "rbxassetid://15675028888", reserva = "rbxasset://sounds/swoosh.wav", volume = 0.4, grupo = "Efeitos" }, -- Roblox_UI_Whoosh_02
+	Entregou = { id = "rbxassetid://15675055424", reserva = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, grupo = "Efeitos" }, -- Roblox_UI_Cute_Pop
+	Vendeu = { id = "rbxassetid://607665037", reserva = "rbxasset://sounds/clickfast.wav", volume = 0.4, grupo = "Efeitos" }, -- coins_get
+	Chocou = { id = "rbxassetid://15675055424", reserva = "rbxasset://sounds/snap.wav", volume = 0.55, tom = 0.85, grupo = "Efeitos" },
+	Brilho = { id = "rbxassetid://4612374495", reserva = "rbxasset://sounds/electronicpingshort.wav", volume = 0.3, grupo = "Efeitos" }, -- bling_diamond_pickup_3
+	ChocouRaro = { id = "rbxassetid://4612374036", reserva = "rbxasset://sounds/victory.wav", volume = 0.5, grupo = "Efeitos" }, -- bling_big_diamond_pickup
+	Renasceu = { id = "rbxasset://sounds/impact_explosion_03.mp3", volume = 0.4, grupo = "Efeitos" },
+	-- Mundo (chefes, roubo, taco)
+	Guardiao = { id = "rbxasset://sounds/unsheath.wav", volume = 0.5, tom = 0.8, grupo = "Mundo" },
+	Derrubado = { id = "rbxasset://sounds/uuhhh.mp3", volume = 0.5, grupo = "Mundo" },
+	Roubando = { id = "rbxasset://sounds/swordslash.wav", volume = 0.5, grupo = "Mundo" },
+	Rugido = { id = "rbxasset://sounds/swordlunge.wav", volume = 0.65, tom = 0.35, grupo = "Mundo" },
+	Passo = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.55, tom = 0.45, grupo = "Mundo" },
+	Tacada = { id = "rbxasset://sounds/swordslash.wav", volume = 0.45, tom = 0.8, grupo = "Mundo" },
+	Acertou = { id = "rbxasset://sounds/action_jump_land.mp3", volume = 0.6, tom = 1.4, grupo = "Mundo" },
 }
 
 -- Gamepasses. Crie cada um no Creator Dashboard (Monetização > Passes),

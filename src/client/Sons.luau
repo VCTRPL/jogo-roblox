@@ -2,6 +2,7 @@
 -- aqui: com posição, sai daquele lugar no mundo; sem, toca só na sua tela.
 -- A música de fundo segue Config.MUSICA, e dentro de um bioma com "musica"
 -- toca a dele. O botão de som (Interface) liga e desliga tudo.
+local ContentProvider = game:GetService("ContentProvider")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,15 +17,66 @@ local Sons = {}
 local jogador = Players.LocalPlayer
 local mudo = false
 
+-- Mixagem: três canais com volumes próprios (a interface mais baixa, para
+-- o clique não brigar com o resto) e um canal geral com compressor, que
+-- abaixa um pouco quando vários sons tocam juntos.
+local geral = Instance.new("SoundGroup")
+geral.Name = "SonsJogo"
+geral.Volume = 0.9
+geral.Parent = SoundService
+local compressor = Instance.new("CompressorSoundEffect")
+compressor.Threshold = -16
+compressor.Ratio = 3
+compressor.Attack = 0.01
+compressor.Release = 0.15
+compressor.Parent = geral
+local VOLUME_GRUPO = { Interface = 0.7, Efeitos = 0.85, Mundo = 0.9 }
+local grupos: { [string]: SoundGroup } = {}
+for nome, volume in VOLUME_GRUPO do
+	local g = Instance.new("SoundGroup")
+	g.Name = nome
+	g.Volume = volume
+	g.Parent = geral
+	grupos[nome] = g
+end
+
+-- Sons da Creator Store que não carregarem usam a "reserva" (que vem com o Roblox).
+local falhou: { [string]: boolean } = {}
+task.spawn(function()
+	local lista = {}
+	for _, def in Config.SONS do
+		if string.find(def.id, "rbxassetid://", 1, true) and not table.find(lista, def.id) then
+			table.insert(lista, def.id)
+		end
+	end
+	pcall(function()
+		ContentProvider:PreloadAsync(lista, function(id, estado)
+			if estado ~= Enum.AssetFetchStatus.Success then
+				falhou[id] = true
+			end
+		end)
+	end)
+end)
+
+-- Para o mesmo som não empilhar (vários cliques no mesmo quadro somavam volume).
+local ultimaVez: { [string]: number } = {}
+
 function Sons.tocar(nome: string, posicao: Vector3?)
 	local def = Config.SONS[nome]
 	if mudo or not def then
 		return
 	end
+	local agora = os.clock()
+	if agora - (ultimaVez[nome] or 0) < 0.06 then
+		return
+	end
+	ultimaVez[nome] = agora
 	local som = Instance.new("Sound")
-	som.SoundId = def.id
+	som.SoundId = if falhou[def.id] and def.reserva then def.reserva else def.id
 	som.Volume = def.volume or 0.5
-	som.PlaybackSpeed = (def.tom or 1) * (1 + (math.random() - 0.5) * 0.08) -- um pouco diferente a cada vez
+	local variar = if def.semVariar then 0 else (math.random() - 0.5) * 0.06 -- um pouco diferente a cada vez
+	som.PlaybackSpeed = (def.tom or 1) * (1 + variar)
+	som.SoundGroup = grupos[def.grupo or "Efeitos"] or grupos.Efeitos
 	local dono: Instance = som
 	if posicao then
 		local anexo = Instance.new("Attachment")
