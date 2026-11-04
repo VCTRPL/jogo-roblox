@@ -789,27 +789,19 @@ local ESCONDER = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection
 task.spawn(function()
 	local guiPlayer = jogador:WaitForChild("PlayerGui")
 	local botaoLoja = guiPlayer:WaitForChild("BotaoLojaTrilhas", 30) :: ScreenGui?
-	local alvo = botaoLoja and botaoLoja:WaitForChild("Group 1", 10) :: GuiButton?
-	if not botaoLoja or not alvo then
+	-- o botão do BloxFig fica dentro de "Suporte", uma moldura invisível que
+	-- só o jogo mexe (o BloxFig reposiciona o próprio botão a cada quadro)
+	local suporte = botaoLoja and botaoLoja:WaitForChild("Suporte", 10) :: Frame?
+	if not botaoLoja or not suporte then
 		return
 	end
 	botaoLoja.Enabled = true
-	alvo.AnchorPoint = Vector2.new(0.5, 1)
-	local TAMANHO = UDim2.fromOffset(230, 208) -- proporção do desenho (321 x 290)
-	alvo.Size = TAMANHO
-	alvo:SetAttribute("BloxFigDeviceSize", TAMANHO)
-	local POS_VISIVEL = UDim2.new(0.5, 0, 1, -18) -- logo acima da barra de itens
+	local TAMANHO = UDim2.fromOffset(200, 181) -- proporção do desenho (321 x 290)
+	suporte.AnchorPoint = Vector2.new(0.5, 1)
+	suporte.Size = TAMANHO
+	local POS_VISIVEL = UDim2.new(0.5, 0, 1, -28) -- embaixo, logo acima da barra de itens (o desenho tem borda vazia em volta)
 	local POS_ESCONDIDA = UDim2.new(0.5, 0, 1, TAMANHO.Y.Offset + 40)
-	-- O BloxFig põe o botão a cada quadro em "BloxFigDevicePosition" (mais o
-	-- balanço do hover), então é esse atributo que a gente anima.
-	local posicao = Instance.new("UDim2Value")
-	posicao.Value = POS_ESCONDIDA
-	local function aplicar()
-		alvo:SetAttribute("BloxFigDevicePosition", posicao.Value)
-		alvo.Position = posicao.Value
-	end
-	posicao.Changed:Connect(aplicar)
-	aplicar()
+	suporte.Position = POS_ESCONDIDA
 	local visivel = false
 	local tween: Tween? = nil
 	local function mostrar(sim: boolean)
@@ -820,7 +812,7 @@ task.spawn(function()
 		if tween then
 			tween:Cancel()
 		end
-		tween = TweenService:Create(posicao, if sim then MOSTRAR else ESCONDER, { Value = if sim then POS_VISIVEL else POS_ESCONDIDA })
+		tween = TweenService:Create(suporte, if sim then MOSTRAR else ESCONDER, { Position = if sim then POS_VISIVEL else POS_ESCONDIDA })
 		tween:Play()
 	end
 
