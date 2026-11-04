@@ -777,55 +777,91 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt)
 end)
 
 -- Botão "LOJA" feito no Figma (importado pelo BloxFig para
--- StarterGui.BotaoLojaTrilhas, com as animações dele e o som de clique
--- novo): aparece quando o jogador chega perto da barraca e abre a loja de
--- trilhas. Some de novo quando ele se afasta ou com a loja aberta.
-local PERTO_DA_BARRACA = 18
+-- StarterGui.BotaoLojaTrilhas, com as animações de hover e clique dele):
+-- sobe de baixo da tela quando o jogador chega perto da barraca e desce
+-- quando ele se afasta ou abre a loja. Tocar nele faz "click" e abre a loja
+-- de trilhas depois da animação de clique. O tamanho e a posição são daqui
+-- (o "device scaling" do BloxFig fica desligado nesta tela).
+local PERTO_DA_BARRACA = 16
+local LONGE_DA_BARRACA = 19 -- um pouco mais longe para sumir: não fica piscando na beirada
+local MOSTRAR = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local ESCONDER = TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 task.spawn(function()
 	local guiPlayer = jogador:WaitForChild("PlayerGui")
 	local botaoLoja = guiPlayer:WaitForChild("BotaoLojaTrilhas", 30) :: ScreenGui?
-	if not botaoLoja then
+	-- o botão do BloxFig fica dentro de "Suporte", uma moldura invisível que
+	-- só o jogo mexe (o BloxFig reposiciona o próprio botão a cada quadro)
+	local suporte = botaoLoja and botaoLoja:WaitForChild("Suporte", 10) :: Frame?
+	if not botaoLoja or not suporte then
 		return
 	end
-	botaoLoja.Enabled = false
-	-- o BloxFig põe camadas por cima do botão (a "Mask group" já foi marcada
-	-- como não interativa no Studio); por garantia qualquer botão dentro dele
-	-- abre a loja, uma vez por toque. A loja abre depois da animação de
-	-- clique do BloxFig ("Smooth click" + "Elastic press"), e o botão só some quando ela termina.
-	local ANIMACAO_CLIQUE = 0.5
-	local animandoAte = 0
-	local ultimoToque = 0
-	local function abrirLoja()
-		if os.clock() - ultimoToque < 0.3 then
+	botaoLoja.Enabled = true
+	local TAMANHO = UDim2.fromOffset(200, 181) -- proporção do desenho (321 x 290)
+	suporte.AnchorPoint = Vector2.new(0.5, 1)
+	suporte.Size = TAMANHO
+	local POS_VISIVEL = UDim2.new(0.5, 0, 1, -28) -- embaixo, logo acima da barra de itens (o desenho tem borda vazia em volta)
+	local POS_ESCONDIDA = UDim2.new(0.5, 0, 1, TAMANHO.Y.Offset + 40)
+	suporte.Position = POS_ESCONDIDA
+	local visivel = false
+	local tween: Tween? = nil
+	local function mostrar(sim: boolean)
+		if visivel == sim then
 			return
 		end
-		ultimoToque = os.clock()
-		Sons.tocar("BotaoPop")
-		task.delay(0.05, Sons.tocar, "BotaoPlim")
-		animandoAte = os.clock() + ANIMACAO_CLIQUE
+		visivel = sim
+		if tween then
+			tween:Cancel()
+		end
+		tween = TweenService:Create(suporte, if sim then MOSTRAR else ESCONDER, { Position = if sim then POS_VISIVEL else POS_ESCONDIDA })
+		tween:Play()
+	end
+
+	-- "click" na hora em que aperta (antes de soltar, para responder rápido)
+	local ultimoClique = 0
+	local function click(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			if os.clock() - ultimoClique > 0.1 then
+				ultimoClique = os.clock()
+				Sons.tocar("CliqueLoja")
+			end
+		end
+	end
+	-- a loja abre depois da animação de clique ("Smooth click" + "Elastic press")
+	local ANIMACAO_CLIQUE = 0.45
+	local abrindoAte = 0
+	local function abrirLoja()
+		if os.clock() < abrindoAte then
+			return
+		end
+		abrindoAte = os.clock() + ANIMACAO_CLIQUE
 		task.delay(ANIMACAO_CLIQUE, function()
 			if aberto ~= painelTrilhas then
 				abrirPainel(painelTrilhas)
 			end
 		end)
 	end
+	-- o BloxFig põe camadas por cima do botão; qualquer uma delas serve
 	for _, objeto in botaoLoja:GetDescendants() do
 		if objeto:IsA("GuiButton") then
+			objeto.InputBegan:Connect(click)
 			objeto.Activated:Connect(abrirLoja)
 		end
 	end
+
 	while botaoLoja.Parent do
-		task.wait(0.1)
+		task.wait(0.05)
 		local mapa = Workspace:FindFirstChild("Mapa")
 		local loja = mapa and mapa:FindFirstChild("LojaTrilhas") :: Model?
 		local personagem = jogador.Character
 		local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local perto = false
+		local distancia = math.huge
 		if loja and raiz then
 			local p = loja:GetPivot().Position
-			perto = Vector3.new(raiz.Position.X - p.X, 0, raiz.Position.Z - p.Z).Magnitude < PERTO_DA_BARRACA
+			distancia = Vector3.new(raiz.Position.X - p.X, 0, raiz.Position.Z - p.Z).Magnitude
 		end
-		botaoLoja.Enabled = os.clock() < animandoAte or (perto and aberto ~= painelTrilhas)
+		local perto = distancia < (if visivel then LONGE_DA_BARRACA else PERTO_DA_BARRACA)
+		-- fica na tela até a animação de clique acabar
+		mostrar(os.clock() < abrindoAte or (perto and aberto ~= painelTrilhas))
 	end
 end)
 
