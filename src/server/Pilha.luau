@@ -5,6 +5,7 @@
 -- Ajuste o limite de horas e a porcentagem em Config.FARM_OFFLINE.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Avisos = require(script.Parent.Avisos)
@@ -20,6 +21,7 @@ local DOURADO = Color3.fromRGB(255, 215, 70)
 local VERDE = Color3.fromRGB(90, 255, 120)
 
 local pilhas: { [Player]: Model } = {}
+local aparecer: (Model, BasePart) -> ()
 
 -- "2h 15min", "40min", "50s"
 local function tempo(segundos: number): string
@@ -130,6 +132,58 @@ local function montar(centro: CFrame, quantia: number): (Model, Part)
 	return modelo, topo
 end
 
+-- A pilha aparece crescendo do chão com um pulinho, um estouro de moedas
+-- douradas e uma coluna de luz que some devagar (para o dono achar a pilha).
+function aparecer(modelo: Model, topo: BasePart)
+	local escala = Instance.new("NumberValue")
+	escala.Value = 0.05
+	modelo:ScaleTo(0.05)
+	escala.Changed:Connect(function(valor)
+		if modelo.Parent then
+			modelo:ScaleTo(math.max(valor, 0.05))
+		end
+	end)
+	local tween = TweenService:Create(escala, TweenInfo.new(0.9, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Value = 1 })
+	tween.Completed:Once(function()
+		escala:Destroy()
+	end)
+	task.delay(0.4, function()
+		tween:Play()
+	end)
+	local estouro = Instance.new("ParticleEmitter")
+	estouro.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	estouro.Color = ColorSequence.new(DOURADO, Color3.new(1, 1, 1))
+	estouro.LightEmission = 1
+	estouro.Size = NumberSequence.new(1, 0)
+	estouro.Lifetime = NumberRange.new(0.8, 1.4)
+	estouro.Speed = NumberRange.new(12, 20)
+	estouro.SpreadAngle = Vector2.new(60, 60)
+	estouro.Acceleration = Vector3.new(0, -30, 0)
+	estouro.Rate = 0
+	estouro.Parent = topo
+	task.delay(0.6, function()
+		if estouro.Parent then
+			estouro:Emit(40)
+		end
+	end)
+	local coluna = parte(modelo, {
+		Name = "ColunaLuz",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(40, 4, 4),
+		CFrame = CFrame.new(topo.Position.X, modelo:GetPivot().Y + 20, topo.Position.Z) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = DOURADO,
+		Material = Enum.Material.Neon,
+		Transparency = 0.5,
+		CastShadow = false,
+	})
+	coluna:SetAttribute("ManterForma", true)
+	coluna.Parent = modelo.Parent -- fora do modelo, para não crescer junto
+	task.delay(6.5, function()
+		coluna:Destroy()
+	end)
+	TweenService:Create(coluna, TweenInfo.new(6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Transparency = 1 }):Play()
+end
+
 local function coletar(player: Player)
 	local modelo = pilhas[player]
 	if not modelo then
@@ -198,6 +252,7 @@ function Pilha.entrar(player: Player, base: Bases.Base)
 
 	modelo.Parent = info.pasta
 	pilhas[player] = modelo
+	aparecer(modelo, topo)
 
 	if ganho > 0 then
 		Avisos.enviar(

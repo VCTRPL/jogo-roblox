@@ -14,8 +14,6 @@ local Modelos = require(script.Parent.Modelos)
 
 local Ninhos = {}
 
-local NINHOS_POR_BIOMA = 8
-local RAIO_NINHOS = 32
 local TEMPO_ACORDAR = 1 -- segundos até o guardião começar a correr
 local VOLTA_MAIS_RAPIDO = 1.6 -- na volta para casa o guardião corre mais
 
@@ -53,7 +51,9 @@ local VERDE = Color3.fromRGB(90, 255, 120)
 
 local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
 	local visual = Guardioes.criar(info.config)
-	local casa = CFrame.lookAt(info.centro, info.centro + Vector3.new(-1, 0, 0))
+	-- num canto do fundo do bioma (Mapa.arrumacao), olhando para a entrada
+	local arrumacao = Mapa.arrumacao(info.indice)
+	local casa = CFrame.lookAt(arrumacao.chefe, Vector3.new(arrumacao.entrada.X, arrumacao.chefe.Y, arrumacao.entrada.Z))
 	visual.modelo:PivotTo(casa)
 	-- o cliente desenha o círculo de runas na casa e o anel do alcance
 	visual.modelo:SetAttribute("Casa", casa.Position)
@@ -65,7 +65,7 @@ local function criarGuardiao(info: Mapa.InfoBioma): Guardiao
 		modelo = visual.modelo,
 		visual = visual,
 		casa = casa,
-		posicao = info.centro,
+		posicao = casa.Position,
 		alvo = nil,
 		correEm = 0,
 		velocidade = info.config.velocidadeGuardiao,
@@ -212,14 +212,13 @@ local function criarBioma(info: Mapa.InfoBioma): Bioma
 		textoTempo = nil :: any,
 	}
 
-	for i = 1, NINHOS_POR_BIOMA do
-		local angulo = (i - 1) / NINHOS_POR_BIOMA * math.pi * 2
-		local pos = info.centro + Vector3.new(math.cos(angulo), 0, math.sin(angulo)) * RAIO_NINHOS
-
+	-- ninhos espalhados pelo bioma, longe da entrada e do chefe (Mapa.arrumacao)
+	local arrumacao = Mapa.arrumacao(info.indice)
+	for _, pos in arrumacao.ninhos do
 		criarModeloNinho(info, pos)
 
 		local ninho: Ninho = {
-			cframe = CFrame.lookAt(pos + Vector3.new(0, 1, 0), info.centro + Vector3.new(0, 1, 0)),
+			cframe = CFrame.lookAt(pos + Vector3.new(0, 1, 0), arrumacao.entrada + Vector3.new(0, 1, 0)),
 			item = nil,
 			modelo = nil,
 		}

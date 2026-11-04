@@ -582,7 +582,7 @@ local textoEsteira = textoGanho(Color3.fromRGB(130, 220, 255), 0, 1)
 local textoVagas = textoGanho(Color3.fromRGB(255, 220, 120), 1, 0)
 local textoTranca = textoGanho(Color3.fromRGB(200, 170, 255), 1, 1)
 texto({
-	Text = "⚠️ Você perde o dinheiro, a Velocidade, a esteira e tudo da base.",
+	Text = "⚠️ Você perde o dinheiro, a Velocidade, a esteira, as trilhas e tudo da base.",
 	TextColor3 = Color3.fromRGB(255, 170, 170),
 	TextScaled = false,
 	TextSize = 20,
