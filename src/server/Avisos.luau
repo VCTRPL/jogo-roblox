@@ -4,6 +4,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Avisos = {}
 
+-- Tira pastas "Remotes" que tenham ficado salvas no lugar (por exemplo, de
+-- testes no Studio). Com duas, o cliente podia escutar a errada e nenhum
+-- aviso, som ou efeito do servidor chegava nele.
+for _, velha in ReplicatedStorage:GetChildren() do
+	if velha.Name == "Remotes" then
+		velha:Destroy()
+	end
+end
+
 local pasta = Instance.new("Folder")
 pasta.Name = "Remotes"
 local evento = Instance.new("RemoteEvent")
