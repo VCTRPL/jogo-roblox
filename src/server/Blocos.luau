@@ -1,7 +1,9 @@
 -- Estilo "Lego" do jogo todo: as peças viram plástico com pinos em cima
 -- (Studs) e encaixes embaixo (Inlet), e bolas e cilindros viram blocos
 -- quadrados. Roda nos modelos que o jogo monta por código. Os modelos da
--- biblioteca do Roblox (atributo "Biblioteca") ficam como vieram.
+-- biblioteca do Roblox (atributo "Biblioteca") e o que tiver o atributo
+-- "SemLego" (os modelos do Blender de ServerStorage.ModelosMapa, a rua, as
+-- bases e as praças, que usam materiais de verdade) ficam como vieram.
 local Blocos = {}
 
 -- Materiais que continuam iguais: luz, vidro e o campo de força dos portais.
@@ -46,7 +48,7 @@ end
 local function daBiblioteca(objeto: Instance, raiz: Instance): boolean
 	local atual: Instance? = objeto
 	while atual and atual ~= raiz.Parent do
-		if atual:GetAttribute("Biblioteca") then
+		if atual:GetAttribute("Biblioteca") or atual:GetAttribute("SemLego") then
 			return true
 		end
 		atual = atual.Parent

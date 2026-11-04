@@ -1,5 +1,5 @@
 -- Renascer: quem junta dinheiro suficiente zera o progresso (dinheiro,
--- Velocidade, esteira e a base) e ganha para sempre mais renda e mais
+-- Velocidade, esteira, as trilhas compradas e a base) e ganha para sempre mais renda e mais
 -- Velocidade na esteira, mais vagas na base e mais tempo de tranca. Os
 -- números ficam em Config.RENASCER.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,6 +41,12 @@ local function renascer(player: Player)
 	Dados.definir(player, "Velocidade", 0)
 	Dados.definir(player, "Renascimentos", vezes + 1)
 	player:SetAttribute("NivelEsteira", 1)
+	-- as trilhas compradas também vão embora: volta para a trilha inicial
+	-- (nenhuma). Mudar esses atributos já agenda um salvamento (init), então
+	-- elas não voltam quando ele sai e entra de novo.
+	local tinhaTrilha = (player:GetAttribute("NivelTrilha") or 0) > 0
+	player:SetAttribute("TrilhaEquipada", 0)
+	player:SetAttribute("NivelTrilha", 0)
 	Velocidade.atualizar(player)
 	Bases.atualizarPlaca(base)
 
@@ -54,6 +60,9 @@ local function renascer(player: Player)
 		`Você renasceu! Agora ganha {renda}x de dinheiro, tem {Config.vagas(vezes + 1)} vagas e {Config.tempoTranca(vezes + 1)}s de tranca!`,
 		DOURADO
 	)
+	if tinhaTrilha then
+		Avisos.enviar(player, "Suas trilhas foram zeradas: compre de novo na Loja de Trilhas!", Color3.fromRGB(255, 150, 255))
+	end
 	Avisos.todos(`{player.DisplayName} renasceu pela {vezes + 1}ª vez!`, DOURADO)
 	Avisos.som(nil, "Renasceu", base.info.centro)
 	Avisos.efeito("Renasceu", { posicao = base.spawn.Position })

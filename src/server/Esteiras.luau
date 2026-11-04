@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Adereco = require(script.Parent.Adereco)
 local Mapa = require(script.Parent.Mapa)
 
 local Esteiras = {}
@@ -722,36 +723,60 @@ function Esteiras.criar(nivel: number, cf: CFrame): Model
 	end
 	local largura = if estilo.grosso then 0.45 else 0.16
 
-	-- deck: corpo por baixo da pista, laterais, capô do motor e pés de trás
-	preta(CFrame.new(0, 0.4, 0.3), Vector3.new(5, 0.75, 12.6))
-	for _, x in { -1, 1 } do
-		peca(CFrame.new(x * 3.05, 0.65, 0.3), Vector3.new(1.1, 1.3, 13))
-		brilho(CFrame.new(x * 3.62, 0.65, 0.5), Vector3.new(0.1, largura, 11))
-		brilho(CFrame.new(x * 2.55, 1.31, 0.5), Vector3.new(0.14, 0.05, 11.5))
-		-- pé de trás, mais largo
-		peca(CFrame.new(x * 3.15, 0.8, 6.55), Vector3.new(1.5, 1.6, 1.3))
-		brilho(CFrame.new(x * 3.92, 0.8, 6.55), Vector3.new(0.1, 0.5, 0.8))
-	end
-	peca(CFrame.new(0, 0.9, -6.75), Vector3.new(7.2, 1.8, 1.9))
-	brilho(CFrame.new(0, 1.5, -5.79), Vector3.new(5.2, largura * 0.6, 0.06))
-	for _, x in { -1, 1 } do
-		brilho(CFrame.new(x * 3.62, 0.9, -6.75), Vector3.new(0.1, 0.9, 1.2))
-	end
-
-	-- colunas inclinadas e corrimão
-	for _, x in { -1, 1 } do
-		local coluna = CFrame.new(x * 2.95, 4.5, -5.75) * CFrame.Angles(math.rad(10), 0, 0)
-		peca(coluna, Vector3.new(0.9, 6.4, 1))
-		brilho(coluna * CFrame.new(0, 0, 0.51), Vector3.new(largura * 0.8, 5.4, 0.05))
-		if estilo.grosso then
-			-- placas de armadura na frente das colunas
-			brilho(coluna * CFrame.new(x * 0.46, -1.5, 0), Vector3.new(0.05, 2.5, 0.7))
+	-- Corpo da esteira: o modelo do Blender (trilhos com engrenagens e
+	-- parafusos, rolos, capô com grade, colunas, corrimãos e a carcaça do
+	-- painel), pintado com as cores do nível. Sem ele, o corpo de blocos.
+	local malha = Adereco.colocar("Esteira", chao, modelo, {
+		cores = {
+			Estrutura = estilo.estrutura,
+			Neon = estilo.neon or Color3.fromRGB(210, 214, 222),
+			Escuro = PRETO,
+			Metal = if estilo.grosso then estilo.neon or Color3.fromRGB(205, 210, 220) else Color3.fromRGB(205, 210, 220),
+		},
+		materiais = {
+			Estrutura = estilo.material,
+			Neon = if estilo.neon then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+			Metal = Enum.Material.Metal,
+			Escuro = Enum.Material.SmoothPlastic,
+		},
+	})
+	if malha then
+		local neon = malha:FindFirstChild("Neon")
+		if neon and estilo.neon then
+			CollectionService:AddTag(neon, "PulsarEsteira")
 		end
-		peca(CFrame.new(x * 3.15, 7.35, -3.75), Vector3.new(0.75, 0.75, 3.6))
-		preta(CFrame.new(x * 3.15, 7.35, -1.75), Vector3.new(0.8, 0.8, 0.5))
-		brilho(CFrame.new(x * 3.15, 7.75, -3.75), Vector3.new(0.3, 0.05, 3.2))
+	else
+		-- deck: corpo por baixo da pista, laterais, capô do motor e pés de trás
+		preta(CFrame.new(0, 0.4, 0.3), Vector3.new(5, 0.75, 12.6))
+		for _, x in { -1, 1 } do
+			peca(CFrame.new(x * 3.05, 0.65, 0.3), Vector3.new(1.1, 1.3, 13))
+			brilho(CFrame.new(x * 3.62, 0.65, 0.5), Vector3.new(0.1, largura, 11))
+			brilho(CFrame.new(x * 2.55, 1.31, 0.5), Vector3.new(0.14, 0.05, 11.5))
+			-- pé de trás, mais largo
+			peca(CFrame.new(x * 3.15, 0.8, 6.55), Vector3.new(1.5, 1.6, 1.3))
+			brilho(CFrame.new(x * 3.92, 0.8, 6.55), Vector3.new(0.1, 0.5, 0.8))
+		end
+		peca(CFrame.new(0, 0.9, -6.75), Vector3.new(7.2, 1.8, 1.9))
+		brilho(CFrame.new(0, 1.5, -5.79), Vector3.new(5.2, largura * 0.6, 0.06))
+		for _, x in { -1, 1 } do
+			brilho(CFrame.new(x * 3.62, 0.9, -6.75), Vector3.new(0.1, 0.9, 1.2))
+		end
+
+		-- colunas inclinadas e corrimão
+		for _, x in { -1, 1 } do
+			local coluna = CFrame.new(x * 2.95, 4.5, -5.75) * CFrame.Angles(math.rad(10), 0, 0)
+			peca(coluna, Vector3.new(0.9, 6.4, 1))
+			brilho(coluna * CFrame.new(0, 0, 0.51), Vector3.new(largura * 0.8, 5.4, 0.05))
+			if estilo.grosso then
+				-- placas de armadura na frente das colunas
+				brilho(coluna * CFrame.new(x * 0.46, -1.5, 0), Vector3.new(0.05, 2.5, 0.7))
+			end
+			peca(CFrame.new(x * 3.15, 7.35, -3.75), Vector3.new(0.75, 0.75, 3.6))
+			preta(CFrame.new(x * 3.15, 7.35, -1.75), Vector3.new(0.8, 0.8, 0.5))
+			brilho(CFrame.new(x * 3.15, 7.75, -3.75), Vector3.new(0.3, 0.05, 3.2))
+		end
+		peca(CFrame.new(0, 7.4, -5.2), Vector3.new(6.6, 0.7, 0.9))
 	end
-	peca(CFrame.new(0, 7.4, -5.2), Vector3.new(6.6, 0.7, 0.9))
 
 	-- painel inclinado com a tela virada para quem corre
 	local painel = chao * CFrame.new(0, 8.6, -5.3) * CFrame.Angles(math.rad(-25), 0, 0)

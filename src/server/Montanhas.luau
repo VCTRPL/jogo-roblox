@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local Adereco = require(script.Parent.Adereco)
 local Biblioteca = require(script.Parent.Biblioteca)
 local Mapa = require(script.Parent.Mapa)
 
@@ -140,16 +141,38 @@ end
 -- Montanhas da biblioteca do Roblox (ReplicatedStorage.ModelosMontanha, veja
 -- docs/modelos-da-biblioteca.md): "Penhascos" na fileira da frente e "Picos"
 -- nevados atrás. Sem essa pasta, ficam as montanhas de blocos daqui de cima.
+-- Agora as montanhas low-poly do Blender (Montanha1..3 em ServerStorage.ModelosMapa)
+-- vêm antes: rocha, grama no pé e nos degraus e neve no alto.
 local pastaModelos = ReplicatedStorage:FindFirstChild("ModelosMontanha")
-local PENHASCOS = Biblioteca.moldes(pastaModelos and pastaModelos:FindFirstChild("Penhascos"))
-local PICOS = Biblioteca.moldes(pastaModelos and pastaModelos:FindFirstChild("Picos"))
+local PENHASCOS: { any } = Biblioteca.moldes(pastaModelos and pastaModelos:FindFirstChild("Penhascos"))
+local PICOS: { any } = Biblioteca.moldes(pastaModelos and pastaModelos:FindFirstChild("Picos"))
+if Adereco.tem("Montanha1") then
+	PENHASCOS = { "Montanha3", "Montanha1", "Montanha3" }
+	PICOS = { "Montanha2", "Montanha1" }
+end
+local TONS_ROCHA = { Color3.fromRGB(140, 138, 150), Color3.fromRGB(150, 140, 132), Color3.fromRGB(128, 130, 142), Color3.fromRGB(158, 152, 146) }
+local TONS_GRAMA = { Color3.fromRGB(100, 180, 75), Color3.fromRGB(88, 165, 70), Color3.fromRGB(112, 188, 80) }
 local cachoeirasPendentes: { () -> () } = {}
 
 -- Põe um modelo da biblioteca com "largura" de base e "altura", girado ao
 -- acaso, com o pé no meio em "chao". As peças desses modelos só giram em
 -- volta do eixo Y, então dá para esticar cada uma na altura.
 local function modeloMontanha(pasta: Instance, moldes: { Model }, chao: Vector3, largura: number, altura: number): Model?
-	local modelo = Biblioteca.preparar(escolher(moldes), 10)
+	local molde = escolher(moldes)
+	local modelo: Model?
+	if typeof(molde) == "string" then
+		-- montanha do Blender: tons diferentes a cada uma, para dar profundidade
+		modelo = Adereco.colocar(molde, CFrame.new(), Workspace, {
+			colide = true,
+			cores = { Rocha = escolher(TONS_ROCHA), Grama = escolher(TONS_GRAMA) },
+			materiais = { Rocha = Enum.Material.Slate, Grama = Enum.Material.Grass, Neve = Enum.Material.Snow },
+		})
+		if modelo then
+			modelo.Parent = nil
+		end
+	else
+		modelo = Biblioteca.preparar(molde, 10)
+	end
 	if not modelo then
 		return nil
 	end
@@ -158,6 +181,10 @@ local function modeloMontanha(pasta: Instance, moldes: { Model }, chao: Vector3,
 	modelo:ScaleTo(modelo:GetScale() * largura / math.max(maior.X - menor.X, maior.Z - menor.Z))
 	menor, maior = Biblioteca.limites(modelo)
 	local fator = altura / (maior.Y - menor.Y)
+	if typeof(molde) == "string" then
+		-- as do Blender já vêm com a proporção certa: esticar pouco, senão viram espetos
+		fator = math.clamp(fator, 0.8, 1.1)
+	end
 	for _, p in modelo:GetDescendants() do
 		if p:IsA("BasePart") then
 			local y = p.Position.Y - menor.Y

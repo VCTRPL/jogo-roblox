@@ -390,9 +390,23 @@ local function criarBase(info: Mapa.InfoBase): Base
 	plataforma.Anchored = true
 	plataforma.Size = Vector3.new(14, 1, 21)
 	plataforma.Position = Vector3.new(topo.X + direita * 20, 0.5, meioFora)
-	plataforma.Color = Color3.fromRGB(120, 120, 130)
-	plataforma.Material = Enum.Material.SmoothPlastic
+	plataforma.Color = Color3.fromRGB(186, 178, 166)
+	plataforma.Material = Enum.Material.Limestone
+	plataforma:SetAttribute("SemLego", true)
 	plataforma.Parent = info.pasta
+	-- borda na cor da base em volta da plataforma
+	local borda = Instance.new("Part")
+	borda.Name = "BordaPlataforma"
+	borda.Anchored = true
+	borda.CanCollide = false
+	borda.CanQuery = false
+	borda.CanTouch = false
+	borda.Size = plataforma.Size + Vector3.new(0.8, -0.3, 0.8)
+	borda.Position = plataforma.Position - Vector3.new(0, 0.15, 0)
+	borda.Color = info.piso:GetAttribute("CorBase") or info.piso.Color
+	borda.Material = Enum.Material.SmoothPlastic
+	borda:SetAttribute("SemLego", true)
+	borda.Parent = info.pasta
 	local centroEsteira = Vector3.new(plataforma.Position.X, 1.2, meioFora)
 	local cframeEsteira = CFrame.lookAt(centroEsteira, centroEsteira + olhar)
 	local modeloEsteira = Esteiras.criar(1, cframeEsteira)

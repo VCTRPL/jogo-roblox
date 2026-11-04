@@ -5,14 +5,14 @@ Simulador para Roblox no estilo "Roube um Ovo" (Steal an Egg): pegue ovos nos ni
 ## Como o jogo funciona
 
 - **Base**: cada jogador recebe uma das 6 bases ao entrar: um cercado de madeira com 10 vagas, um botão de tranca e, do lado de fora, à direita da entrada, a esteira de corrida. O mapa é criado por código quando o jogo começa.
-- **Biomas**: seguindo a estrada, chega à Selva Sahur, Praia Tralalá (150 de Velocidade), Deserto Frigo (600), Vulcão Toasterino (2K) e Espaço Saturnita (6K). Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. Uma parede só, com a cara de cada bioma, corre pelos dois lados da estrada até o fim, e quem não tem Velocidade suficiente volta para a entrada do bioma (não dá para passar pelo lado).
+- **Biomas** (170 x 170 studs, o chefe fica num canto do fundo e os 8 ninhos espalhados, ligados por trilhas): seguindo a estrada, chega à Selva Sahur, Praia Tralalá (150 de Velocidade), Deserto Frigo (600), Vulcão Toasterino (2K) e Espaço Saturnita (6K). Cada bioma tem 8 ninhos com ovos, que se renovam a cada 3 minutos. Uma parede só, com a cara de cada bioma, corre pelos dois lados da estrada até o fim, e quem não tem Velocidade suficiente volta para a entrada do bioma (não dá para passar pelo lado).
 - **Pegar ovos**: segure **E** num ovo. Ele vai para cima da sua cabeça e o **guardião** do bioma acorda (Tung Tung Tung Sahur, Cappuccino Assassino, Il Cacto Hipopotamo, Rhino Toasterino e La Vaca Saturno Saturnita) e corre atrás de você até a área das bases. Os chefes são enormes: a tela treme quando eles chegam perto. Se ele te pegar, você fica parado 2 segundos e o ovo volta para o ninho. Ovos maiores rendem mais, mas te deixam mais lento.
 - **Chocar**: entre na sua base com o ovo e ele vai para uma vaga. Perto de chocar ele treme e racha. Depois ele vira um Brainrot, que dá dinheiro por segundo. Ao nascer, você ganha um bônus de dinheiro e de Velocidade. O Brainrot pode nascer com mutação: Prata (1.2x), Dourado (2.5x) ou Arco-íris (3.5x). Quando nasce um Lendário, Mítico, Secreto ou Arco-íris, o servidor inteiro fica sabendo.
 - **Vender**: segure **E** num Brainrot da sua base para vender (vale 60 segundos da renda dele). Bom para abrir vaga para um melhor.
 - **Velocidade**: corra em cima da esteira da sua base para ganhar Velocidade. Correndo sem parar, o **fôlego** sobe e o ganho chega a 2x. Segure **E** nela para melhorar (7 níveis, até a Esteira Divina). Mais Velocidade = anda mais rápido = foge do guardião e entra em biomas melhores.
 - **Roubar**: segure **E** num ovo ou Brainrot da base de outro jogador e leve para a sua. Se morrer no caminho, ele volta para o dono. Cada roubo entregue conta no placar de **Roubos**.
 - **Tranca**: o botão vermelho na entrada da base bloqueia roubos por 60 segundos.
-- **Renascer**: com bastante dinheiro (2M no primeiro), o botão 🔄 zera dinheiro, Velocidade, esteira e a base, e dá para sempre +50% de dinheiro e +25% de Velocidade na esteira por renascimento.
+- **Renascer**: com bastante dinheiro (2M no primeiro), o botão 🔄 zera dinheiro, Velocidade, esteira, trilhas e a base, e dá para sempre +50% de dinheiro e +25% de Velocidade na esteira por renascimento.
 - **Loja (gamepasses)**: 2x Dinheiro, 2x Velocidade, Tênis Turbo (+25% de velocidade), Sorte (mais mutações), Tranca Longa e VIP (+50% de dinheiro e etiqueta). Para ativar, crie os passes no Creator Dashboard (**Monetização > Passes**) e ponha o número de cada um em `Config.GAMEPASSES`. Sem número, o passe aparece como "Em breve".
 - **Sons**: tudo tem som (pegar, chocar, vender, roubar...). O botão 🔊 liga e desliga. Música de fundo: ponha ids em `Config.MUSICA` (ou `musica` num bioma).
 - Dinheiro, Velocidade, nível da esteira, renascimentos e o que está na base ficam salvos (DataStore).
@@ -27,13 +27,16 @@ Preços, rendas, chances, tempos e os biomas ficam todos em `src/shared/Config.l
 | `src/server/init.server.luau` | Liga tudo e cuida de quem entra e sai |
 | `src/server/Mapa.luau` | Cria as bases, a estrada e os biomas |
 | `src/server/Ninhos.luau` | Ninhos de ovos, guardião e bloqueio por Velocidade |
-| `src/server/Guardioes.luau` | Os 5 chefes (guardiões): monta o modelo de blocos de `ModelosChefao`, olhos que acendem bravos e as estátuas na frente de cada bioma |
+| `src/server/Guardioes.luau` | Os 5 chefes (guardiões): monta o modelo de blocos de `ModelosChefao` e os olhos que acendem bravos |
 | `src/server/Carregar.luau` | Carregar ovos/Brainrots, entregar na base e roubar |
 | `src/server/Bases.luau` | Vagas, chocar ovos, renda, esteira de corrida e tranca |
 | `src/server/Velocidade.luau` | Velocidade de andar (atributo, peso do ovo, atordoado) |
 | `src/server/Dados.luau` | Placar e salvamento |
 | `src/server/Modelos.luau` | Cria os modelos 3D de ovos e Brainrots |
-| `src/server/Decoracao.luau` | Céu, árvores, praia, arco de entrada, estátuas e portais |
+| `src/server/Decoracao.luau` | Céu, túnel, portais dos biomas, junção com o primeiro bioma e fim do mapa |
+| `src/server/Cidade.luau` | Rua (faixas de pedestre por cima das listras), postes com luz no chão, arquitetura das bases, as duas praças com chafariz e as árvores, pedras e flores da área das bases |
+| `src/server/Biomas.luau` | Decoração de dentro dos biomas: trilhas, arena do chefe, enfeite do meio e do canto, árvores, cactos, cristais etc. |
+| `src/server/Adereco.luau` | Põe os modelos 3D do Blender de `ServerStorage.ModelosMapa` (veja `arte/mapa3d/README.md`) |
 | `src/server/Avisos.luau` | Mensagens na tela, anúncios e pedidos de efeitos para os clientes |
 | `src/server/Blocos.luau` | Estilo Lego: pinos em cima das peças, bolas e cilindros viram blocos |
 | `src/server/Montanhas.luau` | Montanhas quadradas em volta das bases e dos lados das fases |
