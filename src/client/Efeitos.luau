@@ -473,7 +473,8 @@ end
 -- Renasceu: arco-íris subindo e ondas em sequência.
 local function renasceu(dados)
 	local posicao: Vector3 = dados.posicao
-	if not perto(posicao) then
+	-- quem renasceu vê sempre (mesmo com a câmera ainda chegando na base)
+	if dados.jogador ~= jogador.UserId and not perto(posicao) then
 		return
 	end
 	local centro = centroEm(posicao + Vector3.new(0, 3, 0), 4)

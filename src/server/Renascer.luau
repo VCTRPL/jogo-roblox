@@ -64,8 +64,12 @@ local function renascer(player: Player)
 		Avisos.enviar(player, "Suas trilhas foram zeradas: compre de novo na Loja de Trilhas!", Color3.fromRGB(255, 150, 255))
 	end
 	Avisos.todos(`{player.DisplayName} renasceu pela {vezes + 1}ª vez!`, DOURADO)
-	Avisos.som(nil, "Renasceu", base.info.centro)
-	Avisos.efeito("Renasceu", { posicao = base.spawn.Position })
+	-- espera o teleporte chegar no cliente (senão a câmera ainda está longe
+	-- e o efeito não aparece); quem renasceu vê sempre, os outros se estiverem perto
+	task.delay(0.35, function()
+		Avisos.som(nil, "Renasceu", base.spawn.Position)
+		Avisos.efeito("Renasceu", { posicao = base.spawn.Position, jogador = player.UserId })
+	end)
 end
 
 function Renascer.iniciar()
