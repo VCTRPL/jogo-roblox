@@ -791,8 +791,8 @@ task.spawn(function()
 	-- o BloxFig põe camadas por cima do botão (a "Mask group" já foi marcada
 	-- como não interativa no Studio); por garantia qualquer botão dentro dele
 	-- abre a loja, uma vez por toque. A loja abre depois da animação de
-	-- clique do BloxFig ("jelly"), e o botão só some quando ela termina.
-	local ANIMACAO_CLIQUE = 0.35
+	-- clique do BloxFig ("Smooth click" + "Elastic press"), e o botão só some quando ela termina.
+	local ANIMACAO_CLIQUE = 0.5
 	local animandoAte = 0
 	local ultimoToque = 0
 	local function abrirLoja()
