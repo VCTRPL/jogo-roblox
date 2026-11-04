@@ -788,8 +788,12 @@ task.spawn(function()
 		return
 	end
 	botaoLoja.Enabled = false
-	-- o BloxFig põe camadas por cima do botão (a "Mask group" pega o clique),
-	-- então qualquer botão dentro dele abre a loja, uma vez por toque
+	-- o BloxFig põe camadas por cima do botão (a "Mask group" já foi marcada
+	-- como não interativa no Studio); por garantia qualquer botão dentro dele
+	-- abre a loja, uma vez por toque. A loja abre depois da animação de
+	-- clique do BloxFig ("jelly"), e o botão só some quando ela termina.
+	local ANIMACAO_CLIQUE = 0.35
+	local animandoAte = 0
 	local ultimoToque = 0
 	local function abrirLoja()
 		if os.clock() - ultimoToque < 0.3 then
@@ -798,9 +802,12 @@ task.spawn(function()
 		ultimoToque = os.clock()
 		Sons.tocar("BotaoPop")
 		task.delay(0.05, Sons.tocar, "BotaoPlim")
-		if aberto ~= painelTrilhas then
-			abrirPainel(painelTrilhas)
-		end
+		animandoAte = os.clock() + ANIMACAO_CLIQUE
+		task.delay(ANIMACAO_CLIQUE, function()
+			if aberto ~= painelTrilhas then
+				abrirPainel(painelTrilhas)
+			end
+		end)
 	end
 	for _, objeto in botaoLoja:GetDescendants() do
 		if objeto:IsA("GuiButton") then
@@ -808,7 +815,7 @@ task.spawn(function()
 		end
 	end
 	while botaoLoja.Parent do
-		task.wait(0.25)
+		task.wait(0.1)
 		local mapa = Workspace:FindFirstChild("Mapa")
 		local loja = mapa and mapa:FindFirstChild("LojaTrilhas") :: Model?
 		local personagem = jogador.Character
@@ -818,7 +825,7 @@ task.spawn(function()
 			local p = loja:GetPivot().Position
 			perto = Vector3.new(raiz.Position.X - p.X, 0, raiz.Position.Z - p.Z).Magnitude < PERTO_DA_BARRACA
 		end
-		botaoLoja.Enabled = perto and aberto ~= painelTrilhas
+		botaoLoja.Enabled = os.clock() < animandoAte or (perto and aberto ~= painelTrilhas)
 	end
 end)
 
