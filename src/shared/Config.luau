@@ -258,6 +258,8 @@ Config.BIOMAS = {
 -- lugar. Para trocar, ponha o id de um som da Creator Store ("rbxassetid://123").
 Config.SONS = {
 	Clique = { id = "rbxasset://sounds/button.wav", volume = 0.5 },
+	-- botão LOJA da barraca: um "click" seco e curto
+	CliqueLoja = { id = "rbxasset://sounds/clickfast.wav", volume = 0.8, tom = 1.15 },
 	Erro = { id = "rbxasset://sounds/button.wav", volume = 0.5, tom = 0.6 },
 	Pegou = { id = "rbxasset://sounds/swoosh.wav", volume = 0.7, tom = 1.2 },
 	Guardiao = { id = "rbxasset://sounds/unsheath.wav", volume = 0.8, tom = 0.8 },
