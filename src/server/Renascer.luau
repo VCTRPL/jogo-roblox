@@ -2,6 +2,7 @@
 -- Velocidade, esteira, as trilhas compradas e a base) e ganha para sempre mais renda e mais
 -- Velocidade na esteira, mais vagas na base e mais tempo de tranca. Os
 -- números ficam em Config.RENASCER.
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -67,7 +68,13 @@ local function renascer(player: Player)
 	-- espera o teleporte chegar no cliente (senão a câmera ainda está longe
 	-- e o efeito não aparece); quem renasceu vê sempre, os outros se estiverem perto
 	task.delay(0.35, function()
-		Avisos.som(nil, "Renasceu", base.spawn.Position)
+		-- quem renasceu ouve na tela; os outros ouvem na base, no mundo
+		Avisos.som(player, "Renasceu")
+		for _, outro in Players:GetPlayers() do
+			if outro ~= player then
+				Avisos.som(outro, "Renasceu", base.spawn.Position)
+			end
+		end
 		Avisos.efeito("Renasceu", { posicao = base.spawn.Position, jogador = player.UserId })
 	end)
 end
