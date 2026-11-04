@@ -788,13 +788,24 @@ task.spawn(function()
 		return
 	end
 	botaoLoja.Enabled = false
-	local alvo = botaoLoja:FindFirstChild("Group 1") :: GuiButton?
-	if alvo then
-		alvo.Activated:Connect(function()
-			if aberto ~= painelTrilhas then
-				abrirPainel(painelTrilhas)
-			end
-		end)
+	-- o BloxFig põe camadas por cima do botão (a "Mask group" pega o clique),
+	-- então qualquer botão dentro dele abre a loja, uma vez por toque
+	local ultimoToque = 0
+	local function abrirLoja()
+		if os.clock() - ultimoToque < 0.3 then
+			return
+		end
+		ultimoToque = os.clock()
+		Sons.tocar("BotaoPop")
+		task.delay(0.05, Sons.tocar, "BotaoPlim")
+		if aberto ~= painelTrilhas then
+			abrirPainel(painelTrilhas)
+		end
+	end
+	for _, objeto in botaoLoja:GetDescendants() do
+		if objeto:IsA("GuiButton") then
+			objeto.Activated:Connect(abrirLoja)
+		end
 	end
 	while botaoLoja.Parent do
 		task.wait(0.25)
