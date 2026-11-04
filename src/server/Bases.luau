@@ -241,7 +241,15 @@ local function melhorarEsteira(player: Player, base: Base)
 		atualizarEsteira(base)
 		Esteiras.celebrar(base.modeloEsteira, nivel + 1)
 		Avisos.enviar(player, `{proximo.nome}! +{proximo.ganho} Velocidade!`, VERDE)
-		Avisos.som(nil, "Melhorou", base.cframeEsteira.Position)
+		-- som de "subiu de nível" na tela do dono (alto e claro) e um brilho em
+		-- cima; quem está perto ouve a esteira no mundo
+		Avisos.som(player, "MelhorouEsteira")
+		task.delay(0.12, Avisos.som, player, "BrilhoEsteira")
+		for _, outro in Players:GetPlayers() do
+			if outro ~= player then
+				Avisos.som(outro, "Melhorou", base.cframeEsteira.Position)
+			end
+		end
 		Avisos.efeito("EsteiraNova", { posicao = base.cframeEsteira.Position, nivel = nivel + 1 })
 	end
 end

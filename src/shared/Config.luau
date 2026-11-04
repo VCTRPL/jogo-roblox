@@ -270,6 +270,9 @@ Config.SONS = {
 	Erro = { id = "rbxassetid://15675075163", reserva = "rbxasset://sounds/button.wav", volume = 0.4, grupo = "Interface", semVariar = true }, -- Roblox_UI_Delete
 	Comprou = { id = "rbxassetid://15675043410", reserva = "rbxasset://sounds/victory.wav", volume = 0.45, grupo = "Interface" }, -- Roblox_UI_Tonal_Stinger
 	Melhorou = { id = "rbxassetid://15675043410", reserva = "rbxasset://sounds/victory.wav", volume = 0.5, tom = 1.12, grupo = "Interface" },
+	-- melhorou a própria esteira: o "subiu de nível" com um brilho em cima
+	MelhorouEsteira = { id = "rbxassetid://15675043410", reserva = "rbxasset://sounds/victory.wav", volume = 0.75, tom = 1.05, grupo = "Efeitos", semVariar = true },
+	BrilhoEsteira = { id = "rbxassetid://4612374036", reserva = "rbxasset://sounds/electronicpingshort.wav", volume = 0.45, grupo = "Efeitos", semVariar = true },
 	Trancou = { id = "rbxassetid://15675046931", reserva = "rbxasset://sounds/button.wav", volume = 0.45, grupo = "Interface" }, -- Roblox_UI_Sweep
 	Anuncio = { id = "rbxassetid://15675085146", reserva = "rbxasset://sounds/electronicpingshort.wav", volume = 0.35, grupo = "Interface" }, -- Roblox_UI_Indicator
 	-- Efeitos do jogador
