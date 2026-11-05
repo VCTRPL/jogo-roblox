@@ -876,6 +876,9 @@ local menu = criar("Frame", {
 	Parent = tela,
 }, { criar("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
+-- Botões do menu por legenda (para os botões do Figma usarem a mesma ação).
+local botoesMenu: { [string]: { botao: TextButton, executar: () -> () } } = {}
+
 -- "acao" é um painel para abrir ou uma função para chamar.
 -- Com imagem em Ui.BOTOES, o botão é a imagem inteira; sem, a moldura com
 -- gradiente, o ícone e o nome são desenhados aqui. Devolve o ícone (ou, com
@@ -923,14 +926,18 @@ local function botao(ordem: number, icone: string, legenda: string, cima: Color3
 	b.MouseLeave:Connect(function()
 		TweenService:Create(escala, TweenInfo.new(0.15), { Scale = 1 }):Play()
 	end)
-	b.Activated:Connect(function()
-		pular(escala, 0.85)
+	local function executar()
 		if typeof(acao) == "function" then
 			acao()
 		else
 			abrirPainel(acao)
 		end
+	end
+	b.Activated:Connect(function()
+		pular(escala, 0.85)
+		executar()
 	end)
+	botoesMenu[legenda] = { botao = b, executar = executar }
 	return textoIcone
 end
 
@@ -951,6 +958,76 @@ iconeSom = botao(6, "🔊", "Som", Color3.fromRGB(130, 200, 255), Color3.fromRGB
 	else
 		Icones.desenhar(iconeSom, if mudo then "SemSom" else "Som")
 	end
+end)
+
+-- Botões do menu feitos no Figma (importados pelo BloxFig para StarterGui:
+-- "Índice", "Ajuda", "Ranking", "Rebirth", "Loja", "Som on" e "Som off").
+-- Cada um fica exatamente em cima do botão antigo (que vira só o lugar na
+-- coluna) e faz a mesma coisa que ele. O BloxFig anima o botão dentro de
+-- "Suporte", uma moldura que só o jogo move. O som alterna entre "Som on" e
+-- "Som off" conforme estiver mudo.
+local FIGMA_MENU = {
+	{ legenda = "Índice", tela = "Índice" },
+	{ legenda = "Ajuda", tela = "Ajuda" },
+	{ legenda = "Ranking", tela = "Ranking" },
+	{ legenda = "Renascer", tela = "Rebirth" },
+	{ legenda = "Loja", tela = "Loja" },
+	{ legenda = "Som", tela = "Som on", mudo = false },
+	{ legenda = "Som", tela = "Som off", mudo = true },
+}
+task.spawn(function()
+	local guiPlayer = jogador:WaitForChild("PlayerGui")
+	local colocados: { { suporte: Frame, lugar: TextButton, gui: ScreenGui, mudo: boolean? } } = {}
+	for _, item in FIGMA_MENU do
+		local gui = guiPlayer:WaitForChild(item.tela, 10) :: ScreenGui?
+		local suporte = gui and gui:WaitForChild("Suporte", 5) :: Frame?
+		local menuItem = botoesMenu[item.legenda]
+		if not gui or not suporte or not menuItem then
+			continue
+		end
+		gui.IgnoreGuiInset = tela.IgnoreGuiInset
+		gui.DisplayOrder = tela.DisplayOrder + 1
+		-- o botão antigo some, mas continua ocupando o lugar na coluna
+		local lugar = menuItem.botao
+		lugar.BackgroundTransparency = 1
+		lugar.Interactable = false
+		for _, filho in lugar:GetChildren() do
+			if filho:IsA("GuiObject") then
+				filho.Visible = false
+			elseif filho:IsA("UIStroke") then
+				filho.Enabled = false
+			end
+		end
+		local ultimo = 0
+		for _, objeto in gui:GetDescendants() do
+			if objeto:IsA("GuiButton") then
+				objeto.InputBegan:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+						Sons.tocar("Clique")
+					end
+				end)
+				objeto.Activated:Connect(function()
+					if os.clock() - ultimo < 0.25 then
+						return
+					end
+					ultimo = os.clock()
+					menuItem.executar()
+				end)
+			end
+		end
+		table.insert(colocados, { suporte = suporte, lugar = lugar, gui = gui, mudo = item.mudo })
+	end
+	-- acompanha o lugar de cada botão antigo (muda com o tamanho da tela)
+	RunService.RenderStepped:Connect(function()
+		local mudo = Sons.mudo()
+		for _, c in colocados do
+			local p, t = c.lugar.AbsolutePosition, c.lugar.AbsoluteSize
+			c.suporte.Size = UDim2.fromOffset(t.X, t.Y)
+			c.suporte.Position = UDim2.fromOffset(p.X + t.X / 2, p.Y + t.Y / 2)
+			-- aparece junto com o menu (e, no som, só o do estado atual)
+			c.gui.Enabled = c.lugar.Visible and menu.Visible and (c.mudo == nil or c.mudo == mudo)
+		end
+	end)
 end)
 
 function Interface.iniciar()
